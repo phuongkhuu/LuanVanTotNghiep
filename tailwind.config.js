@@ -13,10 +13,9 @@ export default {
 
     theme: {
         extend: {
-            // Giữ nguyên font mặc định của Laravel (Figtree) cho sans
+            // Font chữ
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
-                // Bổ sung font cho design system (Montserrat)
                 'headline-xl': ['Montserrat'],
                 'headline-lg': ['Montserrat'],
                 'headline-md': ['Montserrat'],
@@ -30,7 +29,7 @@ export default {
                 'body-sm': ['Montserrat'],
             },
 
-            // Màu sắc từ thiết kế BigBag
+            // Màu sắc
             colors: {
                 "on-tertiary-fixed": "#351000",
                 "background": "#fbf9f5",
@@ -92,7 +91,7 @@ export default {
                 full: "9999px",
             },
 
-            // Khoảng cách (spacing)
+            // Khoảng cách cơ bản (dùng cho margin, padding, width, height...)
             spacing: {
                 xl: "80px",
                 "margin-desktop": "64px",
@@ -108,11 +107,41 @@ export default {
                 "stack-lg": "32px",
                 "section-gap": "80px",
                 "container-max-width": "1440px",
+            },
 
-            },
-            gap: {
+            // Tùy chỉnh gap (cho grid, flex)
+            gap: ({ theme }) => ({
+                ...theme('spacing'),
+                'stack-sm': '8px',
+                'stack-md': '16px',
+                'stack-lg': '32px',
+                'gutter': '24px',
                 'lg': '2rem',
-            },
+            }),
+
+            // Tùy chỉnh padding (cho các class p-*, pt-*, pb-*, px-*, py-*)
+            padding: ({ theme }) => ({
+                ...theme('spacing'),
+                'stack-sm': '8px',
+                'stack-md': '16px',
+                'stack-lg': '32px',
+            }),
+
+            // Tùy chỉnh margin (cho các class m-*, mt-*, mb-*, ml-*, mr-*, mx-*, my-*)
+            margin: ({ theme }) => ({
+                ...theme('spacing'),
+                'stack-sm': '8px',
+                'stack-md': '16px',
+                'stack-lg': '32px',
+            }),
+
+            // Tùy chỉnh space (cho space-y-*, space-x-*)
+            space: ({ theme }) => ({
+                'stack-sm': '8px',
+                'stack-md': '16px',
+                'stack-lg': '32px',
+            }),
+
             // Font size
             fontSize: {
                 "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
