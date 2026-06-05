@@ -1,3 +1,6 @@
+<!-- thu vien css, cac class css duoc dinh nghia o day -->
+
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>

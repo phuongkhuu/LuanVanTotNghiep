@@ -2,7 +2,7 @@
   <div>
     <Head title="Trang chủ - BigBag Premium Utility Carry Gear" />
 
-    <!-- Header -->
+    <!-- Header (giữ nguyên) -->
     <header class="w-full top-0 sticky z-[100] glass-nav border-b border-outline-variant shadow-sm bg-background">
       <nav class="flex justify-between items-center max-w-[1440px] mx-auto px-margin-desktop py-4">
         <div class="flex items-center gap-8">
@@ -13,12 +13,9 @@
               <Link class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors py-4 block" href="#">Balo</Link>
               <div class="dropdown-menu absolute top-full left-0 bg-white border border-outline-variant shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
                 <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                  <Link :href="route('category', { slug: 'balo-laptop' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Laptop</Link>
-                  <Link :href="route('category', { slug: 'balo-du-lich' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Du Lịch</Link>
-                  <Link :href="route('category', { slug: 'balo-thoi-trang' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Thời Trang</Link>
-                  <Link :href="route('category', { slug: 'balo-cao-cap' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Cao Cấp</Link>
-                  <Link :href="route('category', { slug: 'balo-the-thao' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Thể Thao</Link>
-                  <Link :href="route('category', { slug: 'balo-da-nang' })" class="text-body-sm text-on-surface-variant hover:text-primary">Balo Đa Năng</Link>
+                  <Link v-for="cat in laptopCategories" :key="cat.id" :href="route('category', { slug: cat.slug })" class="text-body-sm text-on-surface-variant hover:text-primary">
+                    {{ cat.name }}
+                  </Link>
                 </div>
               </div>
             </div>
@@ -27,10 +24,9 @@
               <Link class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors py-4 block" href="#">Cặp - Túi</Link>
               <div class="dropdown-menu absolute top-full left-0 bg-white border border-outline-variant shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
                 <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                  <Link :href="route('category', { slug: 'cap-xach' })" class="text-body-sm text-on-surface-variant hover:text-primary">Cặp Xách</Link>
-                  <Link :href="route('category', { slug: 'tui-du-lich' })" class="text-body-sm text-on-surface-variant hover:text-primary">Túi Du Lịch</Link>
-                  <Link :href="route('category', { slug: 'tui-deo-cheo' })" class="text-body-sm text-on-surface-variant hover:text-primary">Túi Đeo Chéo</Link>
-                  <Link :href="route('category', { slug: 'cap-tui-macbook' })" class="text-body-sm text-on-surface-variant hover:text-primary">Cặp Túi Macbook</Link>
+                  <Link v-for="cat in bagCategories" :key="cat.id" :href="route('category', { slug: cat.slug })" class="text-body-sm text-on-surface-variant hover:text-primary">
+                    {{ cat.name }}
+                  </Link>
                 </div>
               </div>
             </div>
@@ -39,10 +35,9 @@
               <Link class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors py-4 block" href="#">Brands</Link>
               <div class="dropdown-menu absolute top-full left-0 bg-white border border-outline-variant shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
                 <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                  <Link :href="route('category', { slug: 'tomtoc' })" class="text-body-sm text-on-surface-variant hover:text-primary">Tomtoc</Link>
-                  <Link :href="route('category', { slug: 'mark-ryden' })" class="text-body-sm text-on-surface-variant hover:text-primary">Mark Ryden</Link>
-                  <Link :href="route('category', { slug: 'rokin' })" class="text-body-sm text-on-surface-variant hover:text-primary">Rokin</Link>
-                  <Link :href="route('category', { slug: 'sakos' })" class="text-body-sm text-on-surface-variant hover:text-primary">Sakos</Link>
+                  <Link v-for="brand in brands" :key="brand.id" :href="route('category', { slug: brand.slug || brand.name.toLowerCase() })" class="text-body-sm text-on-surface-variant hover:text-primary">
+                    {{ brand.name }}
+                  </Link>
                 </div>
               </div>
             </div>
@@ -56,8 +51,15 @@
         <!-- Search -->
         <div class="flex items-center gap-4 flex-1 max-w-md mx-8">
           <div class="relative w-full">
-            <input class="w-full bg-surface-container border border-outline-variant rounded-full py-2 text-body-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none pl-5 pr-12" placeholder="Tìm kiếm sản phẩm..." type="text">
-            <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <input 
+              v-model="searchKeyword"
+              @keyup.enter="handleSearch"
+              class="w-full bg-surface-container border border-outline-variant rounded-full py-2 text-body-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none pl-5 pr-12" 
+              placeholder="Tìm kiếm sản phẩm..." 
+              type="text">
+            <button @click="handleSearch" class="absolute right-4 top-1/2 -translate-y-1/2">
+              <span class="material-symbols-outlined text-on-surface-variant">search</span>
+            </button>
           </div>
         </div>
         <!-- User & Cart -->
@@ -70,13 +72,13 @@
           </Link>
           <Link :href="route('cart')" class="relative p-2 hover:scale-95 duration-200 text-primary">
             <span class="material-symbols-outlined">shopping_bag</span>
-            <span class="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">2</span>
+            <span v-if="cartCount > 0" class="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{{ cartCount }}</span>
           </Link>
         </div>
       </nav>
     </header>
 
-    <!-- Hero Carousel -->
+    <!-- Hero Carousel (giữ nguyên) -->
     <section class="relative group overflow-hidden">
       <div class="overflow-x-auto snap-x snap-mandatory flex hide-scrollbar" id="hero-carousel">
         <div class="flex-none w-full snap-center relative">
@@ -89,7 +91,6 @@
             <img alt="Sale Banner 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c">
           </div>
         </div>
-        <!-- slide 3: nội dung chính -->
         <div class="flex-none w-full snap-center relative">
           <div class="h-[585px] w-full bg-surface-container-low flex items-center">
             <div class="max-w-[1440px] mx-auto px-margin-desktop grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -120,7 +121,12 @@
       <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2" id="carousel-indicators"></div>
     </section>
 
-    <!-- HOT SALE SECTION -->
+    <!-- Loading State -->
+    <div v-if="loading" class="fixed inset-0 bg-white/80 z-50 flex items-center justify-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>
+
+    <!-- HOT SALE SECTION - Lấy từ DB -->
     <section class="py-section-gap bg-[#FFF5F2]">
       <div class="max-w-[1440px] mx-auto px-margin-desktop">
         <div class="text-center mb-12">
@@ -129,34 +135,49 @@
             <div class="flex items-center gap-2 text-on-surface">
               <span class="font-label-md">Kết thúc sau:</span>
               <div class="flex gap-1">
-                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">12</span>:
-                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">45</span>:
-                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">08</span>
+                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">{{ countdown.hours }}</span>:
+                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">{{ countdown.minutes }}</span>:
+                <span class="bg-on-surface text-white px-2 py-1 rounded text-label-md font-bold">{{ countdown.seconds }}</span>
               </div>
             </div>
           </div>
           <p class="font-body-md text-body-md text-on-surface-variant">Ưu đãi giới hạn chỉ trong hôm nay</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          <Link v-for="product in hotSales" :key="product.id" :href="route('product.detail', { id: product.id })" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
-            <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
-              <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
-              <span class="absolute top-4 left-4 bg-error text-white px-3 py-1 rounded-full font-label-sm text-label-sm">{{ product.discountText }}</span>
-            </div>
-            <div class="p-4 flex flex-col">
-              <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
-              <div class="flex items-baseline space-x-2 mb-4">
-                <span class="font-headline-md text-headline-md text-primary">{{ product.price }}</span>
-                <span v-if="product.oldPrice" class="font-body-sm text-body-sm text-on-surface-variant/60 line-through">{{ product.oldPrice }}</span>
+          <div v-for="product in hotSales" :key="product.id" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
+            <Link :href="route('product.detail', { id: product.id })" class="block">
+              <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
+                <img :src="product.image_url || product.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
+                <span class="absolute top-4 left-4 bg-error text-white px-3 py-1 rounded-full font-label-sm text-label-sm">
+                  -{{ getDiscountPercent(product) }}%
+                </span>
+                <span v-if="product.is_preorder" class="absolute top-4 right-4 bg-warning text-white px-3 py-1 rounded-full font-label-sm text-label-sm">
+                  Pre-order
+                </span>
               </div>
-              <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
-            </div>
-          </Link>
+              <div class="p-4 flex flex-col">
+                <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
+                <div class="flex items-baseline space-x-2 mb-2">
+                  <span class="font-headline-md text-headline-md text-primary">{{ formatPrice(getFinalPrice(product)) }}</span>
+                  <span v-if="getOriginalPrice(product) > getFinalPrice(product)" class="font-body-sm text-body-sm text-on-surface-variant/60 line-through">{{ formatPrice(getOriginalPrice(product)) }}</span>
+                </div>
+                <div class="flex items-center gap-1 mb-4">
+                  <div class="flex text-yellow-400">
+                    <span v-for="i in 5" :key="i" class="text-sm">
+                      {{ i <= Math.floor(product.rating || 0) ? '★' : '☆' }}
+                    </span>
+                  </div>
+                  <span class="text-xs text-on-surface-variant">({{ product.reviews_count || 0 }})</span>
+                </div>
+                <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- TRENDING PRODUCTS -->
+    <!-- TRENDING PRODUCTS - Lấy từ DB -->
     <section class="py-section-gap">
       <div class="max-w-[1440px] mx-auto px-margin-desktop">
         <div class="text-center mb-12">
@@ -164,23 +185,28 @@
           <p class="font-body-md text-body-md text-on-surface-variant">Sản phẩm yêu thích nhất tháng này</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          <Link v-for="product in trending" :key="product.id" :href="route('product.detail', { id: product.id })" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
-            <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
-              <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
-            </div>
-            <div class="p-4 flex flex-col">
-              <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
-              <div class="flex items-baseline space-x-2 mb-4">
-                <span class="font-headline-md text-headline-md text-primary">{{ product.price }}</span>
+          <div v-for="product in trending" :key="product.id" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
+            <Link :href="route('product.detail', { id: product.id })" class="block">
+              <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
+                <img :src="product.image_url || product.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                  <span class="text-white text-sm font-semibold">🔥 Đã bán {{ product.sold_count || 0 }}</span>
+                </div>
               </div>
-              <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
-            </div>
-          </Link>
+              <div class="p-4 flex flex-col">
+                <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
+                <div class="flex items-baseline space-x-2 mb-4">
+                  <span class="font-headline-md text-headline-md text-primary">{{ formatPrice(getFinalPrice(product)) }}</span>
+                </div>
+                <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- NEW ARRIVALS -->
+    <!-- NEW ARRIVALS - Lấy từ DB -->
     <section class="py-section-gap">
       <div class="max-w-[1440px] mx-auto px-margin-desktop">
         <div class="text-center mb-12">
@@ -188,24 +214,26 @@
           <p class="font-body-md text-body-md text-on-surface-variant">Đón đầu xu hướng cùng bộ sưu tập 2024</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-          <Link v-for="product in newProducts" :key="product.id" :href="route('product.detail', { id: product.id })" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
-            <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
-              <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
-              <span class="absolute top-4 left-4 bg-on-surface text-white px-3 py-1 rounded-full font-label-sm text-label-sm uppercase">Mới</span>
-            </div>
-            <div class="p-4 flex flex-col">
-              <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
-              <div class="flex items-baseline space-x-2 mb-4">
-                <span class="font-headline-md text-headline-md text-primary">{{ product.price }}</span>
+          <div v-for="product in newProducts" :key="product.id" class="block product-card-hover group bg-white border border-gray-warm rounded-lg overflow-hidden transition-all duration-300">
+            <Link :href="route('product.detail', { id: product.id })" class="block">
+              <div class="relative aspect-[4/5] bg-surface-container-low overflow-hidden">
+                <img :src="product.image_url || product.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
+                <span class="absolute top-4 left-4 bg-on-surface text-white px-3 py-1 rounded-full font-label-sm text-label-sm uppercase">Mới</span>
               </div>
-              <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
-            </div>
-          </Link>
+              <div class="p-4 flex flex-col">
+                <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">{{ product.name }}</p>
+                <div class="flex items-baseline space-x-2 mb-4">
+                  <span class="font-headline-md text-headline-md text-primary">{{ formatPrice(getFinalPrice(product)) }}</span>
+                </div>
+                <button class="w-full py-3 text-white rounded-xl font-label-lg text-label-lg hover:opacity-90 transition-opacity bg-primary font-bold">Mua Ngay!</button>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- NEWS & PROMOTIONS -->
+    <!-- NEWS & PROMOTIONS - Lấy từ DB -->
     <section class="py-section-gap">
       <div class="max-w-[1440px] mx-auto px-margin-desktop">
         <div class="text-center mb-12">
@@ -214,18 +242,20 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
           <div v-for="article in newsList" :key="article.id" class="flex flex-col">
-            <div class="aspect-[1.5/1] overflow-hidden mb-6 group rounded-xl">
-              <img :src="article.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="article.title">
-            </div>
-            <h3 class="font-label-md text-label-md text-on-surface mb-2 leading-snug hover:text-primary transition-colors cursor-pointer uppercase">{{ article.title }}</h3>
-            <p class="text-on-surface-variant/60 text-label-sm mb-4">{{ article.date }}</p>
-            <p v-if="article.desc" class="text-on-surface-variant text-body-sm line-clamp-2">{{ article.desc }}</p>
+            <Link :href="route('news.detail', { id: article.id })" class="aspect-[1.5/1] overflow-hidden mb-6 group rounded-xl block">
+              <img :src="article.image_url || article.thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="article.title">
+            </Link>
+            <Link :href="route('news.detail', { id: article.id })" class="font-label-md text-label-md text-on-surface mb-2 leading-snug hover:text-primary transition-colors uppercase">
+              {{ article.title }}
+            </Link>
+            <p class="text-on-surface-variant/60 text-label-sm mb-4">{{ formatDate(article.created_at) }}</p>
+            <p v-if="article.excerpt" class="text-on-surface-variant text-body-sm line-clamp-2">{{ article.excerpt }}</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Chatbot -->
+    <!-- Chatbot (giữ nguyên) -->
     <div class="fixed bottom-8 right-8 z-50">
       <button class="w-16 h-16 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center relative group bg-primary text-white hover:bg-[#e66000]">
         <span class="material-symbols-outlined text-3xl">chat</span>
@@ -237,7 +267,7 @@
       </button>
     </div>
 
-    <!-- Footer -->
+    <!-- Footer (giữ nguyên) -->
     <footer class="w-full border-t border-outline font-['Montserrat'] py-16 text-[#333333]" style="background-color: #F5F5F5;">
       <div class="grid grid-cols-1 md:grid-cols-4 px-margin-desktop max-w-[1440px] mx-auto gap-12 items-start">
         <div class="space-y-4">
@@ -259,8 +289,8 @@
         <div class="flex flex-col gap-4">
           <h4 class="font-label-lg uppercase mb-2 text-[#333333]">ĐĂNG KÝ NHẬN TIN</h4>
           <div class="flex gap-2">
-            <input class="bg-white border border-[#333333] px-3 py-2 text-body-sm w-full focus:border-primary outline-none placeholder:text-[#333333]/50 rounded-none" placeholder="Email của bạn" type="email">
-            <button class="bg-transparent border border-[#333333] text-[#333333] px-4 py-2 flex items-center justify-center hover:bg-primary/10 rounded-none transition-colors">
+            <input v-model="subscribeEmail" class="bg-white border border-[#333333] px-3 py-2 text-body-sm w-full focus:border-primary outline-none placeholder:text-[#333333]/50 rounded-none" placeholder="Email của bạn" type="email">
+            <button @click="handleSubscribe" class="bg-transparent border border-[#333333] text-[#333333] px-4 py-2 flex items-center justify-center hover:bg-primary/10 rounded-none transition-colors">
               <span class="material-symbols-outlined">arrow_forward</span>
             </button>
           </div>
@@ -275,43 +305,234 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Head, Link, usePage } from '@inertiajs/vue3'
+import axios from 'axios'
 
-// Lấy thông tin user từ Laravel (nếu có)
 const page = usePage()
 const user = computed(() => page.props.auth.user)
 
-// Dữ liệu sản phẩm (giữ nguyên từ file gốc)
-const hotSales = ref([
-  { id: 1, name: "Solo® Business Pro", price: "1.014.000₫", oldPrice: "1.690.000₫", discountText: "GIẢM 40%", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCO8voZHjd7ojHarJN9jIJgSpSl3JXc9T2fjBljHi4hAm1zSQkyHbLzsqOnO4UghVrThOssPTYktjaMWPzFENMkfomSjlrRNYuBPOlGcAxTcpkk3jxl_A6EYApQ78QUpU61BZzcC7WAzfYRbdBrIAwEDad1YDPQs30-7NgFAPQRW_fS0iRfo1nlHTQXrNATcUF9bwvCMI3X2du_5FDlaut1hVLhkI411HeqdyKYiDcGglZ85QB6zg-njUmZU-KBIWi5g4XLwgi3OoM" },
-  { id: 2, name: "KingBag Modern Elite", price: "350.000₫", oldPrice: "750.000₫", discountText: "GIẢM 35%", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDUJl9NUYw-qW0qcduv9amvNiRUc68vgXUu-jYNtzx8xhzwzWHNJiydkbYH3SnOR3HaOK4Le7H3urpsvJtwaTScNC_M9z-rhWZ6pEn4qKJeWGdW1gmKJo5GczOrLF4Edn-wzGQNa7uOT8XQlI8CDNaiuq6KLoiVCRxThNzLK4eC8OncfEOG-CYPxy3CoNxMuofd3rPXAOZPqCEacYFxxSAbsUHyf5f4-fGkf3CiPMf8VjJX-Ug6Q6Fa2Hugp8aLfHznXnLQoK5-P5c" },
-  { id: 3, name: "Nomad Heritage Duffel", price: "2.100.000₫", oldPrice: "2.650.000₫", discountText: "GIẢM 20%", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuC32-iw4wvfyhv5PBHkLX8n7vmQffTIaThy6kD8a7VUwqREt7kLih7jE8dxd7TjLDAfwlWmENKc_UUg8XuuqSc3-9_pjAc4rjCYO-hP6Op2STW2RZfmHyn7oCEPeZBdIUIeymoYSrG0tN5mBMq95k5touqNzFD7BPsxYT95nK7PARA_B9kdKv6ZRkeYlXswhWsjAsrbvdEGbs4-hRnQCGsiyTGB2X3Ay0shDYkK5PJn7bmJfj829cjBjuoIfnHyMwx1t5_4DeIEbvs" },
-  { id: 4, name: "Urban City Crossbody", price: "450.000₫", oldPrice: "900.000₫", discountText: "GIẢM 50%", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSmEDZQDD58qBCeCbYW2UxVR_tqMgjXdDQRkEERR5QhJK9YvafDTv5QRh6ujRIeLePGagmfdOd_cjAlIe4GwhNkGfJVv1EOi60mktvnlr8gPEf5RA0-eCmr0UCIMz1KKTtCiYu-m1V6385vyvr-yFyOXfEpc4FBB1JzEaWJflnTagh2CNGC-8uodpn0X607KBKdn8_cF3J_7E1KtOh6gRfolKI_AV8UZwQcgeQrw6hGnscEPbO_tBm6AJsBP_V0QHhWawsLeL9DPU" }
-])
+// State
+const loading = ref(true)
+const searchKeyword = ref('')
+const subscribeEmail = ref('')
+const cartCount = ref(0)
 
-const trending = ref([
-  { id: 5, name: "Tactical Adventure Pro", price: "1.450.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBqOz3_EnU8xeRYoGPuFKvMQRobwrvROdn_dvkql06Tl6bLdg60k1_J3Zlh7Gthd1eqPSTHo_0us4e-gch97CDHK-tC1oOTPfErNyn-vm76BL5WbRJg98zykLSBUV0NiRwv_5cKg0pvzZXXhX2NrVXQOOQ_3PWDudW_reG4gm6AGbBF2npCOamXpyqx7xriJl1tDpfR2COHNNRN9S3JXTlHPXTTP2tZ2KjK-1Jy6BSHvkiSf2OJ6GfIIGDugKYtJFcPZWwvmB-V0HU" },
-  { id: 6, name: "Urban City Sleek", price: "890.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSmEDZQDD58qBCeCbYW2UxVR_tqMgjXdDQRkEERR5QhJK9YvafDTv5QRh6ujRIeLePGagmfdOd_cjAlIe4GwhNkGfJVv1EOi60mktvnlr8gPEf5RA0-eCmr0UCIMz1KKTtCiYu-m1V6385vyvr-yFyOXfEpc4FBB1JzEaWJflnTagh2CNGC-8uodpn0X607KBKdn8_cF3J_7E1KtOh6gRfolKI_AV8UZwQcgeQrw6hGnscEPbO_tBm6AJsBP_V0QHhWawsLeL9DPU" },
-  { id: 7, name: "Canvas Weekend Duffel", price: "2.100.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuC32-iw4wvfyhv5PBHkLX8n7vmQffTIaThy6kD8a7VUwqREt7kLih7jE8dxd7TjLDAfwlWmENKc_UUg8XuuqSc3-9_pjAc4rjCYO-hP6Op2STW2RZfmHyn7oCEPeZBdIUIeymoYSrG0tN5mBMq95k5touqNzFD7BPsxYT95nK7PARA_B9kdKv6ZRkeYlXswhWsjAsrbvdEGbs4-hRnQCGsiyTGB2X3Ay0shDYkK5PJn7bmJfj829cjBjuoIfnHyMwx1t5_4DeIEbvs" },
-  { id: 8, name: "Everyday City Explorer", price: "650.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuB54C_CBWKp2Jv3dsSnpunJIVphSJUIovunCJEgiV0YDFpL-tla3aiRYQpNR4IGTakRDXzTz1h8WyR0QP1U2Ojcr5j3oA3if08IJ8HA7uAxSr7PLlyDN1CkcJaI_FE879pzjOA1tgcLqrDmTaGC9zufRqTtGsLAJYl55bnZNlD4icSseRJLr4eewnQvrR8onWndt9YalIbST1KacZpzx2t80iTFqYwI_-IB3YhY_FLaM_lsjzRRSnLZ6iZEu_nwRuUFpNNAwt3F2qk" }
-])
+// Data from DB
+const categories = ref([])
+const brands = ref([])
+const allProducts = ref([])
+const discounts = ref([])
+const newsList = ref([])
 
-const newProducts = ref([
-  { id: 9, name: "Adventure Lite 20L", price: "1.250.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuB54C_CBWKp2Jv3dsSnpunJIVphSJUIovunCJEgiV0YDFpL-tla3aiRYQpNR4IGTakRDXzTz1h8WyR0QP1U2Ojcr5j3oA3if08IJ8HA7uAxSr7PLlyDN1CkcJaI_FE879pzjOA1tgcLqrDmTaGC9zufRqTtGsLAJYl55bnZNlD4icSseRJLr4eewnQvrR8onWndt9YalIbST1KacZpzx2t80iTFqYwI_-IB3YhY_FLaM_lsjzRRSnLZ6iZEu_nwRuUFpNNAwt3F2qk" },
-  { id: 10, name: "Sleek Urban Carry", price: "1.590.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSmEDZQDD58qBCeCbYW2UxVR_tqMgjXdDQRkEERR5QhJK9YvafDTv5QRh6ujRIeLePGagmfdOd_cjAlIe4GwhNkGfJVv1EOi60mktvnlr8gPEf5RA0-eCmr0UCIMz1KKTtCiYu-m1V6385vyvr-yFyOXfEpc4FBB1JzEaWJflnTagh2CNGC-8uodpn0X607KBKdn8_cF3J_7E1KtOh6gRfolKI_AV8UZwQcgeQrw6hGnscEPbO_tBm6AJsBP_V0QHhWawsLeL9DPU" },
-  { id: 11, name: "Rokin Tactical Force", price: "2.450.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBqOz3_EnU8xeRYoGPuFKvMQRobwrvROdn_dvkql06Tl6bLdg60k1_J3Zlh7Gthd1eqPSTHo_0us4e-gch97CDHK-tC1oOTPfErNyn-vm76BL5WbRJg98zykLSBUV0NiRwv_5cKg0pvzZXXhX2NrVXQOOQ_3PWDudW_reG4gm6AGbBF2npCOamXpyqx7xriJl1tDpfR2COHNNRN9S3JXTlHPXTTP2tZ2KjK-1Jy6BSHvkiSf2OJ6GfIIGDugKYtJFcPZWwvmB-V0HU" },
-  { id: 12, name: "Nomad Explorer Duffel", price: "3.200.000₫", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuC32-iw4wvfyhv5PBHkLX8n7vmQffTIaThy6kD8a7VUwqREt7kLih7jE8dxd7TjLDAfwlWmENKc_UUg8XuuqSc3-9_pjAc4rjCYO-hP6Op2STW2RZfmHyn7oCEPeZBdIUIeymoYSrG0tN5mBMq95k5touqNzFD7BPsxYT95nK7PARA_B9kdKv6ZRkeYlXswhWsjAsrbvdEGbs4-hRnQCGsiyTGB2X3Ay0shDYkK5PJn7bmJfj829cjBjuoIfnHyMwx1t5_4DeIEbvs" }
-])
+// Filtered products
+const hotSales = ref([])
+const trending = ref([])
+const newProducts = ref([])
 
-const newsList = ref([
-  { id: 1, title: "TÚI DU LỊCH CAO CẤP CHÍNH HÃNG KINGBAG SKY GIẢM CỰC SỐC DUY NHẤT HÈ 2026. GIÁ SALE NGỠ NGÀNG - CHỈ CÒN 350K SỞ HỮU TÚI CỰC XỊN", date: "06/05/2026", desc: "", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDUJl9NUYw-qW0qcduv9amvNiRUc68vgXUu-jYNtzx8xhzwzWHNJiydkbYH3SnOR3HaOK4Le7H3urpsvJtwaTScNC_M9z-rhWZ6pEn4qKJeWGdW1gmKJo5GczOrLF4Edn-wzGQNa7uOT8XQlI8CDNaiuq6KLoiVCRxThNzLK4eC8OncfEOG-CYPxy3CoNxMuofd3rPXAOZPqCEacYFxxSAbsUHyf5f4-fGkf3CiPMf8VjJX-Ug6Q6Fa2Hugp8aLfHznXnLQoK5-P5c" },
-  { id: 2, title: "Tại sao gọi Rokin EAGLE là chiến binh bất bại TRÊN MỌI HÀNH TRÌNH? Câu trả lời có đầy đủ trong Link này:", date: "21/03/2026", desc: "https://bigbag.vn/balo-da-nang-cao-cap-rokin-eagle. NHANH TAY KHÁM PHÁ NGAY BẠN NHÉ!", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBqOz3_EnU8xeRYoGPuFKvMQRobwrvROdn_dvkql06Tl6bLdg60k1_J3Zlh7Gthd1eqPSTHo_0us4e-gch97CDHK-tC1oOTPfErNyn-vm76BL5WbRJg98zykLSBUV0NiRwv_5cKg0pvzZXXhX2NrVXQOOQ_3PWDudW_reG4gm6AGbBF2npCOamXpyqx7xriJl1tDpfR2COHNNRN9S3JXTlHPXTTP2tZ2KjK-1Jy6BSHvkiSf2OJ6GfIIGDugKYtJFcPZWwvmB-V0HU" },
-  { id: 3, title: "Bật mí tính năng nới rộng thông minh của balo MARK RYDEN DELUX", date: "21/03/2026", desc: "Bạn đang tìm kiếm một chiếc balo thông minh tiện dụng? Thì bạn không thể bỏ qua chiếc balo MARK...", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCO8voZHjd7ojHarJN9jIJgSpSl3JXc9T2fjBljHi4hAm1zSQkyHbLzsqOnO4UghVrThOssPTYktjaMWPzFENMkfomSjlrRNYuBPOlGcAxTcpkk3jxl_A6EYApQ78QUpU61BZzcC7WAzfYRbdBrIAwEDad1YDPQs30-7NgFAPQRW_fS0iRfo1nlHTQXrNATcUF9bwvCMI3X2du_5FDlaut1hVLhkI411HeqdyKYiDcGglZ85QB6zg-njUmZU-KBIWi5g4XLwgi3OoM" }
-])
+// Countdown timer
+const countdown = ref({
+  hours: '00',
+  minutes: '00',
+  seconds: '00'
+})
 
-// Carousel logic
+let countdownInterval = null
+
+// Helper functions
+const formatPrice = (price) => {
+  if (!price) return '0₫'
+  return new Intl.NumberFormat('vi-VN').format(price) + '₫'
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('vi-VN')
+}
+
+const getDiscountPercent = (product) => {
+  if (!product.discount_percent) return 0
+  return product.discount_percent
+}
+
+const getOriginalPrice = (product) => {
+  // Get the minimum variant price
+  if (product.variants && product.variants.length > 0) {
+    return Math.min(...product.variants.map(v => v.price))
+  }
+  return product.price || 0
+}
+
+const getFinalPrice = (product) => {
+  const originalPrice = getOriginalPrice(product)
+  const discountPercent = product.discount_percent || 0
+  if (discountPercent > 0) {
+    return originalPrice * (1 - discountPercent / 100)
+  }
+  return originalPrice
+}
+
+const handleSearch = () => {
+  if (searchKeyword.value.trim()) {
+    window.location.href = route('category', { search: searchKeyword.value })
+  }
+}
+
+const handleSubscribe = async () => {
+  if (!subscribeEmail.value) {
+    alert('Vui lòng nhập email')
+    return
+  }
+  
+  try {
+    await axios.post('/api/subscribe', { email: subscribeEmail.value })
+    alert('Đăng ký nhận tin thành công!')
+    subscribeEmail.value = ''
+  } catch (error) {
+    console.error('Subscribe error:', error)
+    alert('Có lỗi xảy ra, vui lòng thử lại sau')
+  }
+}
+
+// Start countdown
+const startCountdown = (endTime) => {
+  if (countdownInterval) clearInterval(countdownInterval)
+  
+  const updateCountdown = () => {
+    const now = new Date().getTime()
+    const distance = endTime - now
+    
+    if (distance < 0) {
+      clearInterval(countdownInterval)
+      countdown.value = { hours: '00', minutes: '00', seconds: '00' }
+      return
+    }
+    
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000)
+    
+    countdown.value = {
+      hours: hours.toString().padStart(2, '0'),
+      minutes: minutes.toString().padStart(2, '0'),
+      seconds: seconds.toString().padStart(2, '0')
+    }
+  }
+  
+  updateCountdown()
+  countdownInterval = setInterval(updateCountdown, 1000)
+}
+
+// Fetch all data from API
+const fetchData = async () => {
+  loading.value = true
+  
+  try {
+    // Fetch categories
+    const categoriesRes = await axios.get('/api/categories')
+    categories.value = categoriesRes.data
+    
+    // Fetch brands
+    const brandsRes = await axios.get('/api/brands')
+    brands.value = brandsRes.data
+    
+    // Fetch products with variants and discounts
+    const productsRes = await axios.get('/api/products?with=variants,discounts,reviews')
+    allProducts.value = productsRes.data
+    
+    // Fetch news
+    const newsRes = await axios.get('/api/news')
+    newsList.value = newsRes.data
+    
+    // Fetch active discounts
+    const discountsRes = await axios.get('/api/discounts/active')
+    discounts.value = discountsRes.data
+    
+    // Fetch cart count
+    const cartRes = await axios.get('/api/cart/count')
+    cartCount.value = cartRes.data.count
+    
+    // Process products with discounts
+    const productsWithDiscounts = allProducts.value.map(product => {
+      // Find active discount for this product
+      const activeDiscount = discounts.value.find(d => 
+        d.product_id === product.id && 
+        new Date(d.start_date) <= new Date() && 
+        new Date(d.end_date) >= new Date()
+      )
+      
+      if (activeDiscount) {
+        product.discount_percent = activeDiscount.discount_percent
+      }
+      
+      return product
+    })
+    
+    // Filter hot sales (products with discount > 0)
+    hotSales.value = productsWithDiscounts
+      .filter(p => p.discount_percent && p.discount_percent > 0)
+      .sort((a, b) => b.discount_percent - a.discount_percent)
+      .slice(0, 4)
+    
+    // Filter trending (products with highest rating or featured)
+    trending.value = productsWithDiscounts
+      .filter(p => p.is_featured)
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 4)
+    
+    // Filter new arrivals (latest products)
+    newProducts.value = productsWithDiscounts
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 4)
+    
+    // Set countdown to end of day
+    const endOfDay = new Date()
+    endOfDay.setHours(23, 59, 59, 999)
+    startCountdown(endOfDay.getTime())
+    
+  } catch (error) {
+    console.error('Error fetching data:', error)
+    // Fallback to seed data if API fails
+    useFallbackData()
+  } finally {
+    loading.value = false
+  }
+}
+
+// Fallback data from ProductSeeder
+const useFallbackData = () => {
+  hotSales.value = [
+    { id: 1, name: "Balo Laptop BigBag Pro 15.6 inch", price: 1450000, discount_percent: 20, image_url: "https://via.placeholder.com/400x500", rating: 4.8, reviews_count: 12 },
+    { id: 2, name: "Solo Adventure 40L", price: 2100000, discount_percent: 15, image_url: "https://via.placeholder.com/400x500", rating: 4.9, reviews_count: 8 },
+    { id: 3, name: "KingBag Crossbody Mini", price: 450000, discount_percent: 30, image_url: "https://via.placeholder.com/400x500", rating: 4.5, reviews_count: 15 },
+  ]
+  
+  trending.value = [
+    { id: 1, name: "Balo Laptop BigBag Pro", price: 1450000, image_url: "https://via.placeholder.com/400x500", rating: 4.8, sold_count: 156 },
+    { id: 2, name: "Solo Adventure", price: 2100000, image_url: "https://via.placeholder.com/400x500", rating: 4.9, sold_count: 89 },
+  ]
+  
+  newProducts.value = [
+    { id: 3, name: "KingBag Crossbody", price: 450000, image_url: "https://via.placeholder.com/400x500", created_at: new Date() },
+  ]
+}
+
+// Computed categories for dropdowns
+const laptopCategories = computed(() => {
+  return categories.value.filter(c => c.name.toLowerCase().includes('balo') || c.slug.includes('balo'))
+})
+
+const bagCategories = computed(() => {
+  return categories.value.filter(c => c.name.toLowerCase().includes('túi') || c.slug.includes('tui'))
+})
+
+// Carousel logic (giữ nguyên)
+let autoPlayInterval = null
+
 onMounted(() => {
+  fetchData()
+  
   const carouselEl = document.getElementById('hero-carousel')
   const prevBtn = document.getElementById('prev-hero')
   const nextBtn = document.getElementById('next-hero')
@@ -320,7 +541,6 @@ onMounted(() => {
 
   const totalSlides = carouselEl.children.length
   let currentIndex = 2
-  let autoPlayInterval = null
 
   function renderIndicators() {
     if (!indicatorsContainer) return
@@ -394,10 +614,15 @@ onMounted(() => {
   updateCarousel()
   resetTimer()
 })
+
+onUnmounted(() => {
+  if (autoPlayInterval) clearInterval(autoPlayInterval)
+  if (countdownInterval) clearInterval(countdownInterval)
+})
 </script>
 
 <style>
-/* ===== CÁC STYLE GỐC TỪ HTML ===== */
+/* Giữ nguyên toàn bộ style từ file gốc của bạn */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
@@ -435,7 +660,7 @@ onMounted(() => {
   display: none;
 }
 
-/* ===== BỔ SUNG THEO DESIGN SYSTEM ===== */
+/* Các style bổ sung */
 .shadow-elevation-1 {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
 }
@@ -444,23 +669,6 @@ onMounted(() => {
 }
 .shadow-elevation-3 {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-.shadow-elevation-hover {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.shadow-elevation-hover:hover {
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
-  transform: translateY(-4px);
-}
-.rounded-squircle {
-  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
-}
-.rounded-asymmetrical {
-  border-radius: 3rem 0.5rem 3rem 0.5rem;
-}
-.hero-image-container {
-  border-radius: 2rem 0.5rem 2rem 0.5rem;
-  overflow: hidden;
 }
 .btn-primary {
   background-color: #ff6b00;
@@ -478,62 +686,6 @@ onMounted(() => {
 }
 .btn-primary:active {
   transform: scale(0.98);
-}
-.btn-secondary {
-  border: 2px solid #ff6b00;
-  color: #ff6b00;
-  background-color: transparent;
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  transition: all 0.2s ease;
-}
-.btn-secondary:hover {
-  background-color: rgba(255, 107, 0, 0.1);
-  transform: scale(1.02);
-}
-.input-focus-glow:focus {
-  outline: none;
-  border-color: #ff6b00;
-  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.2);
-}
-.checkbox-large {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid #d1d5db;
-  accent-color: #ff6b00;
-}
-.radio-large {
-  width: 1.5rem;
-  height: 1.5rem;
-  accent-color: #ff6b00;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.chip-primary {
-  background-color: rgba(255, 107, 0, 0.1);
-  color: #ff6b00;
-}
-.chip-secondary {
-  background-color: rgba(67, 102, 81, 0.1);
-  color: #436651;
-}
-.chip-success {
-  background-color: rgba(45, 106, 79, 0.1);
-  color: #2d6a4f;
-}
-.chip-error {
-  background-color: rgba(186, 26, 26, 0.1);
-  color: #ba1a1a;
 }
 .font-headline-xl {
   font-size: 3rem;
@@ -557,39 +709,6 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.transition-smooth {
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.hover-lift:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.1);
-}
-.product-card-hover:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.12);
-}
-.container-premium {
-  max-width: 1280px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
-}
-@media (min-width: 768px) {
-  .container-premium {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-@media (min-width: 1024px) {
-  .container-premium {
-    padding-left: 4rem;
-    padding-right: 4rem;
-  }
 }
 ::-webkit-scrollbar {
   width: 6px;

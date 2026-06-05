@@ -1,3 +1,5 @@
+// cac dinh dang CSS , mau sac, font chu, border-radius, spacing... duoc dinh nghia o day
+
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
 
