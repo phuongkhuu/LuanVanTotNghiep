@@ -310,7 +310,8 @@ import { Head, Link, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 
 const page = usePage()
-const user = computed(() => page.props.auth.user)
+const user = computed(() => page.props.auth?.user || null);
+const isAuthenticated = computed(() => !!user.value);
 
 // State
 const loading = ref(true)
