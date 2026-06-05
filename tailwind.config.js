@@ -83,7 +83,8 @@ export default {
                 "on-background": "#1b1c1a",
                 "gray-warm": "#E9E9E9",
                 "charcoal-deep": "#121212",
-                "success-green": "#2D6A4F"
+                "success-green": "#2D6A4F",
+                "preorder": "#f59e0b", // 👈 thêm màu cho pre‑order
             },
 
             // Border radius
