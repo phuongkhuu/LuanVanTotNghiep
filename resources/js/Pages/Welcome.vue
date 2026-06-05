@@ -64,7 +64,7 @@
         </div>
         <!-- User & Cart -->
         <div class="flex items-center gap-2">
-          <Link v-if="!user" :href="route('login')" class="p-2 hover:scale-95 duration-200 text-primary">
+          <Link v-if="!user" :href="route('register')" class="p-2 hover:scale-95 duration-200 text-primary">
             <span class="material-symbols-outlined">person</span>
           </Link>
           <Link v-else :href="route('profile.edit')" class="p-2 hover:scale-95 duration-200 text-primary">

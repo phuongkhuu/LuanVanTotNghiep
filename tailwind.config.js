@@ -1,5 +1,3 @@
-// cac dinh dang CSS , mau sac, font chu, border-radius, spacing... duoc dinh nghia o day
-
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
 
@@ -82,7 +80,8 @@ export default {
                 "on-background": "#1b1c1a",
                 "gray-warm": "#E9E9E9",
                 "charcoal-deep": "#121212",
-                "success-green": "#2D6A4F"
+                "success-green": "#2D6A4F",
+                "preorder": "#f59e0b", // 👈 thêm màu cho pre‑order
             },
 
             // Border radius
@@ -121,7 +120,7 @@ export default {
                 'lg': '2rem',
             }),
 
-            // Tùy chỉnh padding (cho các class p-*, pt-*, pb-*, px-*, py-*)
+            // Tùy chỉnh padding
             padding: ({ theme }) => ({
                 ...theme('spacing'),
                 'stack-sm': '8px',
@@ -129,7 +128,7 @@ export default {
                 'stack-lg': '32px',
             }),
 
-            // Tùy chỉnh margin (cho các class m-*, mt-*, mb-*, ml-*, mr-*, mx-*, my-*)
+            // Tùy chỉnh margin
             margin: ({ theme }) => ({
                 ...theme('spacing'),
                 'stack-sm': '8px',
@@ -143,6 +142,11 @@ export default {
                 'stack-md': '16px',
                 'stack-lg': '32px',
             }),
+
+            // Thêm maxWidth cho container
+            maxWidth: {
+                'container-max-width': '1440px',
+            },
 
             // Font size
             fontSize: {

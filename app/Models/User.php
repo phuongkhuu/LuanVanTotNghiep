@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'full_name',
+    'name',
     'email',
     'password',
     'phone',
