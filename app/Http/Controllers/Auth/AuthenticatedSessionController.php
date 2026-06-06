@@ -33,7 +33,16 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Lấy thông tin user vừa đăng nhập
+        $user = Auth::user();
+
+        // Nếu user có role = 'admin' thì chuyển hướng đến admin dashboard
+        if ($user->role === 'admin') {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        // Mặc định cho user thường (không phải admin)
+        return redirect()->intended(route('home'));
     }
 
     /**
