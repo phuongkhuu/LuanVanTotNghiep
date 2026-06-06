@@ -47,6 +47,11 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        if ($user->role === 'admin') {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        // Mặc định cho user thường (không phải admin)
+        return redirect()->intended(route('home'));
     }
 }
