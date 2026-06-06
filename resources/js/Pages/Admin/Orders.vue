@@ -266,7 +266,20 @@ const getStatusLabel = (status) => {
                 </button>
             </div>
 
-            <!-- Search and Filters -->
+            <!-- Thanh tìm kiếm (giống hệt trang khách hàng) -->
+            <div class="mb-4">
+                <div class="relative max-w-md">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Tìm theo mã đơn hoặc tên khách hàng..." 
+                        class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
+                    >
+                </div>
+            </div>
+
+            <!-- Bộ lọc trạng thái (giữ nguyên) -->
             <div class="flex flex-wrap justify-between gap-4 mb-4">
                 <div class="flex flex-wrap gap-2">
                     <button 
@@ -278,15 +291,6 @@ const getStatusLabel = (status) => {
                     >
                         {{ status === 'all' ? 'Tất cả' : getStatusLabel(status) }}
                     </button>
-                </div>
-                <div class="relative">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                    <input 
-                        v-model="search" 
-                        type="text" 
-                        placeholder="Tìm theo mã đơn hoặc tên khách hàng..." 
-                        class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-80 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
-                    >
                 </div>
             </div>
 
@@ -342,14 +346,12 @@ const getStatusLabel = (status) => {
                                         @click="viewDetail(order)" 
                                         class="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
                                         title="Xem chi tiết"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">visibility</span>
+                                    >Xem chi tiết
                                     </button>
                                     <button 
                                         class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors"
                                         title="In đơn hàng"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">print</span>
+                                    >In
                                     </button>
                                 </td>
                             </tr>

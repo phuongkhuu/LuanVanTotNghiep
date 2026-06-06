@@ -279,7 +279,7 @@ onMounted(() => {
                 <!-- Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <p class="text-sm text-gray-500 flex items-center gap-1">🛒 Bán lẻ</p>
+                        <p class="text-sm text-gray-500 flex items-center gap-1">Bán lẻ</p>
                         <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.retail.revenue) }}</p>
                         <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">trending_up</span>
@@ -288,7 +288,7 @@ onMounted(() => {
                     </div>
                     
                     <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <p class="text-sm text-gray-500 flex items-center gap-1">🏭 Bán sỉ</p>
+                        <p class="text-sm text-gray-500 flex items-center gap-1">Bán sỉ</p>
                         <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.wholesale.revenue) }}</p>
                         <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">trending_up</span>
@@ -297,7 +297,7 @@ onMounted(() => {
                     </div>
                     
                     <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <p class="text-sm text-gray-500 flex items-center gap-1">⏳ Pre-order</p>
+                        <p class="text-sm text-gray-500 flex items-center gap-1">Pre-order</p>
                         <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.preorder.revenue) }}</p>
                         <p class="text-xs text-yellow-600 mt-1 flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">trending_up</span>
@@ -307,17 +307,14 @@ onMounted(() => {
                 </div>
 
                 <!-- Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              
                     <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                         <h3 class="font-semibold text-gray-800 mb-4">Doanh thu theo loại hình</h3>
                         <canvas id="revenueByTypeChart" height="250"></canvas>
                     </div>
                     
-                    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <h3 class="font-semibold text-gray-800 mb-4">Doanh thu theo danh mục</h3>
-                        <canvas id="categoryChart" height="250"></canvas>
-                    </div>
-                </div>
+                    
+                
 
                 <!-- Top Products & Customers -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

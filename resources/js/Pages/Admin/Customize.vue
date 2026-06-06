@@ -327,7 +327,7 @@ const formatPrice = (value) => {
                                         class="text-xs px-2 py-1 rounded-full"
                                         :class="request.customerType === 'business' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'"
                                     >
-                                        {{ request.customerType === 'business' ? '🏢 Doanh nghiệp' : '👤 Khách lẻ' }}
+                                        {{ request.customerType === 'business' ? 'Doanh nghiệp' : 'Khách lẻ' }}
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-gray-600">{{ request.product }}</td>

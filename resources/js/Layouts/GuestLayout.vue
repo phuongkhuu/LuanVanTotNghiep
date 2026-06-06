@@ -1,14 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 
-// Menu items cho Guest
-const navigation = [
-    { name: 'Trang chủ', href: route('home'), icon: 'home' },
-    { name: 'Sản phẩm', href: '#', icon: 'inventory_2' },
-    { name: 'Mua sỉ', href: route('wholesale'), icon: 'business' },
-    { name: 'Tùy chỉnh', href: route('customize'), icon: 'palette' },
-    { name: 'Khuyến mãi', href: route('promotion'), icon: 'local_offer' },
-];
+// Menu items cho Gues
 </script>
 
 <template>

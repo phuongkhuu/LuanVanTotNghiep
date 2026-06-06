@@ -21,13 +21,7 @@ const customerTypes = [
     { value: 'business', label: 'Doanh nghiệp (B2B)', icon: '🏢' }
 ];
 
-// Tier options for each customer type
-const tierOptions = {
-    retail: ['Thường', 'VIP', 'Thân thiết'],
-    business: ['Đối tác mới', 'Đối tác thân thiết', 'Đối tác chiến lược']
-};
-
-// Customers data
+// Customers data (đã bỏ trường tier)
 const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers : [
     { 
         id: 1, 
@@ -36,7 +30,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
         phone: '0901234567', 
         orders: 12, 
         totalSpent: 28500000, 
-        tier: 'VIP', 
         type: 'retail',
         address: '123 Đường ABC, Quận 1, TP.HCM',
         joinDate: '01/01/2024',
@@ -49,7 +42,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
         phone: '0912345678', 
         orders: 8, 
         totalSpent: 156000000, 
-        tier: 'Đối tác thân thiết', 
         type: 'business',
         address: '456 Đường XYZ, Quận 2, TP.HCM',
         taxCode: '0123456789',
@@ -64,7 +56,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
         phone: '0923456789', 
         orders: 5, 
         totalSpent: 8900000, 
-        tier: 'Thường', 
         type: 'retail',
         address: '789 Đường DEF, Quận 3, TP.HCM',
         joinDate: '20/02/2024',
@@ -77,7 +68,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
         phone: '0934567890', 
         orders: 18, 
         totalSpent: 45200000, 
-        tier: 'Thân thiết', 
         type: 'retail',
         address: '321 Đường GHI, Quận 4, TP.HCM',
         joinDate: '10/11/2023',
@@ -90,7 +80,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
         phone: '0945678901', 
         orders: 15, 
         totalSpent: 389000000, 
-        tier: 'Đối tác chiến lược', 
         type: 'business',
         address: '654 Đường JKL, Quận 5, TP.HCM',
         taxCode: '9876543210',
@@ -103,7 +92,6 @@ const customers = ref(props.initialCustomers.length > 0 ? props.initialCustomers
 // Modal state
 const showDetailModal = ref(false);
 const selectedCustomer = ref(null);
-const isUpdating = ref(false);
 
 // Computed: filtered customers
 const filteredCustomers = computed(() => {
@@ -130,15 +118,6 @@ const newCustomers = computed(() => {
     return filteredCustomers.value.filter(c => c.orders <= 2).length;
 });
 
-const vipCount = computed(() => {
-    return filteredCustomers.value.filter(c => 
-        c.tier === 'VIP' || 
-        c.tier === 'Thân thiết' || 
-        c.tier === 'Đối tác thân thiết' || 
-        c.tier === 'Đối tác chiến lược'
-    ).length;
-});
-
 const avgSpent = computed(() => {
     if (filteredCustomers.value.length === 0) return 0;
     const total = filteredCustomers.value.reduce((sum, c) => sum + c.totalSpent, 0);
@@ -149,39 +128,6 @@ const avgSpent = computed(() => {
 const formatPrice = (value) => {
     if (!value) return '0₫';
     return value.toLocaleString('vi-VN') + '₫';
-};
-
-// Get tier badge class
-const getTierClass = (tier, type) => {
-    const vipTiers = ['VIP', 'Thân thiết', 'Đối tác thân thiết', 'Đối tác chiến lược'];
-    if (vipTiers.includes(tier)) {
-        return 'bg-orange-100 text-orange-700';
-    }
-    return 'bg-gray-100 text-gray-600';
-};
-
-// Update customer tier
-const updateTier = async (customer) => {
-    isUpdating.value = true;
-    try {
-        await router.put(`/admin/customers/${customer.id}`, {
-            tier: customer.tier
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log(`Đã cập nhật hạng cho khách hàng ${customer.name}`);
-            },
-            onError: (errors) => {
-                console.error('Lỗi cập nhật:', errors);
-                alert('Có lỗi xảy ra khi cập nhật hạng khách hàng');
-            }
-        });
-    } catch (error) {
-        console.error('Cập nhật thất bại:', error);
-        alert('Có lỗi xảy ra khi cập nhật hạng khách hàng');
-    } finally {
-        isUpdating.value = false;
-    }
 };
 
 // View customer detail
@@ -208,7 +154,6 @@ const exportExcel = async () => {
 
 // Send email to customer
 const sendEmail = (customer) => {
-    // Mở modal gửi email hoặc chuyển hướng
     alert(`Chức năng gửi email đến ${customer.email} đang được phát triển`);
 };
 
@@ -260,48 +205,13 @@ const formatDate = (date) => {
                     <input 
                         v-model="search" 
                         type="text" 
-                        placeholder="Tìm kiếm khách hàng theo tên, email hoặc số điện thoại..." 
+                        placeholder="Tìm kiếm theo tên, email hoặc số điện thoại..." 
                         class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
                     >
                 </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">Tổng {{ activeType === 'retail' ? 'KH lẻ' : 'KH DN' }}</span>
-                        <span class="material-symbols-outlined text-orange-500">{{ activeType === 'retail' ? 'people' : 'business' }}</span>
-                    </div>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ filteredCustomers.length }}</p>
-                </div>
-                
-                <div class="bg-white rounded-xl p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">KH mới (tháng)</span>
-                        <span class="material-symbols-outlined text-orange-500">person_add</span>
-                    </div>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ newCustomers }}</p>
-                </div>
-                
-                <div class="bg-white rounded-xl p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">{{ activeType === 'retail' ? 'KH VIP' : 'Đối tác thân thiết' }}</span>
-                        <span class="material-symbols-outlined text-orange-500">{{ activeType === 'retail' ? 'star' : 'handshake' }}</span>
-                    </div>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ vipCount }}</p>
-                </div>
-                
-                <div class="bg-white rounded-xl p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">Doanh thu TB</span>
-                        <span class="material-symbols-outlined text-orange-500">payments</span>
-                    </div>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(avgSpent) }}</p>
-                </div>
-            </div>
-
-            <!-- Danh sách khách hàng -->
+            <!-- Danh sách khách hàng (đã bỏ cột Hạng) -->
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
@@ -312,7 +222,6 @@ const formatDate = (date) => {
                                 <th class="text-left py-3 px-4 text-gray-600 font-semibold">SĐT</th>
                                 <th class="text-left py-3 px-4 text-gray-600 font-semibold">ĐƠN HÀNG</th>
                                 <th class="text-left py-3 px-4 text-gray-600 font-semibold">TỔNG CHI</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">HẠNG</th>
                                 <th class="text-center py-3 px-4 text-gray-600 font-semibold">THAO TÁC</th>
                             </tr>
                         </thead>
@@ -334,43 +243,23 @@ const formatDate = (date) => {
                                 <td class="py-3 px-4 text-gray-600">{{ customer.phone }}</td>
                                 <td class="py-3 px-4 text-gray-600">{{ customer.orders }}</td>
                                 <td class="py-3 px-4 font-semibold text-orange-600">{{ formatPrice(customer.totalSpent) }}</td>
-                                <td class="py-3 px-4">
-                                    <select 
-                                        v-model="customer.tier" 
-                                        @change="updateTier(customer)"
-                                        class="text-xs px-2 py-1 rounded-full font-medium focus:outline-none focus:ring-1 focus:ring-orange-500"
-                                        :class="getTierClass(customer.tier, customer.type)"
-                                        :disabled="isUpdating"
-                                    >
-                                        <option 
-                                            v-for="tier in tierOptions[activeType]" 
-                                            :key="tier" 
-                                            :value="tier"
-                                            class="text-gray-800"
-                                        >
-                                            {{ tier }}
-                                        </option>
-                                    </select>
-                                </td>
                                 <td class="py-3 px-4 text-center">
                                     <button 
                                         @click="viewDetail(customer)" 
                                         class="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
                                         title="Xem chi tiết"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">visibility</span>
+                                    >Xem chi tiết
                                     </button>
                                     <button 
                                         @click="sendEmail(customer)" 
                                         class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors"
                                         title="Gửi email"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">mail</span>
+                                    >Mail
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="filteredCustomers.length === 0">
-                                <td colspan="7" class="text-center py-8 text-gray-500">
+                                <td colspan="6" class="text-center py-8 text-gray-500">
                                     Không có khách hàng nào
                                 </td>
                             </tr>
@@ -380,7 +269,7 @@ const formatDate = (date) => {
             </div>
         </div>
 
-        <!-- Modal chi tiết khách hàng -->
+        <!-- Modal chi tiết khách hàng (đã bỏ thông tin hạng) -->
         <div 
             v-if="showDetailModal" 
             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
@@ -407,7 +296,6 @@ const formatDate = (date) => {
                             <h4 class="text-lg font-bold text-gray-800">{{ selectedCustomer?.name }}</h4>
                             <p class="text-sm text-gray-500">
                                 {{ activeType === 'retail' ? 'Khách hàng lẻ' : 'Khách hàng doanh nghiệp' }}
-                                • Hạng: <span class="font-medium" :class="getTierClass(selectedCustomer?.tier, selectedCustomer?.type)">{{ selectedCustomer?.tier }}</span>
                             </p>
                         </div>
                     </div>

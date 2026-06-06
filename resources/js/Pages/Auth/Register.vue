@@ -1,10 +1,6 @@
 <script setup>
-import GuestLayout from '@/Layouts/GuestLayout.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const form = useForm({
     name: '',
@@ -13,101 +9,206 @@ const form = useForm({
     password_confirmation: '',
 });
 
+const passwordFieldType = ref('password');
+const loading = ref(false);
+
+const togglePasswordVisibility = () => {
+    passwordFieldType.value = passwordFieldType.value === 'password' ? 'text' : 'password';
+};
+
 const submit = () => {
+    loading.value = true;
     form.post(route('register'), {
-        onFinish: () => form.reset('password', 'password_confirmation'),
+        onFinish: () => {
+            form.reset('password', 'password_confirmation');
+            loading.value = false;
+        },
+        onError: () => {
+            loading.value = false;
+        }
     });
 };
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Register" />
-
-        <form @submit.prevent="submit">
-            <div>
-                <InputLabel for="name" value="Name" />
-
-                <TextInput
-                    id="name"
-                    type="text"
-                    class="mt-1 block w-full"
-                    v-model="form.name"
-                    required
-                    autofocus
-                    autocomplete="name"
-                />
-
-                <InputError class="mt-2" :message="form.errors.name" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel for="email" value="Email" />
-
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autocomplete="username"
-                />
-
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
-
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password"
-                    required
-                    autocomplete="new-password"
-                />
-
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
-
-            <div class="mt-4">
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
-
-                <TextInput
-                    id="password_confirmation"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password_confirmation"
-                    required
-                    autocomplete="new-password"
-                />
-
-                <InputError
-                    class="mt-2"
-                    :message="form.errors.password_confirmation"
-                />
-            </div>
-
-            <div class="mt-4 flex items-center justify-end">
-                <Link
-                    :href="route('login')"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                    Already registered?
+    <Head title="Đăng ký - BigBag Premium Utility Carry Gear" />
+    
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+            
+            <!-- Logo & Title -->
+            <div class="text-center">
+                <Link :href="route('home')" class="inline-block">
+                    <h1 class="text-3xl font-bold">
+                        <span class="text-primary">BigBag</span><span class="text-gray-800">.vn</span>
+                    </h1>
                 </Link>
-
-                <PrimaryButton
-                    class="ms-4"
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
-                >
-                    Register
-                </PrimaryButton>
+                <h2 class="mt-6 text-2xl font-bold text-gray-900">Đăng ký tài khoản</h2>
+                <p class="mt-2 text-sm text-gray-600">Tạo tài khoản để mua sắm dễ dàng hơn</p>
             </div>
-        </form>
-    </GuestLayout>
+
+            <!-- Form Register -->
+            <form class="mt-8 space-y-6" @submit.prevent="submit">
+                <div class="space-y-4">
+                    <!-- Name -->
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+                            Họ và tên <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">person</span>
+                            </span>
+                            <input
+                                id="name"
+                                type="text"
+                                v-model="form.name"
+                                required
+                                autofocus
+                                autocomplete="name"
+                                class="block w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-primary focus:border-primary bg-gray-50 text-gray-900 text-sm"
+                                :class="form.errors.name ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="Nguyễn Văn A"
+                            />
+                        </div>
+                        <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">{{ form.errors.name }}</p>
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                            Email <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">mail</span>
+                            </span>
+                            <input
+                                id="email"
+                                type="email"
+                                v-model="form.email"
+                                required
+                                autocomplete="username"
+                                class="block w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-primary focus:border-primary bg-gray-50 text-gray-900 text-sm"
+                                :class="form.errors.email ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="example@bigbag.vn"
+                            />
+                        </div>
+                        <p v-if="form.errors.email" class="mt-1 text-xs text-red-500">{{ form.errors.email }}</p>
+                    </div>
+
+                    <!-- Password -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Mật khẩu <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">lock</span>
+                            </span>
+                            <input
+                                :id="passwordFieldType"
+                                :type="passwordFieldType === 'password' ? 'password' : 'text'"
+                                v-model="form.password"
+                                required
+                                autocomplete="new-password"
+                                class="block w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-primary focus:border-primary bg-gray-50 text-gray-900 text-sm"
+                                :class="form.errors.password ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="••••••••"
+                            />
+                            <button
+                                type="button"
+                                @click="togglePasswordVisibility"
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            >
+                                <span class="material-symbols-outlined text-gray-400 text-xl hover:text-gray-600">
+                                    {{ passwordFieldType === 'password' ? 'visibility_off' : 'visibility' }}
+                                </span>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Mật khẩu phải có ít nhất 8 ký tự</p>
+                        <p v-if="form.errors.password" class="mt-1 text-xs text-red-500">{{ form.errors.password }}</p>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div>
+                        <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
+                            Xác nhận mật khẩu <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">lock</span>
+                            </span>
+                            <input
+                                id="password_confirmation"
+                                type="password"
+                                v-model="form.password_confirmation"
+                                required
+                                autocomplete="new-password"
+                                class="block w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-primary focus:border-primary bg-gray-50 text-gray-900 text-sm"
+                                :class="form.errors.password_confirmation ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="••••••••"
+                            />
+                        </div>
+                        <p v-if="form.errors.password_confirmation" class="mt-1 text-xs text-red-500">{{ form.errors.password_confirmation }}</p>
+                    </div>
+                </div>
+
+                <!-- Terms & Conditions -->
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input
+                            id="terms"
+                            type="checkbox"
+                            required
+                            class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+                        />
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="terms" class="text-gray-600">
+                            Tôi đồng ý với 
+                            <Link :href="route('home') + '#dieu-khoan'" class="text-primary hover:text-primary-dark font-medium">
+                                Điều khoản dịch vụ
+                            </Link> 
+                            và 
+                            <Link :href="route('home') + '#chinh-sach-bao-mat'" class="text-primary hover:text-primary-dark font-medium">
+                                Chính sách bảo mật
+                            </Link>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div>
+                    <button
+                        type="submit"
+                        :disabled="form.processing"
+                        class="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        <span v-if="form.processing" class="absolute left-4 inset-y-0 flex items-center">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        {{ form.processing ? 'Đang xử lý...' : 'ĐĂNG KÝ' }}
+                    </button>
+                </div>
+
+                <!-- Login Link -->
+                <div class="text-center text-sm">
+                    <span class="text-gray-600">Đã có tài khoản?</span>
+                    <Link :href="route('login')" class="ml-1 font-medium text-primary hover:text-primary-dark">
+                        Đăng nhập ngay
+                    </Link>
+                </div>
+            </form>
+        </div>
+    </div>
 </template>
+
+<style scoped>
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+</style>

@@ -357,15 +357,13 @@ const closeModal = () => {
                                         @click="editProduct(product)" 
                                         class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                                         title="Sửa sản phẩm"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">edit</span>
+                                    >Sửa
                                     </button>
                                     <button 
                                         @click="deleteProduct(product.id)" 
                                         class="p-1.5 text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors"
                                         title="Xóa sản phẩm"
-                                    >
-                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    >Xóa
                                     </button>
                                 </td>
                             </tr>

@@ -82,10 +82,7 @@ const user = computed(() => page.props.auth?.user);
                     </div>
                     <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
                         <Link :href="route('admin.products.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🎒 Sản phẩm bán lẻ
-                        </Link>
-                        <Link :href="route('admin.products.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            📦 Sản phẩm bán sỉ
+                            🎒 Sản phẩm
                         </Link>
                         <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
                             🔮 Sản phẩm Pre-order
@@ -180,15 +177,8 @@ const user = computed(() => page.props.auth?.user);
                         >
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button class="relative text-on-surface-variant hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined">notifications</span>
-                        <span class="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">3</span>
-                    </button>
-                    <div class="flex gap-1 bg-surface-variant rounded-full p-1">
-                        <button class="px-3 py-1 text-xs font-semibold rounded-full bg-primary text-white">VI</button>
-                        <button class="px-3 py-1 text-xs font-semibold rounded-full text-on-surface-variant">EN</button>
-                    </div>
+                <div class="flex items-center gap-4">               
+                    
                     <div class="flex items-center gap-2 pl-2 border-l border-border-light">
                         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
                             {{ user?.name?.charAt(0)?.toUpperCase() || 'A' }}

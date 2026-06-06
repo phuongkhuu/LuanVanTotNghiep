@@ -393,15 +393,13 @@ const closeModal = () => {
                                 @click="editPromo(promo)" 
                                 class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                                 title="Sửa"
-                            >
-                                <span class="material-symbols-outlined text-lg">edit</span>
+                            >Sửa
                             </button>
                             <button 
                                 @click="deletePromo(promo.id)" 
                                 class="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                                 title="Xóa"
-                            >
-                                <span class="material-symbols-outlined text-lg">delete</span>
+                            >Xóa
                             </button>
                         </div>
                     </div>

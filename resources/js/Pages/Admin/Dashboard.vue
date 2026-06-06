@@ -1,13 +1,17 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';  // Thêm Link vào import
+import { Head, Link } from '@inertiajs/vue3';
+
+// Period state
+const selectedPeriod = ref('week');
+let revenueChart = null;
 
 // Recent orders data
 const recentOrders = ref([
-    { code: '#ORD-001', customer: 'Nguyễn Văn A', type: '🛒 Bán lẻ', amount: '2.500.000₫', status: 'Hoàn thành', statusClass: 'bg-success/10 text-success' },
-    { code: '#ORD-002', customer: 'Công ty ABC', type: '🏭 Bán sỉ', amount: '18.500.000₫', status: 'Đang giao', statusClass: 'bg-primary/10 text-primary' },
-    { code: '#ORD-003', customer: 'Trần Thị B', type: '⏳ Pre-order', amount: '1.850.000₫', status: 'Chờ xác nhận', statusClass: 'bg-warning/10 text-warning' }
+    { code: '#ORD-001', customer: 'Nguyễn Văn A', type: 'Bán lẻ', amount: '2.500.000₫', status: 'Hoàn thành', statusClass: 'bg-green-100 text-green-700' },
+    { code: '#ORD-002', customer: 'Công ty ABC', type: 'Bán sỉ', amount: '18.500.000₫', status: 'Đang giao', statusClass: 'bg-blue-100 text-blue-700' },
+    { code: '#ORD-003', customer: 'Trần Thị B', type: 'Pre-order', amount: '1.850.000₫', status: 'Chờ xác nhận', statusClass: 'bg-yellow-100 text-yellow-700' }
 ]);
 
 // Top products
@@ -29,29 +33,98 @@ const topPreorder = ref([
     { name: 'Set Balo + Ví', preordered: 28 }
 ]);
 
-// Initialize chart
-onMounted(() => {
-    const canvas = document.getElementById('revenueByTypeChart');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
-                datasets: [
-                    { label: 'Bán lẻ', data: [8, 10, 7, 12, 15, 18, 14], backgroundColor: '#ff6b00', borderRadius: 6 },
-                    { label: 'Bán sỉ', data: [15, 18, 12, 22, 28, 35, 25], backgroundColor: '#436651', borderRadius: 6 },
-                    { label: 'Pre-order', data: [5, 4, 6, 8, 10, 12, 7], backgroundColor: '#f59e0b', borderRadius: 6 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (triệu ₫)' } } }
-            }
-        });
+// Data cho các khoảng thời gian
+const chartData = {
+    week: {
+        labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'],
+        retail: [8, 10, 7, 12, 15, 18, 14],
+        wholesale: [15, 18, 12, 22, 28, 35, 25],
+        preorder: [5, 4, 6, 8, 10, 12, 7]
+    },
+    month: {
+        labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
+        retail: [45, 52, 48, 58],
+        wholesale: [85, 92, 78, 98],
+        preorder: [28, 32, 35, 42]
     }
+};
+
+// Hàm khởi tạo biểu đồ
+const initChart = () => {
+    const canvas = document.getElementById('revenueByTypeChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (revenueChart) revenueChart.destroy();
+    
+    const data = chartData[selectedPeriod.value];
+    
+    revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { 
+                    label: 'Bán lẻ', 
+                    data: data.retail, 
+                    backgroundColor: '#f97316', 
+                    borderRadius: 6,
+                    barPercentage: 0.7
+                },
+                { 
+                    label: 'Bán sỉ', 
+                    data: data.wholesale, 
+                    backgroundColor: '#436651', 
+                    borderRadius: 6,
+                    barPercentage: 0.7
+                },
+                { 
+                    label: 'Pre-order', 
+                    data: data.preorder, 
+                    backgroundColor: '#f59e0b', 
+                    borderRadius: 6,
+                    barPercentage: 0.7
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { 
+                legend: { 
+                    position: 'top',
+                    labels: { font: { size: 12 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.raw + ' triệu ₫';
+                        }
+                    }
+                }
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    title: { display: true, text: 'Doanh thu (triệu ₫)', font: { size: 11 } },
+                    grid: { color: '#e5e7eb' }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                }
+            }
+        }
+    });
+};
+
+// Xử lý khi đổi period
+const handlePeriodChange = () => {
+    initChart();
+};
+
+onMounted(() => {
+    setTimeout(() => initChart(), 100);
 });
 </script>
 
@@ -59,165 +132,115 @@ onMounted(() => {
     <Head title="Dashboard - BigBag Admin" />
     
     <AdminLayout>
-        <div class="p-4 md:p-8">
+        <div class="p-5">
             <!-- Welcome -->
-            <div class="mb-8">
-                <h1 class="text-2xl md:text-3xl font-bold text-on-surface">Chào mừng trở lại, Admin</h1>
-                <p class="text-on-surface-variant text-sm mt-1">Đây là tổng quan hoạt động kinh doanh hôm nay</p>
+            <div class="mb-6">
+                <h1 class="text-xl font-semibold text-gray-800">Chào mừng trở lại, Admin</h1>
+                <p class="text-sm text-gray-500 mt-0.5">Đây là tổng quan hoạt động kinh doanh hôm nay</p>
             </div>
 
             <!-- Stats Cards - 3 loại hình bán hàng -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
                 <!-- Bán lẻ -->
-                <div class="stat-card bg-surface-white rounded-xl p-5 border-l-4 border-l-primary shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-on-surface-variant text-sm font-medium">🛒 Bán lẻ hôm nay</p>
-                            <p class="text-2xl md:text-3xl font-bold text-on-surface mt-2">8.250.000₫</p>
-                            <p class="text-xs text-success mt-2">
-                                <span class="material-symbols-outlined text-sm align-middle">trending_up</span> +8.2%
-                            </p>
-                        </div>
-                        <div class="w-12 h-12 rounded-full bg-hover-bg flex items-center justify-center">
-                            <span class="material-symbols-outlined text-primary text-2xl">shopping_cart</span>
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-2 border-t border-border-light">
-                        <div class="flex justify-between text-xs text-outline">
-                            <span>📦 12 đơn hàng</span>
-                            <span>⭐ 4.8 rating</span>
-                        </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Bán lẻ hôm nay</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">8.250.000₫</p>
+                        <p class="text-xs text-green-600 mt-2">↑ +12.5% so với hôm qua</p>
                     </div>
                 </div>
 
                 <!-- Bán sỉ -->
-                <div class="stat-card bg-surface-white rounded-xl p-5 border-l-4 border-l-secondary shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-on-surface-variant text-sm font-medium">🏭 Bán sỉ hôm nay</p>
-                            <p class="text-2xl md:text-3xl font-bold text-on-surface mt-2">32.500.000₫</p>
-                            <p class="text-xs text-success mt-2">
-                                <span class="material-symbols-outlined text-sm align-middle">trending_up</span> +23.5%
-                            </p>
-                        </div>
-                        <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-secondary text-2xl">business</span>
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-2 border-t border-border-light">
-                        <div class="flex justify-between text-xs text-outline">
-                            <span>🏢 3 doanh nghiệp</span>
-                            <span>📦 450 sản phẩm</span>
-                        </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Bán sỉ hôm nay</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">32.500.000₫</p>
+                        <p class="text-xs text-green-600 mt-2">↑ +23.5% so với hôm qua</p>
                     </div>
                 </div>
 
                 <!-- Pre-order -->
-                <div class="stat-card bg-surface-white rounded-xl p-5 border-l-4 border-l-warning shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-on-surface-variant text-sm font-medium">⏳ Pre-order hôm nay</p>
-                            <p class="text-2xl md:text-3xl font-bold text-on-surface mt-2">5.200.000₫</p>
-                            <p class="text-xs text-warning mt-2">
-                                <span class="material-symbols-outlined text-sm align-middle">schedule</span> 24 đơn chờ xác nhận
-                            </p>
-                        </div>
-                        <div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-warning text-2xl">pending</span>
-                        </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Pre-order hôm nay</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">5.200.000₫</p>
+                        <p class="text-xs text-green-600 mt-2">↑ +5.2% so với hôm qua</p>
                     </div>
-                    <div class="mt-3 pt-2 border-t border-border-light">
-                        <div class="flex justify-between text-xs text-outline">
-                            <span>🚚 Dự kiến giao: 15/06</span>
-                            <span>📊 85% hoàn thành</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Thống kê nhanh -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-surface-white rounded-lg p-4 text-center border border-border-light">
-                    <p class="text-2xl font-bold text-primary">156</p>
-                    <p class="text-xs text-on-surface-variant">Khách hàng mới</p>
-                </div>
-                <div class="bg-surface-white rounded-lg p-4 text-center border border-border-light">
-                    <p class="text-2xl font-bold text-primary">284</p>
-                    <p class="text-xs text-on-surface-variant">Tổng đơn hàng</p>
-                </div>
-                <div class="bg-surface-white rounded-lg p-4 text-center border border-border-light">
-                    <p class="text-2xl font-bold text-primary">98%</p>
-                    <p class="text-xs text-on-surface-variant">Hài lòng khách hàng</p>
-                </div>
-                <div class="bg-surface-white rounded-lg p-4 text-center border border-border-light">
-                    <p class="text-2xl font-bold text-primary">12</p>
-                    <p class="text-xs text-on-surface-variant">Sản phẩm sắp hết</p>
                 </div>
             </div>
 
             <!-- Charts & Recent Orders -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div class="bg-surface-white rounded-xl p-6 border border-border-light shadow-sm">
-                    <div class="flex justify-between mb-4">
-                        <h3 class="font-semibold text-on-surface">Doanh thu theo loại hình</h3>
-                        <select class="text-sm border border-border-light rounded-lg px-2 py-1 bg-white">
-                            <option>7 ngày qua</option>
-                            <option>Tháng này</option>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-gray-800">Doanh thu theo loại hình</h3>
+                        <select 
+                            v-model="selectedPeriod" 
+                            @change="handlePeriodChange"
+                            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-gray-400"
+                        >
+                            <option value="week">7 ngày qua</option>
+                            <option value="month">4 tuần qua</option>
                         </select>
                     </div>
-                    <canvas id="revenueByTypeChart" height="200"></canvas>
+                    <canvas id="revenueByTypeChart" style="height: 280px; width: 100%;"></canvas>
                 </div>
                 
-                <div class="bg-surface-white rounded-xl p-6 border border-border-light shadow-sm">
-                    <h3 class="font-semibold text-on-surface mb-4">Đơn hàng gần đây</h3>
-                    <div class="space-y-3">
-                        <div v-for="order in recentOrders" :key="order.code" class="flex justify-between items-center p-2 hover:bg-hover-bg rounded-lg">
+                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-gray-800">Đơn hàng gần đây</h3>
+                        <Link :href="route('admin.orders.index')" class="text-sm text-orange-600 hover:underline">Xem tất cả →</Link>
+                    </div>
+                    <div class="space-y-2">
+                        <div v-for="order in recentOrders" :key="order.code" class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
                             <div>
-                                <p class="text-sm font-medium text-on-surface">{{ order.code }}</p>
-                                <p class="text-xs text-outline">{{ order.customer }} - {{ order.type }}</p>
+                                <p class="text-sm font-medium text-gray-800">{{ order.code }}</p>
+                                <p class="text-xs text-gray-400">{{ order.customer }} - {{ order.type }}</p>
                             </div>
                             <span class="text-xs px-2 py-1 rounded-full" :class="order.statusClass">{{ order.status }}</span>
-                            <span class="text-sm font-semibold text-on-surface">{{ order.amount }}</span>
+                            <span class="text-sm font-semibold text-gray-800">{{ order.amount }}</span>
                         </div>
                     </div>
-                    <Link :href="route('admin.orders.index')" class="block text-center mt-3 text-sm text-primary hover:underline">Xem tất cả</Link>
                 </div>
             </div>
 
             <!-- Top sản phẩm theo loại -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-surface-white rounded-xl p-5 border border-border-light">
-                    <h3 class="font-semibold mb-3 flex items-center gap-2 text-on-surface">
-                        <span class="text-primary">🛒</span> Top bán lẻ
-                    </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <h3 class="font-semibold text-gray-800 mb-3">Top bán lẻ</h3>
                     <div class="space-y-2">
-                        <div v-for="(p, idx) in topRetail" :key="idx" class="flex justify-between text-sm">
-                            <span class="text-on-surface-variant">{{ idx+1 }}. {{ p.name }}</span>
-                            <span class="font-semibold text-on-surface">{{ p.sold }} cái</span>
+                        <div v-for="(p, idx) in topRetail" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
+                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="bg-surface-white rounded-xl p-5 border border-border-light">
-                    <h3 class="font-semibold mb-3 flex items-center gap-2 text-on-surface">
-                        <span class="text-secondary">🏭</span> Top bán sỉ
-                    </h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <h3 class="font-semibold text-gray-800 mb-3">Top bán sỉ</h3>
                     <div class="space-y-2">
-                        <div v-for="(p, idx) in topWholesale" :key="idx" class="flex justify-between text-sm">
-                            <span class="text-on-surface-variant">{{ idx+1 }}. {{ p.name }}</span>
-                            <span class="font-semibold text-on-surface">{{ p.quantity }} đơn</span>
+                        <div v-for="(p, idx) in topWholesale" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
+                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ p.quantity }} đơn</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="bg-surface-white rounded-xl p-5 border border-border-light">
-                    <h3 class="font-semibold mb-3 flex items-center gap-2 text-on-surface">
-                        <span class="text-warning">⏳</span> Pre-order nổi bật
-                    </h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <h3 class="font-semibold text-gray-800 mb-3">Pre-order nổi bật</h3>
                     <div class="space-y-2">
-                        <div v-for="(p, idx) in topPreorder" :key="idx" class="flex justify-between text-sm">
-                            <span class="text-on-surface-variant">{{ idx+1 }}. {{ p.name }}</span>
-                            <span class="font-semibold text-on-surface">{{ p.preordered }} đơn</span>
+                        <div v-for="(p, idx) in topPreorder" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
+                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">{{ p.preordered }} đơn</span>
                         </div>
                     </div>
                 </div>
