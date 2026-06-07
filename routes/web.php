@@ -69,21 +69,28 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     
     // Orders Management
     Route::prefix('orders')->group(function () {
-        Route::get('/', [AdminOrderController::class, 'index'])->name('orders.index');
-        Route::get('/retail', [AdminOrderController::class, 'retail'])->name('orders.retail');
-        Route::get('/wholesale', [AdminOrderController::class, 'wholesale'])->name('orders.wholesale');
-        Route::get('/preorder', [AdminOrderController::class, 'preorder'])->name('orders.preorder');
-        Route::get('/{id}', [AdminOrderController::class, 'show'])->name('orders.show');
+        // Index với type tùy chọn (mặc định sẽ xử lý trong controller)
+        Route::get('/{type?}', [AdminOrderController::class, 'index'])
+            ->where('type', 'retail|wholesale|preorder')
+            ->name('orders.index');
+        
+        // Show - phải đặt SAU route index và có điều kiện id là số
+        Route::get('/{id}', [AdminOrderController::class, 'show'])
+            ->where('id', '[0-9]+')
+            ->name('orders.show');
+        
         Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::post('/export', [AdminOrderController::class, 'export'])->name('orders.export');
     });
     
     // Products Management
     Route::prefix('products')->group(function () {
-        Route::get('/', [AdminProductController::class, 'index'])->name('products.index');
-        Route::get('/retail', [AdminProductController::class, 'retail'])->name('products.retail');
-        Route::get('/wholesale', [AdminProductController::class, 'wholesale'])->name('products.wholesale');
-        Route::get('/preorder', [AdminProductController::class, 'preorder'])->name('products.preorder');
+        // Route index với type tùy chọn (normal hoặc preorder)
+        Route::get('/{type?}', [AdminProductController::class, 'index'])
+            ->where('type', 'normal|preorder')
+            ->name('products.index');
+        
+        // Các route CRUD giữ nguyên
         Route::post('/', [AdminProductController::class, 'store'])->name('products.store');
         Route::put('/{id}', [AdminProductController::class, 'update'])->name('products.update');
         Route::delete('/{id}', [AdminProductController::class, 'destroy'])->name('products.destroy');

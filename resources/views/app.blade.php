@@ -36,7 +36,6 @@
             }
             
             .sidebar-item-active {
-                border-right: 3px solid #ff6b00;
             }
             
             .glass-header {

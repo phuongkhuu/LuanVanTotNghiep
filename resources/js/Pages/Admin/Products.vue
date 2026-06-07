@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -8,91 +8,27 @@ const props = defineProps({
     initialProducts: {
         type: Array,
         default: () => []
+    },
+    type: {
+        type: String,
+        default: 'normal' // normal = sản phẩm thường, preorder = pre-order
     }
 });
 
 // Search and filters
 const search = ref('');
-const activeType = ref('retail');
+const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type : 'normal');
 
-// Product types tabs
+// Product types tabs - chỉ 2 loại
 const productTypes = [
-    { value: 'retail', label: 'Bán lẻ', icon: '🛒' },
-    { value: 'wholesale', label: 'Bán sỉ', icon: '🏭' },
+    { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },
     { value: 'preorder', label: 'Pre-order', icon: '⏳' }
 ];
 
-// Products data
-const products = ref(props.initialProducts.length > 0 ? props.initialProducts : [
-    { 
-        id: 1, 
-        name: 'Balo Doanh Nhân Elite', 
-        category: 'Balo', 
-        price: 3200000, 
-        wholesalePrice: 2800000, 
-        stock: 45, 
-        type: 'retail', 
-        image: 'https://picsum.photos/40/40?1',
-        status: 'active'
-    },
-    { 
-        id: 2, 
-        name: 'Túi Du Lịch Nomad (Sỉ)', 
-        category: 'Cặp - Túi', 
-        price: 1850000, 
-        wholesalePrice: 1500000, 
-        stock: 200, 
-        type: 'wholesale', 
-        image: 'https://picsum.photos/40/40?2',
-        status: 'active'
-    },
-    { 
-        id: 3, 
-        name: 'Balo Limited Edition 2025', 
-        category: 'Balo', 
-        price: 4500000, 
-        wholesalePrice: 3800000, 
-        stock: 0, 
-        type: 'preorder', 
-        image: 'https://picsum.photos/40/40?3',
-        status: 'inactive'
-    },
-    { 
-        id: 4, 
-        name: 'Ví Da Cao Cấp', 
-        category: 'Phụ kiện', 
-        price: 850000, 
-        wholesalePrice: 650000, 
-        stock: 120, 
-        type: 'retail', 
-        image: 'https://picsum.photos/40/40?4',
-        status: 'active'
-    },
-    { 
-        id: 5, 
-        name: 'Balo Công Sở Commuter', 
-        category: 'Balo', 
-        price: 2800000, 
-        wholesalePrice: 2300000, 
-        stock: 35, 
-        type: 'retail', 
-        image: 'https://picsum.photos/40/40?5',
-        status: 'active'
-    },
-    { 
-        id: 6, 
-        name: 'Set Balo + Ví Pre-order', 
-        category: 'Set sản phẩm', 
-        price: 5000000, 
-        wholesalePrice: 4200000, 
-        stock: 50, 
-        type: 'preorder', 
-        image: 'https://picsum.photos/40/40?6',
-        status: 'active'
-    }
-]);
+// Products data - lấy từ server, không dùng mock data
+const products = ref(props.initialProducts);
 
-// Category options
+// Category options (giữ nguyên)
 const categoryOptions = ['Balo', 'Cặp - Túi', 'Phụ kiện', 'Set sản phẩm', 'Túi xách', 'Ví da'];
 
 // Modal state
@@ -107,7 +43,7 @@ const modalTitle = computed(() => editingId.value ? 'Sửa sản phẩm' : 'Thê
 const form = ref({
     name: '',
     category: 'Balo',
-    type: 'retail',
+    type: 'normal', // mặc định normal
     price: 0,
     wholesalePrice: 0,
     stock: 0,
@@ -118,7 +54,6 @@ const form = ref({
 // Computed: filtered products
 const filteredProducts = computed(() => {
     if (!products.value || products.value.length === 0) return [];
-    
     return products.value.filter(product => {
         const matchType = product.type === activeType.value;
         const matchSearch = !search.value || 
@@ -168,7 +103,6 @@ const editProduct = (product) => {
 
 // Save product
 const saveProduct = async () => {
-    // Validate
     if (!form.value.name) {
         alert('Vui lòng nhập tên sản phẩm');
         return;
@@ -182,45 +116,36 @@ const saveProduct = async () => {
     
     try {
         if (editingId.value) {
-            // Update existing product
+            // Update
             const index = products.value.findIndex(p => p.id === editingId.value);
             if (index !== -1) {
                 products.value[index] = { ...form.value, id: editingId.value };
             }
-            
-            // Call API update
             await router.put(`/admin/products/${editingId.value}`, form.value, {
                 preserveScroll: true,
-                onSuccess: () => {
-                    alert('Cập nhật sản phẩm thành công!');
-                },
+                onSuccess: () => alert('Cập nhật sản phẩm thành công!'),
                 onError: (errors) => {
                     console.error('Lỗi cập nhật:', errors);
                     alert('Có lỗi xảy ra khi cập nhật sản phẩm');
                 }
             });
         } else {
-            // Add new product
+            // Add new
             const newProduct = {
                 ...form.value,
                 id: Date.now(),
                 image: form.value.image || `https://picsum.photos/40/40?${Date.now()}`
             };
             products.value.push(newProduct);
-            
-            // Call API create
             await router.post('/admin/products', form.value, {
                 preserveScroll: true,
-                onSuccess: () => {
-                    alert('Thêm sản phẩm thành công!');
-                },
+                onSuccess: () => alert('Thêm sản phẩm thành công!'),
                 onError: (errors) => {
                     console.error('Lỗi thêm mới:', errors);
                     alert('Có lỗi xảy ra khi thêm sản phẩm');
                 }
             });
         }
-        
         showModal.value = false;
     } catch (error) {
         console.error('Lỗi:', error);
@@ -233,12 +158,9 @@ const saveProduct = async () => {
 // Delete product
 const deleteProduct = async (id) => {
     const product = products.value.find(p => p.id === id);
-    if (!confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${product?.name}"?`)) {
-        return;
-    }
+    if (!confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${product?.name}"?`)) return;
     
     try {
-        // Call API delete
         await router.delete(`/admin/products/${id}`, {
             preserveScroll: true,
             onSuccess: () => {
@@ -260,6 +182,29 @@ const deleteProduct = async (id) => {
 const closeModal = () => {
     showModal.value = false;
 };
+
+// Change tab and update URL
+const changeActiveType = (typeValue) => {
+    if (activeType.value === typeValue) return;
+    router.get(route('admin.products.index', { type: typeValue }), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
+    });
+};
+
+// Watch props.type từ URL
+watch(() => props.type, (newType) => {
+    if (newType && ['normal', 'preorder'].includes(newType)) {
+        activeType.value = newType;
+        search.value = '';
+    }
+});
+
+// Watch props.initialProducts để cập nhật khi dữ liệu thay đổi
+watch(() => props.initialProducts, (newProducts) => {
+    products.value = newProducts;
+}, { immediate: true });
 </script>
 
 <template>
@@ -271,7 +216,7 @@ const closeModal = () => {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý sản phẩm</h1>
-                    <p class="text-gray-600 text-sm mt-1">Quản lý sản phẩm bán lẻ, bán sỉ và pre-order</p>
+                    <p class="text-gray-600 text-sm mt-1">Quản lý sản phẩm thường và pre-order</p>
                 </div>
                 <button 
                     @click="openModal()" 
@@ -282,12 +227,12 @@ const closeModal = () => {
                 </button>
             </div>
 
-            <!-- Tab loại sản phẩm -->
+            <!-- Tab loại sản phẩm - chỉ 2 tab -->
             <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
                 <button 
                     v-for="tab in productTypes" 
                     :key="tab.value" 
-                    @click="activeType = tab.value" 
+                    @click="changeActiveType(tab.value)"
                     class="px-5 py-2.5 text-sm font-medium transition-all"
                     :class="activeType === tab.value ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'"
                 >
@@ -357,14 +302,12 @@ const closeModal = () => {
                                         @click="editProduct(product)" 
                                         class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                                         title="Sửa sản phẩm"
-                                    >Sửa
-                                    </button>
+                                    >Sửa</button>
                                     <button 
                                         @click="deleteProduct(product.id)" 
                                         class="p-1.5 text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors"
                                         title="Xóa sản phẩm"
-                                    >Xóa
-                                    </button>
+                                    >Xóa</button>
                                 </td>
                             </tr>
                             <tr v-if="filteredProducts.length === 0">
@@ -390,9 +333,7 @@ const closeModal = () => {
                     <button 
                         @click="closeModal" 
                         class="text-gray-400 hover:text-gray-600 transition-colors text-xl"
-                    >
-                        ✕
-                    </button>
+                    >✕</button>
                 </div>
                 
                 <div class="space-y-4">
@@ -418,15 +359,14 @@ const closeModal = () => {
                         </select>
                     </div>
                     
-                    <!-- Loại sản phẩm -->
+                    <!-- Loại sản phẩm (chỉ 2 lựa chọn) -->
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Loại sản phẩm</label>
                         <select 
                             v-model="form.type" 
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                         >
-                            <option value="retail">🛒 Bán lẻ</option>
-                            <option value="wholesale">🏭 Bán sỉ</option>
+                            <option value="normal">📦 Sản phẩm thường</option>
                             <option value="preorder">⏳ Pre-order</option>
                         </select>
                     </div>
@@ -442,8 +382,8 @@ const closeModal = () => {
                         >
                     </div>
                     
-                    <!-- Giá bán sỉ (chỉ hiển thị khi chọn bán sỉ) -->
-                    <div v-if="form.type === 'wholesale'">
+                    <!-- Giá bán sỉ (chỉ hiển thị khi chọn sản phẩm thường) -->
+                    <div v-if="form.type === 'normal'">
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Giá bán sỉ (cho doanh nghiệp)</label>
                         <input 
                             v-model="form.wholesalePrice" 
@@ -481,16 +421,12 @@ const closeModal = () => {
                     <button 
                         @click="closeModal" 
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                        Hủy
-                    </button>
+                    >Hủy</button>
                     <button 
                         @click="saveProduct" 
                         class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                         :disabled="isSubmitting"
-                    >
-                        {{ isSubmitting ? 'Đang lưu...' : 'Lưu' }}
-                    </button>
+                    >{{ isSubmitting ? 'Đang lưu...' : 'Lưu' }}</button>
                 </div>
             </div>
         </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -8,98 +8,20 @@ const props = defineProps({
     initialOrders: {
         type: Array,
         default: () => []
+    },
+    type: {
+        type: String,
+        default: 'retail'
     }
 });
 
 // Search and filters
 const search = ref('');
-const activeType = ref('retail');
+const activeType = ref(['retail', 'wholesale', 'preorder'].includes(props.type) ? props.type : 'retail');
 const statusFilter = ref('all');
 
-// Orders data - sử dụng dữ liệu từ Controller hoặc mock data
-const orders = ref(props.initialOrders.length > 0 ? props.initialOrders : [
-    { 
-        id: 1, 
-        code: '#ORD-001', 
-        customer: 'Nguyễn Văn A', 
-        phone: '0901234567', 
-        date: '04/06/2025', 
-        amount: 4350000, 
-        payment: 'COD', 
-        paymentClass: 'bg-green-100 text-green-800',
-        status: 'completed', 
-        type: 'retail',
-        address: '123 Đường ABC, Phường XYZ, Quận 1, TP.HCM',
-        products: [
-            { name: 'Balo Doanh Nhân Elite', quantity: 1, price: 2500000 },
-            { name: 'Túi Du Lịch Nomad', quantity: 1, price: 1850000 }
-        ]
-    },
-    { 
-        id: 2, 
-        code: '#ORD-002', 
-        customer: 'Công ty ABC', 
-        phone: '0912345678', 
-        date: '03/06/2025', 
-        amount: 18500000, 
-        payment: 'Chuyển khoản', 
-        paymentClass: 'bg-blue-100 text-blue-800',
-        status: 'shipping', 
-        type: 'wholesale',
-        address: '456 Đường XYZ, Quận 2, TP.HCM',
-        products: [
-            { name: 'Balo Doanh Nhân Elite - Sỉ (20 cái)', quantity: 20, price: 18500000 }
-        ]
-    },
-    { 
-        id: 3, 
-        code: '#ORD-003', 
-        customer: 'Trần Thị B', 
-        phone: '0923456789', 
-        date: '02/06/2025', 
-        amount: 1850000, 
-        payment: 'COD', 
-        paymentClass: 'bg-green-100 text-green-800',
-        status: 'pending', 
-        type: 'preorder',
-        address: '789 Đường DEF, Quận 3, TP.HCM',
-        products: [
-            { name: 'Balo Limited Edition 2025', quantity: 1, price: 1850000 }
-        ]
-    },
-    { 
-        id: 4, 
-        code: '#ORD-004', 
-        customer: 'Lê Thị C', 
-        phone: '0934567890', 
-        date: '01/06/2025', 
-        amount: 3200000, 
-        payment: 'COD', 
-        paymentClass: 'bg-green-100 text-green-800',
-        status: 'processing', 
-        type: 'retail',
-        address: '321 Đường GHI, Quận 4, TP.HCM',
-        products: [
-            { name: 'Balo Công Sở Commuter', quantity: 2, price: 3200000 }
-        ]
-    },
-    { 
-        id: 5, 
-        code: '#ORD-005', 
-        customer: 'Doanh nghiệp XYZ', 
-        phone: '0945678901', 
-        date: '31/05/2025', 
-        amount: 42500000, 
-        payment: 'Chuyển khoản', 
-        paymentClass: 'bg-blue-100 text-blue-800',
-        status: 'approved', 
-        type: 'wholesale',
-        address: '654 Đường JKL, Quận 5, TP.HCM',
-        products: [
-            { name: 'Túi Du Lịch Nomad - Sỉ (50 cái)', quantity: 50, price: 42500000 }
-        ]
-    }
-]);
+// Chỉ dùng dữ liệu từ server, không fallback mock data
+const orders = ref(props.initialOrders);
 
 // Order types tabs
 const orderTypes = [
@@ -174,7 +96,7 @@ const formatPrice = (value) => {
     return value.toLocaleString('vi-VN') + '₫';
 };
 
-// Get status class
+// Get status class (dùng cho select)
 const getStatusClass = (status) => {
     const classes = {
         pending: 'bg-yellow-100 text-yellow-800',
@@ -239,6 +161,30 @@ const getStatusLabel = (status) => {
     const found = allOptions.find(opt => opt.value === status);
     return found ? found.label : status;
 };
+
+// Hàm thay đổi loại đơn hàng và cập nhật URL
+const changeActiveType = (typeValue) => {
+    if (activeType.value === typeValue) return;
+    router.get(route('admin.orders.index', { type: typeValue }), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
+    });
+};
+
+// Theo dõi thay đổi của props.type từ URL và cập nhật orders khi cần
+watch(() => props.type, (newType) => {
+    if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
+        activeType.value = newType;
+        statusFilter.value = 'all';
+        search.value = '';
+    }
+});
+
+// Theo dõi props.initialOrders (khi điều hướng bằng Inertia, dữ liệu mới sẽ được gán)
+watch(() => props.initialOrders, (newOrders) => {
+    orders.value = newOrders;
+}, { immediate: true });
 </script>
 
 <template>
@@ -257,7 +203,7 @@ const getStatusLabel = (status) => {
                 <button 
                     v-for="tab in orderTypes" 
                     :key="tab.value" 
-                    @click="activeType = tab.value" 
+                    @click="changeActiveType(tab.value)"
                     class="px-5 py-2.5 text-sm font-medium transition-all"
                     :class="activeType === tab.value ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'"
                 >
@@ -266,7 +212,7 @@ const getStatusLabel = (status) => {
                 </button>
             </div>
 
-            <!-- Thanh tìm kiếm (giống hệt trang khách hàng) -->
+            <!-- Thanh tìm kiếm -->
             <div class="mb-4">
                 <div class="relative max-w-md">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
@@ -279,7 +225,7 @@ const getStatusLabel = (status) => {
                 </div>
             </div>
 
-            <!-- Bộ lọc trạng thái (giữ nguyên) -->
+            <!-- Bộ lọc trạng thái -->
             <div class="flex flex-wrap justify-between gap-4 mb-4">
                 <div class="flex flex-wrap gap-2">
                     <button 

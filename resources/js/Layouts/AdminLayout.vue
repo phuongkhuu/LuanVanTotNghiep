@@ -69,7 +69,7 @@ const user = computed(() => page.props.auth?.user);
                     </div>
                 </div>
 
-                <!-- Sản phẩm -->
+                <!-- Sản phẩm (đã sửa) -->
                 <div class="space-y-1">
                     <div 
                         @click="toggleProductSubmenu" 
@@ -81,8 +81,9 @@ const user = computed(() => page.props.auth?.user);
                         <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': productSubmenuOpen }">keyboard_arrow_down</span>
                     </div>
                     <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
-                        <Link :href="route('admin.products.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🎒 Sản phẩm
+                        <!-- Sửa: retail -> normal -->
+                        <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            🎒 Sản phẩm thường
                         </Link>
                         <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
                             🔮 Sản phẩm Pre-order
@@ -198,7 +199,6 @@ const user = computed(() => page.props.auth?.user);
 .sidebar-item-active {
     background-color: #fff5f2;
     color: #ff6b00;
-    border-right: 3px solid #ff6b00;
 }
 
 .rotate-180 {
