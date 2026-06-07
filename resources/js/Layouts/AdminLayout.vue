@@ -30,124 +30,128 @@ const user = computed(() => page.props.auth?.user);
     <div class="flex min-h-screen bg-background">
         <!-- ==================== SIDEBAR ==================== -->
         <aside 
-            class="w-72 bg-white border-r border-border-light fixed h-full overflow-y-auto z-20 transition-all duration-300"
+            class="w-72 bg-white border-r border-border-light fixed h-full z-20 transition-all duration-300 flex flex-col"
             :class="{ 'hidden lg:block': sidebarCollapsed, 'block': !sidebarCollapsed }"
         >
-            <div class="p-6 border-b border-border-light">
+            <!-- Logo - Phần cố định đầu trang -->
+            <div class="p-6 border-b border-border-light flex-shrink-0">
                 <h1 class="text-2xl font-bold text-primary">BigBag<span class="text-on-surface">.vn</span></h1>
                 <p class="text-xs text-on-surface-variant mt-1">Admin Portal</p>
             </div>
             
-            <nav class="p-4 space-y-1">
-                <!-- Dashboard -->
-                <Link :href="route('admin.dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.dashboard') }">
-                    <span class="material-symbols-outlined">dashboard</span>
-                    <span class="flex-1 text-sm font-medium">Dashboard</span>
-                </Link>
-                
-                <!-- Đơn hàng -->
-                <div class="space-y-1">
-                    <div 
-                        @click="toggleOrderSubmenu" 
-                        class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                        :class="{ 'text-primary': route().current('admin.orders.*') }"
-                    >
-                        <span class="material-symbols-outlined">receipt_long</span>
-                        <span class="flex-1 text-sm font-medium">Đơn hàng</span>
-                        <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': orderSubmenuOpen }">keyboard_arrow_down</span>
+            <!-- Menu Area - Có thể cuộn -->
+            <div class="flex-1 overflow-y-auto">
+                <nav class="p-4 space-y-1">
+                    <!-- Dashboard -->
+                    <Link :href="route('admin.dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.dashboard') }">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <span class="flex-1 text-sm font-medium">Dashboard</span>
+                    </Link>
+                    
+                    <!-- Đơn hàng -->
+                    <div class="space-y-1">
+                        <div 
+                            @click="toggleOrderSubmenu" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
+                            :class="{ 'text-primary': route().current('admin.orders.*') }"
+                        >
+                            <span class="material-symbols-outlined">receipt_long</span>
+                            <span class="flex-1 text-sm font-medium">Đơn hàng</span>
+                            <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': orderSubmenuOpen }">keyboard_arrow_down</span>
+                        </div>
+                        <div v-show="orderSubmenuOpen" class="ml-8 space-y-1">
+                            <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🛒 Đơn bán lẻ
+                            </Link>
+                            <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🏭 Đơn bán sỉ
+                            </Link>
+                            <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                ⏳ Đơn Pre-order
+                            </Link>
+                        </div>
                     </div>
-                    <div v-show="orderSubmenuOpen" class="ml-8 space-y-1">
-                        <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🛒 Đơn bán lẻ
-                        </Link>
-                        <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🏭 Đơn bán sỉ
-                        </Link>
-                        <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            ⏳ Đơn Pre-order
-                        </Link>
+
+                    <!-- Sản phẩm -->
+                    <div class="space-y-1">
+                        <div 
+                            @click="toggleProductSubmenu" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
+                            :class="{ 'text-primary': route().current('admin.products.*') }"
+                        >
+                            <span class="material-symbols-outlined">inventory_2</span>
+                            <span class="flex-1 text-sm font-medium">Sản phẩm</span>
+                            <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': productSubmenuOpen }">keyboard_arrow_down</span>
+                        </div>
+                        <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
+                            <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🎒 Sản phẩm thường
+                            </Link>
+                            <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🔮 Sản phẩm Pre-order
+                            </Link>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Sản phẩm (đã sửa) -->
-                <div class="space-y-1">
-                    <div 
-                        @click="toggleProductSubmenu" 
-                        class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                        :class="{ 'text-primary': route().current('admin.products.*') }"
-                    >
-                        <span class="material-symbols-outlined">inventory_2</span>
-                        <span class="flex-1 text-sm font-medium">Sản phẩm</span>
-                        <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': productSubmenuOpen }">keyboard_arrow_down</span>
+                    <!-- Khách hàng -->
+                    <div class="space-y-1">
+                        <div 
+                            @click="toggleCustomerSubmenu" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
+                            :class="{ 'text-primary': route().current('admin.customers.*') }"
+                        >
+                            <span class="material-symbols-outlined">group</span>
+                            <span class="flex-1 text-sm font-medium">Khách hàng</span>
+                            <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': customerSubmenuOpen }">keyboard_arrow_down</span>
+                        </div>
+                        <div v-show="customerSubmenuOpen" class="ml-8 space-y-1">
+                            <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                👤 Khách hàng lẻ
+                            </Link>
+                            <Link :href="route('admin.customers.index', { type: 'business' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🏢 Khách hàng doanh nghiệp
+                            </Link>
+                        </div>
                     </div>
-                    <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
-                        <!-- Sửa: retail -> normal -->
-                        <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🎒 Sản phẩm thường
-                        </Link>
-                        <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🔮 Sản phẩm Pre-order
-                        </Link>
-                    </div>
-                </div>
 
-                <!-- Khách hàng -->
-                <div class="space-y-1">
-                    <div 
-                        @click="toggleCustomerSubmenu" 
-                        class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                        :class="{ 'text-primary': route().current('admin.customers.*') }"
-                    >
-                        <span class="material-symbols-outlined">group</span>
-                        <span class="flex-1 text-sm font-medium">Khách hàng</span>
-                        <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': customerSubmenuOpen }">keyboard_arrow_down</span>
-                    </div>
-                    <div v-show="customerSubmenuOpen" class="ml-8 space-y-1">
-                        <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            👤 Khách hàng lẻ
-                        </Link>
-                        <Link :href="route('admin.customers.index', { type: 'business' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                            🏢 Khách hàng doanh nghiệp
-                        </Link>
-                    </div>
-                </div>
+                    <!-- Tùy chỉnh -->
+                    <Link :href="route('admin.customize.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.customize.*') }">
+                        <span class="material-symbols-outlined">palette</span>
+                        <span class="flex-1 text-sm font-medium">Tùy chỉnh</span>
+                        <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full">3 mới</span>
+                    </Link>
 
-                <!-- Tùy chỉnh -->
-                <Link :href="route('admin.customize.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.customize.*') }">
-                    <span class="material-symbols-outlined">palette</span>
-                    <span class="flex-1 text-sm font-medium">Tùy chỉnh</span>
-                    <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full">3 mới</span>
-                </Link>
+                    <!-- Khuyến mãi -->
+                    <Link :href="route('admin.promotions.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.promotions.index') }">
+                        <span class="material-symbols-outlined">local_offer</span>
+                        <span class="flex-1 text-sm font-medium">Khuyến mãi</span>
+                    </Link>
 
-                <!-- Khuyến mãi -->
-                <Link :href="route('admin.promotions.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.promotions.index') }">
-                    <span class="material-symbols-outlined">local_offer</span>
-                    <span class="flex-1 text-sm font-medium">Khuyến mãi</span>
-                </Link>
+                    <!-- Báo cáo -->
+                    <Link :href="route('admin.reports.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.reports.index') }">
+                        <span class="material-symbols-outlined">bar_chart</span>
+                        <span class="flex-1 text-sm font-medium">Báo cáo</span>
+                    </Link>
 
-                <!-- Báo cáo -->
-                <Link :href="route('admin.reports.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.reports.index') }">
-                    <span class="material-symbols-outlined">bar_chart</span>
-                    <span class="flex-1 text-sm font-medium">Báo cáo</span>
-                </Link>
-
-                <!-- Cài đặt -->
-                <Link :href="route('admin.settings.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.settings.index') }">
-                    <span class="material-symbols-outlined">settings</span>
-                    <span class="flex-1 text-sm font-medium">Cài đặt</span>
-                </Link>
-            </nav>
+                    <!-- Cài đặt -->
+                    <Link :href="route('admin.settings.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.settings.index') }">
+                        <span class="material-symbols-outlined">settings</span>
+                        <span class="flex-1 text-sm font-medium">Cài đặt</span>
+                    </Link>
+                </nav>
+            </div>
             
-            <div class="absolute bottom-0 w-full p-4 border-t border-border-light bg-white">
+            <!-- Admin Info - Cố định ở dưới cùng, không bị cuộn -->
+            <div class="flex-shrink-0 p-4 border-t border-border-light bg-white">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg">
+                    <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                         {{ user?.name?.charAt(0)?.toUpperCase() || 'A' }}
                     </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-on-surface">{{ user?.name || 'Admin User' }}</p>
-                        <p class="text-xs text-outline">{{ user?.email || 'admin@bigbag.vn' }}</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-on-surface truncate">{{ user?.name || 'Admin User' }}</p>
+                        <p class="text-xs text-outline truncate">{{ user?.email || 'admin@bigbag.vn' }}</p>
                     </div>
-                    <Link :href="route('logout')" method="post" as="button" class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">
+                    <Link :href="route('logout')" method="post" as="button" class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors flex-shrink-0">
                         logout
                     </Link>
                 </div>
@@ -179,7 +183,6 @@ const user = computed(() => page.props.auth?.user);
                     </div>
                 </div>
                 <div class="flex items-center gap-4">               
-                    
                     <div class="flex items-center gap-2 pl-2 border-l border-border-light">
                         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
                             {{ user?.name?.charAt(0)?.toUpperCase() || 'A' }}
@@ -208,5 +211,23 @@ const user = computed(() => page.props.auth?.user);
 .glass-header {
     backdrop-filter: blur(12px);
     background-color: rgba(251, 249, 245, 0.95);
+}
+
+/* Custom scrollbar cho phần menu */
+aside .overflow-y-auto::-webkit-scrollbar {
+    width: 4px;
+}
+
+aside .overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+aside .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+aside .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #ff6b00;
 }
 </style>

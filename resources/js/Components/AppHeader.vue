@@ -3,8 +3,8 @@
     <nav class="flex justify-between items-center max-w-[1440px] mx-auto px-4 md:px-8 py-4">
       <!-- Logo -->
       <div class="flex items-center gap-8">
-        <Link :href="route('home')" class="font-headline-lg text-xl md:text-2xl tracking-tighter text-primary font-bold">
-          BigBag.vn
+        <Link :href="route('home')" class="font-headline-lg text-xl md:text-2xl font-bold hover:opacity-80 transition-opacity">
+          <span class="text-primary">BigBag</span><span class="text-gray-800">.vn</span>
         </Link>
 
         <!-- Main Menu Desktop -->
@@ -70,7 +70,7 @@
           <Link :href="route('wholesale')" class="font-label-md text-sm text-gray-700 hover:text-primary">Mua sỉ</Link>
           <Link :href="route('promotion')" class="font-label-md text-sm text-gray-700 hover:text-primary">Khuyến mãi</Link>
           <Link :href="route('home') + '#gioi-thieu'" class="font-label-md text-sm text-gray-700 hover:text-primary">Giới thiệu</Link>
-          <Link :href="route('category', { slug: 'new-arrivals' })" class="font-label-md text-sm text-primary border-b-2 border-primary pb-1">New Arrivals</Link>
+          <Link :href="route('category', { slug: 'new-arrivals' })" class="font-label-md text-sm text-primary border-b-2 border-primary pb-1">Sản phẩm mới</Link>
         </div>
       </div>
 
@@ -109,26 +109,60 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
-import axios from 'axios'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user || null)
 
 const searchKeyword = ref('')
-const cartCount = ref(0)
+const cartCount = ref(3) // Data ảo: có 3 sản phẩm trong giỏ
 const categories = ref([])
 const brands = ref([])
 
+// ========== DATA ẢO ==========
+// Categories ảo cho Balo
+const fakeCategories = [
+  { id: 1, name: 'Balo Laptop 15.6 inch', slug: 'balo-laptop-15inch' },
+  { id: 2, name: 'Balo Du lịch', slug: 'balo-du-lich' },
+  { id: 3, name: 'Balo Thời trang', slug: 'balo-thoi-trang' },
+  { id: 4, name: 'Balo Chống sốc', slug: 'balo-chong-soc' },
+  { id: 5, name: 'Balo Unisex', slug: 'balo-unisex' },
+  { id: 6, name: 'Balo Nữ', slug: 'balo-nu' },
+  { id: 7, name: 'Balo Nam', slug: 'balo-nam' },
+  { id: 8, name: 'Balo Trẻ em', slug: 'balo-tre-em' },
+  { id: 9, name: 'Túi đeo chéo', slug: 'tui-deo-cheo' },
+  { id: 10, name: 'Túi tote', slug: 'tui-tote' },
+  { id: 11, name: 'Túi đeo hông', slug: 'tui-deo-hong' },
+  { id: 12, name: 'Cặp học sinh', slug: 'cap-hoc-sinh' }
+]
+
+// Brands ảo
+const fakeBrands = [
+  { id: 1, name: 'JanSport', slug: 'jansport' },
+  { id: 2, name: 'Herschel', slug: 'herschel' },
+  { id: 3, name: 'Fjallraven', slug: 'fjallraven' },
+  { id: 4, name: 'North Face', slug: 'north-face' },
+  { id: 5, name: 'Samsonite', slug: 'samsonite' },
+  { id: 6, name: 'Dell', slug: 'dell' },
+  { id: 7, name: 'Victorinox', slug: 'victorinox' },
+  { id: 8, name: 'Targus', slug: 'targus' },
+  { id: 9, name: 'Adidas', slug: 'adidas' },
+  { id: 10, name: 'Nike', slug: 'nike' }
+]
+
+// Computed cho Balo categories (lọc category có chứa từ 'balo')
 const laptopCategories = computed(() => {
-  return categories.value.filter(c => 
+  // Dùng data ảo thay vì gọi API
+  return fakeCategories.filter(c => 
     c.name?.toLowerCase().includes('balo') || 
     c.slug?.includes('balo')
   ).slice(0, 8)
 })
 
+// Computed cho Túi categories (lọc category có chứa từ 'túi' hoặc 'cặp')
 const bagCategories = computed(() => {
-  return categories.value.filter(c => 
+  return fakeCategories.filter(c => 
     c.name?.toLowerCase().includes('túi') || 
+    c.name?.toLowerCase().includes('cặp') ||
     c.slug?.includes('tui')
   ).slice(0, 8)
 })
@@ -139,23 +173,20 @@ const handleSearch = () => {
   }
 }
 
+// KHÔNG cần fetchData nữa vì đã dùng data ảo
+// Bạn có thể bỏ qua hoặc để lại để sau này thay bằng API thật
 const fetchData = async () => {
-  try {
-    const [categoriesRes, brandsRes, cartRes] = await Promise.all([
-      axios.get('/api/categories').catch(() => ({ data: [] })),
-      axios.get('/api/brands').catch(() => ({ data: [] })),
-      axios.get('/api/cart/count').catch(() => ({ data: { count: 0 } }))
-    ])
-    categories.value = categoriesRes.data
-    brands.value = brandsRes.data
-    cartCount.value = cartRes.data.count
-  } catch (error) {
-    console.error('Error fetching header data:', error)
-  }
+  // Tạm thời dùng data ảo, không gọi API
+  console.log('Đang dùng data ảo để hiển thị giao diện')
+  console.log('Categories Balo:', laptopCategories.value)
+  console.log('Categories Túi:', bagCategories.value)
+  console.log('Brands:', fakeBrands)
 }
 
 onMounted(() => {
   fetchData()
+  // Gán brands từ data ảo
+  brands.value = fakeBrands
 })
 </script>
 

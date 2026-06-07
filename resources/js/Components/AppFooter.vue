@@ -4,8 +4,8 @@
       
       <!-- Cột 1: Logo & Bản quyền -->
       <div class="space-y-3">
-        <Link :href="route('home')" class="font-headline-sm text-xl font-bold text-gray-800 block hover:text-primary transition-colors">
-          BigBag.vn
+        <Link :href="route('home')" class="font-headline-sm text-xl font-bold block hover:opacity-80 transition-opacity">
+          <span class="text-primary">BigBag</span><span class="text-gray-800">.vn</span>
         </Link>
         <p class="font-body-sm text-sm leading-relaxed text-gray-600">Premium Utility Carry Gear - Đồng hành cùng bạn trên mọi nẻo đường.</p>
         <p class="font-body-sm text-xs text-gray-500">© 2025 BigBag. All rights reserved.</p>
@@ -52,7 +52,6 @@
             placeholder="Email của bạn" 
             type="email"
           >
-          <!-- Đã chỉnh màu nút - giữ nguyên style nhưng đổi màu nền -->
           <button 
             @click="handleSubscribe" 
             class="bg-gray-800 text-white px-4 py-2 flex items-center justify-center hover:bg-gray-700 transition-colors rounded-md"
