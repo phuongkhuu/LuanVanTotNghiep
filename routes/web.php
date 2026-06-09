@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Web\CategoryController as WebCategoryController;
 use App\Http\Controllers\Web\ProductController as WebProductController;
 use Illuminate\Foundation\Application;
@@ -156,9 +157,19 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     })->name('reports.index');
     
     // Settings
-    Route::get('/settings', function () {
-        return Inertia::render('Admin/Settings');
-    })->name('settings.index');
+Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+Route::put('/settings/general', [SettingController::class, 'updateGeneral'])->name('settings.updateGeneral');
+Route::put('/settings/password', [SettingController::class, 'changePassword'])->name('settings.changePassword');
+
+// User Management
+Route::get('/settings/users', [SettingController::class, 'getUsers'])->name('settings.users');
+Route::post('/settings/users', [SettingController::class, 'storeUser'])->name('settings.storeUser');
+Route::put('/settings/users/{id}', [SettingController::class, 'updateUser'])->name('settings.updateUser');
+Route::delete('/settings/users/{id}', [SettingController::class, 'destroyUser'])->name('settings.destroyUser');
+Route::patch('/settings/users/{id}/toggle', [SettingController::class, 'toggleUserStatus'])->name('settings.toggleUser');
+
+
+
 });
 
 require __DIR__.'/auth.php';
