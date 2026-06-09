@@ -9,6 +9,7 @@ const sidebarCollapsed = ref(false);
 const orderSubmenuOpen = ref(true);
 const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
+const attributeSubmenuOpen = ref(false);
 
 // Toggle functions
 const toggleOrderSubmenu = () => {
@@ -19,6 +20,9 @@ const toggleProductSubmenu = () => {
 };
 const toggleCustomerSubmenu = () => {
     customerSubmenuOpen.value = !customerSubmenuOpen.value;
+};
+const toggleAttributeSubmenu = () => {
+    attributeSubmenuOpen.value = !attributeSubmenuOpen.value;
 };
 
 // Lấy thông tin user từ page props
@@ -93,6 +97,33 @@ const user = computed(() => page.props.auth?.user);
                         </div>
                     </div>
 
+                    <!-- Thuộc tính sản phẩm -->
+                    <div class="space-y-1">
+                        <div 
+                            @click="toggleAttributeSubmenu" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
+                            :class="{ 'text-primary': route().current('admin.categories.*') || route().current('admin.colors.*') || route().current('admin.sizes.*') || route().current('admin.brands.*') }"
+                        >
+                            <span class="material-symbols-outlined">settings_input_component</span>
+                            <span class="flex-1 text-sm font-medium">Thuộc tính</span>
+                            <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': attributeSubmenuOpen }">keyboard_arrow_down</span>
+                        </div>
+                        <div v-show="attributeSubmenuOpen" class="ml-8 space-y-1">
+                            <Link :href="route('admin.categories.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                📁 Danh mục
+                            </Link>
+                            <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🎨 Màu sắc
+                            </Link>
+                            <Link :href="route('admin.sizes.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                📏 Kích thước
+                            </Link>
+                            <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                                🏷️ Thương hiệu
+                            </Link>
+                        </div>
+                    </div>
+
                     <!-- Khách hàng -->
                     <div class="space-y-1">
                         <div 
@@ -138,10 +169,16 @@ const user = computed(() => page.props.auth?.user);
                         <span class="material-symbols-outlined">settings</span>
                         <span class="flex-1 text-sm font-medium">Cài đặt</span>
                     </Link>
+
+                    <!-- ===== THÊM MỚI: Liên kết về trang chủ ===== -->
+                    <Link :href="route('home')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all">
+                        <span class="material-symbols-outlined">home</span>
+                        <span class="flex-1 text-sm font-medium">Về trang chủ</span>
+                    </Link>
                 </nav>
             </div>
             
-            <!-- Admin Info - Cố định ở dưới cùng, không bị cuộn -->
+            <!-- Admin Info - Cố định ở dưới cùng -->
             <div class="flex-shrink-0 p-4 border-t border-border-light bg-white">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">

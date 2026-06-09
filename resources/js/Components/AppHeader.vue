@@ -16,14 +16,16 @@
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
               <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                <Link 
-                  v-for="cat in laptopCategories" 
-                  :key="cat.id" 
-                  :href="route('category', { slug: cat.slug })" 
-                  class="text-sm text-gray-600 hover:text-primary"
-                >
-                  {{ cat.name }}
-                </Link>
+                <template v-for="cat in laptopCategories" :key="cat.id">
+                  <Link 
+                    v-if="cat.slug"
+                    :href="getCategoryUrl(cat.slug)" 
+                    class="text-sm text-gray-600 hover:text-primary"
+                  >
+                    {{ cat.name }}
+                  </Link>
+                  <span v-else class="text-sm text-gray-400">{{ cat.name }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -35,14 +37,16 @@
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
               <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                <Link 
-                  v-for="cat in bagCategories" 
-                  :key="cat.id" 
-                  :href="route('category', { slug: cat.slug })" 
-                  class="text-sm text-gray-600 hover:text-primary"
-                >
-                  {{ cat.name }}
-                </Link>
+                <template v-for="cat in bagCategories" :key="cat.id">
+                  <Link 
+                    v-if="cat.slug"
+                    :href="getCategoryUrl(cat.slug)" 
+                    class="text-sm text-gray-600 hover:text-primary"
+                  >
+                    {{ cat.name }}
+                  </Link>
+                  <span v-else class="text-sm text-gray-400">{{ cat.name }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -54,14 +58,16 @@
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
               <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                <Link 
-                  v-for="brand in brands" 
-                  :key="brand.id" 
-                  :href="route('category', { slug: brand.slug })" 
-                  class="text-sm text-gray-600 hover:text-primary"
-                >
-                  {{ brand.name }}
-                </Link>
+                <template v-for="brand in brands" :key="brand.id">
+                  <Link 
+                    v-if="brand.slug"
+                    :href="getCategoryUrl(brand.slug)" 
+                    class="text-sm text-gray-600 hover:text-primary"
+                  >
+                    {{ brand.name }}
+                  </Link>
+                  <span v-else class="text-sm text-gray-400">{{ brand.name }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -91,12 +97,42 @@
 
       <!-- User & Cart -->
       <div class="flex items-center gap-2">
+        <!-- Nếu chưa đăng nhập -->
         <Link v-if="!user" :href="route('login')" class="p-2 hover:scale-95 duration-200 text-gray-600 hover:text-primary">
           <span class="material-symbols-outlined">person</span>
         </Link>
-        <Link v-else :href="route('profile.edit')" class="p-2 hover:scale-95 duration-200 text-gray-600 hover:text-primary">
-          <span class="material-symbols-outlined">account_circle</span>
-        </Link>
+
+        <!-- Nếu đã đăng nhập: Dropdown -->
+        <div v-else class="relative" ref="userDropdownRef">
+          <button 
+            @click="toggleDropdown" 
+            class="p-2 hover:scale-95 duration-200 text-gray-600 hover:text-primary focus:outline-none"
+          >
+            <span class="material-symbols-outlined">account_circle</span>
+          </button>
+          <div 
+            v-if="dropdownOpen" 
+            class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50"
+          >
+            <Link 
+              :href="route('profile.edit')" 
+              class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              @click="closeDropdown"
+            >
+              <span class="material-symbols-outlined text-base mr-2 align-middle">person</span>
+              Hồ sơ
+            </Link>
+            <button 
+              @click="handleLogout" 
+              class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              <span class="material-symbols-outlined text-base mr-2 align-middle">logout</span>
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+
+        <!-- Giỏ hàng -->
         <Link :href="route('cart')" class="relative p-2 hover:scale-95 duration-200 text-gray-600 hover:text-primary">
           <span class="material-symbols-outlined">shopping_bag</span>
           <span v-if="cartCount > 0" class="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{{ cartCount }}</span>
@@ -107,86 +143,86 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user || null)
+const categories = computed(() => page.props.categories || [])
+const brands = computed(() => page.props.brands || [])
 
 const searchKeyword = ref('')
-const cartCount = ref(3) // Data ảo: có 3 sản phẩm trong giỏ
-const categories = ref([])
-const brands = ref([])
+const cartCount = ref(3)
 
-// ========== DATA ẢO ==========
-// Categories ảo cho Balo
-const fakeCategories = [
-  { id: 1, name: 'Balo Laptop 15.6 inch', slug: 'balo-laptop-15inch' },
-  { id: 2, name: 'Balo Du lịch', slug: 'balo-du-lich' },
-  { id: 3, name: 'Balo Thời trang', slug: 'balo-thoi-trang' },
-  { id: 4, name: 'Balo Chống sốc', slug: 'balo-chong-soc' },
-  { id: 5, name: 'Balo Unisex', slug: 'balo-unisex' },
-  { id: 6, name: 'Balo Nữ', slug: 'balo-nu' },
-  { id: 7, name: 'Balo Nam', slug: 'balo-nam' },
-  { id: 8, name: 'Balo Trẻ em', slug: 'balo-tre-em' },
-  { id: 9, name: 'Túi đeo chéo', slug: 'tui-deo-cheo' },
-  { id: 10, name: 'Túi tote', slug: 'tui-tote' },
-  { id: 11, name: 'Túi đeo hông', slug: 'tui-deo-hong' },
-  { id: 12, name: 'Cặp học sinh', slug: 'cap-hoc-sinh' }
-]
+// Dropdown state
+const dropdownOpen = ref(false)
+const userDropdownRef = ref(null)
 
-// Brands ảo
-const fakeBrands = [
-  { id: 1, name: 'JanSport', slug: 'jansport' },
-  { id: 2, name: 'Herschel', slug: 'herschel' },
-  { id: 3, name: 'Fjallraven', slug: 'fjallraven' },
-  { id: 4, name: 'North Face', slug: 'north-face' },
-  { id: 5, name: 'Samsonite', slug: 'samsonite' },
-  { id: 6, name: 'Dell', slug: 'dell' },
-  { id: 7, name: 'Victorinox', slug: 'victorinox' },
-  { id: 8, name: 'Targus', slug: 'targus' },
-  { id: 9, name: 'Adidas', slug: 'adidas' },
-  { id: 10, name: 'Nike', slug: 'nike' }
-]
-
-// Computed cho Balo categories (lọc category có chứa từ 'balo')
+// Lọc danh mục Balo
 const laptopCategories = computed(() => {
-  // Dùng data ảo thay vì gọi API
-  return fakeCategories.filter(c => 
-    c.name?.toLowerCase().includes('balo') || 
-    c.slug?.includes('balo')
+  return categories.value.filter(c => 
+    (c.slug?.includes('balo') || c.name?.toLowerCase().includes('balo')) && c.slug
   ).slice(0, 8)
 })
 
-// Computed cho Túi categories (lọc category có chứa từ 'túi' hoặc 'cặp')
+// Lọc danh mục Cặp - Túi
 const bagCategories = computed(() => {
-  return fakeCategories.filter(c => 
-    c.name?.toLowerCase().includes('túi') || 
-    c.name?.toLowerCase().includes('cặp') ||
-    c.slug?.includes('tui')
+  return categories.value.filter(c => 
+    (c.slug?.includes('tui') || c.slug?.includes('cap') ||
+     c.name?.toLowerCase().includes('túi') || c.name?.toLowerCase().includes('cặp')) && c.slug
   ).slice(0, 8)
 })
 
-const handleSearch = () => {
-  if (searchKeyword.value.trim()) {
-    router.get(route('category', { search: searchKeyword.value }))
+// Hàm tạo URL an toàn
+const getCategoryUrl = (slug) => {
+  if (!slug) return '#'
+  try {
+    return route('category', { slug })
+  } catch (e) {
+    console.warn(`Invalid slug: ${slug}`, e)
+    return '#'
   }
 }
 
-// KHÔNG cần fetchData nữa vì đã dùng data ảo
-// Bạn có thể bỏ qua hoặc để lại để sau này thay bằng API thật
-const fetchData = async () => {
-  // Tạm thời dùng data ảo, không gọi API
-  console.log('Đang dùng data ảo để hiển thị giao diện')
-  console.log('Categories Balo:', laptopCategories.value)
-  console.log('Categories Túi:', bagCategories.value)
-  console.log('Brands:', fakeBrands)
+// Toggle dropdown
+const toggleDropdown = () => {
+  dropdownOpen.value = !dropdownOpen.value
+}
+
+// Đóng dropdown
+const closeDropdown = () => {
+  dropdownOpen.value = false
+}
+
+// Xử lý logout
+const handleLogout = () => {
+  router.post(route('logout'), {}, {
+    onSuccess: () => {
+      window.location.href = route('home')
+    }
+  })
+}
+
+// Xử lý tìm kiếm
+const handleSearch = () => {
+  if (searchKeyword.value.trim()) {
+    router.get(route('category', { slug: 'tim-kiem' }), { q: searchKeyword.value })
+  }
+}
+
+// Đóng dropdown khi click bên ngoài
+const handleClickOutside = (event) => {
+  if (userDropdownRef.value && !userDropdownRef.value.contains(event.target)) {
+    closeDropdown()
+  }
 }
 
 onMounted(() => {
-  fetchData()
-  // Gán brands từ data ảo
-  brands.value = fakeBrands
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 

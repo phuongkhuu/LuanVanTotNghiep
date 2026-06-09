@@ -6,9 +6,28 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ColorController;
+use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Web\CategoryController as WebCategoryController;
+use App\Http\Controllers\Web\ProductController as WebProductController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
+
+// ==================== ROUTE ĐỂ PHỤC VỤ ẢNH (THÊM MỚI) ====================
+Route::get('/image/{filename}', function ($filename) {
+    $path = base_path('image/' . $filename);
+    if (!File::exists($path)) {
+        abort(404);
+    }
+
+    $file = File::get($path);
+    $type = File::mimeType($path);
+
+    return response($file, 200)->header('Content-Type', $type);
+})->where('filename', '.*');
 
 // ==================== WEB ROUTES (Frontend - Cho người dùng) ====================
 
@@ -21,14 +40,13 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-// Product routes
-Route::get('/san-pham/{id}', function ($id) {
-    return Inertia::render('Web/ProductDetail', ['id' => $id]);
-})->name('product.detail');
+Route::get('/tim-kiem', function (Request $request) {
+    return Inertia::render('Web/Category', ['search' => $request->get('q')]);
+})->name('search');
 
-Route::get('/danh-muc/{slug}', function ($slug) {
-    return Inertia::render('Web/Category', ['slug' => $slug]);
-})->name('category');
+// Product routes - now using controllers
+Route::get('/san-pham/{id}', [WebProductController::class, 'show'])->name('product.detail');
+Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
 // Other frontend routes
 Route::get('/mua-si', function () {
@@ -69,32 +87,34 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     
     // Orders Management
     Route::prefix('orders')->group(function () {
-        // Index với type tùy chọn (mặc định sẽ xử lý trong controller)
         Route::get('/{type?}', [AdminOrderController::class, 'index'])
             ->where('type', 'retail|wholesale|preorder')
             ->name('orders.index');
-        
-        // Show - phải đặt SAU route index và có điều kiện id là số
         Route::get('/{id}', [AdminOrderController::class, 'show'])
             ->where('id', '[0-9]+')
             ->name('orders.show');
-        
         Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
         Route::post('/export', [AdminOrderController::class, 'export'])->name('orders.export');
     });
     
     // Products Management
     Route::prefix('products')->group(function () {
-        // Route index với type tùy chọn (normal hoặc preorder)
         Route::get('/{type?}', [AdminProductController::class, 'index'])
             ->where('type', 'normal|preorder')
             ->name('products.index');
-        
-        // Các route CRUD giữ nguyên
         Route::post('/', [AdminProductController::class, 'store'])->name('products.store');
         Route::put('/{id}', [AdminProductController::class, 'update'])->name('products.update');
         Route::delete('/{id}', [AdminProductController::class, 'destroy'])->name('products.destroy');
     });
+    
+    // Categories Management
+    Route::resource('categories', CategoryController::class)->except(['show']);
+    
+    // Colors Management
+    Route::resource('colors', ColorController::class)->except(['show']);
+        
+    // Brands Management
+    Route::resource('brands', BrandController::class)->except(['show']);
     
     // Customers Management
     Route::prefix('customers')->group(function () {
@@ -119,7 +139,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         return Inertia::render('Admin/Promotions');
     })->name('promotions.index');
     
-    // Reports - SỬA LỖI: dùng closure thay vì controller
+    // Reports
     Route::get('/reports', function () {
         return Inertia::render('Admin/Reports');
     })->name('reports.index');
