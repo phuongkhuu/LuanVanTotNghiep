@@ -111,10 +111,21 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::resource('categories', CategoryController::class)->except(['show']);
     
     // Colors Management
-    Route::resource('colors', ColorController::class)->except(['show']);
+    Route::get('/colors', [ColorController::class, 'index'])->name('colors.index');
+    Route::get('/colors/data', [ColorController::class, 'getColors'])->name('colors.data');
+    Route::post('/colors', [ColorController::class, 'store'])->name('colors.store');
+    Route::put('/colors/{id}', [ColorController::class, 'update'])->name('colors.update');
+    Route::delete('/colors/{id}', [ColorController::class, 'destroy'])->name('colors.destroy');
         
     // Brands Management
-    Route::resource('brands', BrandController::class)->except(['show']);
+    Route::prefix('brands')->group(function () {
+        Route::get('/', [BrandController::class, 'index'])->name('brands.index');
+        Route::get('/data', [BrandController::class, 'getBrands'])->name('brands.data');
+        Route::post('/', [BrandController::class, 'store'])->name('brands.store');
+        Route::put('/{id}', [BrandController::class, 'update'])->name('brands.update');
+        Route::delete('/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
+        Route::get('/search', [BrandController::class, 'search'])->name('brands.search');
+    });
     
     // Customers Management
     Route::prefix('customers')->group(function () {

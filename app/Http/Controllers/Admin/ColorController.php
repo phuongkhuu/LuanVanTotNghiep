@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Admin/ColorController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -6,52 +7,111 @@ use App\Http\Controllers\Controller;
 use App\Models\Color;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class ColorController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    // Hiển thị trang danh sách
     public function index()
     {
-        $colors = Color::all();
+        $colors = Color::orderBy('id', 'desc')->get();
+        
         return Inertia::render('Admin/Colors', [
             'colors' => $colors
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    // API: Lấy danh sách
+    public function getColors()
+    {
+        try {
+            $colors = Color::orderBy('id', 'desc')->get();
+            return response()->json($colors);
+        } catch (\Exception $e) {
+            Log::error('Lỗi getColors: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // API: Thêm mới
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:colors'
-        ]);
-        
-        $color = Color::create($validated);
-        return response()->json($color, 201);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:colors,name',
+            ]);
+
+            $color = Color::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Thêm màu sắc thành công!',
+                'data' => $color
+            ], 201);
+            
+        } catch (\Exception $e) {
+            Log::error('Lỗi store color: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Color $color)
+    // API: Cập nhật
+    public function update(Request $request, $id)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:colors,name,' . $color->id
-        ]);
-        
-        $color->update($validated);
-        return response()->json($color);
+        try {
+            $color = Color::findOrFail($id);
+
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:colors,name,' . $id,
+            ]);
+
+            $color->update($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật màu sắc thành công!',
+                'data' => $color
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Lỗi update color: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Color $color)
+    // API: Xóa - Kiểm tra ràng buộc với product_variant
+    public function destroy($id)
     {
-        $color->delete();
-        return response()->json(null, 204);
+        try {
+            $color = Color::findOrFail($id);
+            
+            // Kiểm tra xem có biến thể sản phẩm nào đang sử dụng màu này không
+            if ($color->productVariants()->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể xóa màu này vì đang có ' . $color->productVariants()->count() . ' biến thể sản phẩm đang sử dụng!'
+                ], 400);
+            }
+
+            $color->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Xóa màu sắc thành công!'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Lỗi delete color: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

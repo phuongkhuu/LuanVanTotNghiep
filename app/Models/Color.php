@@ -1,4 +1,5 @@
 <?php
+// app/Models/Color.php
 
 namespace App\Models;
 
@@ -9,10 +10,13 @@ class Color extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = [
+        'name',
+    ];
 
-    public function variants()
+    // Relationship với ProductVariant (một màu có nhiều biến thể sản phẩm)
+    public function productVariants()
     {
-        return $this->hasMany(ProductVariant::class);
+        return $this->hasMany(ProductVariant::class, 'color_id');
     }
 }
