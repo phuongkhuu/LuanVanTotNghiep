@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Color;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ColorController extends Controller
 {
@@ -13,15 +14,10 @@ class ColorController extends Controller
      */
     public function index()
     {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        $colors = Color::all();
+        return Inertia::render('Admin/Colors', [
+            'colors' => $colors
+        ]);
     }
 
     /**
@@ -29,23 +25,12 @@ class ColorController extends Controller
      */
     public function store(Request $request)
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Color $color)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Color $color)
-    {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:colors'
+        ]);
+        
+        $color = Color::create($validated);
+        return response()->json($color, 201);
     }
 
     /**
@@ -53,7 +38,12 @@ class ColorController extends Controller
      */
     public function update(Request $request, Color $color)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:colors,name,' . $color->id
+        ]);
+        
+        $color->update($validated);
+        return response()->json($color);
     }
 
     /**
@@ -61,6 +51,7 @@ class ColorController extends Controller
      */
     public function destroy(Color $color)
     {
-        //
+        $color->delete();
+        return response()->json(null, 204);
     }
 }

@@ -115,9 +115,6 @@ const user = computed(() => page.props.auth?.user);
                             <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
                                 🎨 Màu sắc
                             </Link>
-                            <Link :href="route('admin.sizes.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
-                                📏 Kích thước
-                            </Link>
                             <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
                                 🏷️ Thương hiệu
                             </Link>
