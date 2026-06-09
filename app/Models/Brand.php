@@ -9,7 +9,12 @@ class Brand extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'logo', 'description'];
+    protected $fillable = [
+        'name',
+        'slug',
+        'logo',
+        'description',
+    ];
 
     public function products()
     {

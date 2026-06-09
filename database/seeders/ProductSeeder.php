@@ -8,6 +8,9 @@ use App\Models\Color;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
+
+
 
 class ProductSeeder extends Seeder
 {
@@ -25,14 +28,32 @@ class ProductSeeder extends Seeder
 
         // Tạo thương hiệu
         $brands = [
-            ['name' => 'BigBag', 'logo' => null, 'description' => 'Thương hiệu chính'],
-            ['name' => 'Solo', 'logo' => null, 'description' => 'Solo Professional'],
-            ['name' => 'KingBag', 'logo' => null, 'description' => 'KingBag'],
+            [
+                'name' => 'BigBag',
+                'logo' => null,
+                'description' => 'Thương hiệu chính',
+            ],
+            [
+                'name' => 'Solo',
+                'logo' => null,
+                'description' => 'Solo Professional',
+            ],
+            [
+                'name' => 'KingBag',
+                'logo' => null,
+                'description' => 'KingBag',
+            ],
         ];
-        foreach ($brands as $brand) {
-            Brand::updateOrCreate(['name' => $brand['name']], $brand);
-        }
 
+        foreach ($brands as $brand) {
+
+            $brand['slug'] = Str::slug($brand['name']);
+
+            Brand::updateOrCreate(
+                ['slug' => $brand['slug']],
+                $brand
+            );
+        }
         // Tạo màu sắc (cột 'name' sau khi đã rename)
         $colors = ['Đen', 'Xám', 'Xanh Navy', 'Nâu', 'Đỏ'];
         foreach ($colors as $colorName) {

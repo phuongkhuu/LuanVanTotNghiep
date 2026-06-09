@@ -10,12 +10,22 @@ return new class extends Migration
     {
         Schema::create('product_variants', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
-            $table->foreignId('color_id')->constrained()->onDelete('restrict');
-            $table->foreignId('size_id')->constrained()->onDelete('restrict');
+
+            $table->foreignId('product_id')
+                ->constrained()
+                ->onDelete('cascade');
+
+            $table->foreignId('color_id')
+                ->constrained()
+                ->onDelete('restrict');
+
+            // Thay size_id bằng size_name
+            $table->string('size_name');
+
             $table->decimal('rating', 2, 1)->default(0);
             $table->integer('stock')->default(0);
             $table->decimal('price', 12, 0);
+
             $table->timestamps();
         });
     }
