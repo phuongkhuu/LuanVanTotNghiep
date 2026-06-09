@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Admin/BrandController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -13,7 +14,7 @@ class BrandController extends Controller
     // Hiển thị trang danh sách
     public function index()
     {
-        $brands = Brand::orderBy('created_at', 'desc')->get();
+        $brands = Brand::orderBy('id', 'desc')->get();
         
         return Inertia::render('Admin/Brands', [
             'brands' => $brands
@@ -24,7 +25,7 @@ class BrandController extends Controller
     public function getBrands()
     {
         try {
-            $brands = Brand::orderBy('name')->get();
+            $brands = Brand::orderBy('id', 'desc')->get();
             return response()->json($brands);
         } catch (\Exception $e) {
             Log::error('Lỗi getBrands: ' . $e->getMessage());
@@ -36,8 +37,6 @@ class BrandController extends Controller
     public function store(Request $request)
     {
         try {
-            Log::info('Store brand request:', $request->all());
-            
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name',
                 'slug' => 'required|string|unique:brands,slug',
@@ -46,8 +45,6 @@ class BrandController extends Controller
             ]);
 
             $brand = Brand::create($validated);
-            
-            Log::info('Brand created successfully:', ['id' => $brand->id]);
 
             return response()->json([
                 'success' => true,
@@ -64,13 +61,21 @@ class BrandController extends Controller
         }
     }
 
-    // API: Cập nhật
+    // API: Cập nhật - KIỂM TRA RÀNG BUỘC
     public function update(Request $request, $id)
     {
         try {
-            Log::info('Update brand request:', ['id' => $id, 'data' => $request->all()]);
-            
             $brand = Brand::findOrFail($id);
+            
+            // Kiểm tra xem có biến thể sản phẩm nào của thương hiệu này không
+            $variantCount = $brand->productVariants()->count();
+            
+            if ($variantCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
+                ], 400);
+            }
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name,' . $id,
@@ -96,19 +101,19 @@ class BrandController extends Controller
         }
     }
 
-    // API: Xóa
+    // API: Xóa - Kiểm tra ràng buộc
     public function destroy($id)
     {
         try {
-            Log::info('Delete brand request:', ['id' => $id]);
-            
             $brand = Brand::findOrFail($id);
             
-            // Kiểm tra ràng buộc
-            if ($brand->products()->count() > 0) {
+            // Kiểm tra xem có biến thể sản phẩm nào của thương hiệu này không
+            $variantCount = $brand->productVariants()->count();
+            
+            if ($variantCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa vì có sản phẩm đang sử dụng thương hiệu này!'
+                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
                 ], 400);
             }
 

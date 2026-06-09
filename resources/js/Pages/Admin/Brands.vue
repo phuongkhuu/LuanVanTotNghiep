@@ -24,6 +24,7 @@ const isEdit = ref(false)
 const selectedBrand = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
+const errorMessage = ref('')
 
 const form = ref({
     id: null,
@@ -55,7 +56,7 @@ const fetchBrands = async () => {
     
     isLoading.value = true
     try {
-        const response = await axios.get('/admin/brands')
+        const response = await axios.get('/admin/brands/data')
         if (response.data && Array.isArray(response.data)) {
             brands.value = response.data
         } else {
@@ -72,24 +73,26 @@ const fetchBrands = async () => {
 const openCreateModal = () => {
     isEdit.value = false
     form.value = { id: null, name: '', logo: '', description: '' }
+    errorMessage.value = ''
     showModal.value = true
 }
 
 const openEditModal = (brand) => {
     isEdit.value = true
     form.value = { ...brand }
+    errorMessage.value = ''
     showModal.value = true
 }
 
 const saveBrand = async () => {
     if (!form.value.name.trim()) {
-        // Không alert, có thể thêm toast sau
-        console.warn('Vui lòng nhập tên thương hiệu')
+        errorMessage.value = 'Vui lòng nhập tên thương hiệu'
         return
     }
 
     if (isSaving.value) return
     isSaving.value = true
+    errorMessage.value = ''
 
     try {
         const dataToSave = {
@@ -102,27 +105,35 @@ const saveBrand = async () => {
         let response
         if (isEdit.value) {
             response = await axios.put(`/admin/brands/${form.value.id}`, dataToSave)
-            // Cập nhật brand trong danh sách
-            const index = brands.value.findIndex(b => b.id === form.value.id)
-            if (index !== -1 && response.data && response.data.data) {
-                brands.value[index] = response.data.data
+            
+            if (response.data && response.data.success) {
+                // Cập nhật brand trong danh sách
+                const index = brands.value.findIndex(b => b.id === form.value.id)
+                if (index !== -1 && response.data.data) {
+                    brands.value[index] = response.data.data
+                }
+                // Đóng modal
+                showModal.value = false
+                // Reset form
+                form.value = { id: null, name: '', logo: '', description: '' }
+            } else {
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         } else {
             response = await axios.post('/admin/brands', dataToSave)
             // Thêm brand mới vào đầu danh sách (vì ID lớn nhất)
             if (response.data && response.data.data) {
                 brands.value.unshift(response.data.data)
+                // Đóng modal
+                showModal.value = false
+                // Reset form
+                form.value = { id: null, name: '', logo: '', description: '' }
             }
         }
         
-        // Đóng modal
-        showModal.value = false
-        
-        // Reset form
-        form.value = { id: null, name: '', logo: '', description: '' }
-        
     } catch (error) {
         console.error('Lỗi lưu thương hiệu:', error)
+        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
     } finally {
         isSaving.value = false
     }
@@ -130,6 +141,7 @@ const saveBrand = async () => {
 
 const confirmDelete = (brand) => {
     selectedBrand.value = brand
+    errorMessage.value = ''
     showDeleteModal.value = true
 }
 
@@ -138,23 +150,29 @@ const deleteBrand = async () => {
     if (isSaving.value) return
     
     isSaving.value = true
+    errorMessage.value = ''
     
     try {
-        await axios.delete(`/admin/brands/${selectedBrand.value.id}`)
+        const response = await axios.delete(`/admin/brands/${selectedBrand.value.id}`)
         
-        // Đóng modal xóa
-        showDeleteModal.value = false
-        
-        // Xóa khỏi danh sách thủ công
-        const index = brands.value.findIndex(b => b.id === selectedBrand.value.id)
-        if (index !== -1) {
-            brands.value.splice(index, 1)
+        if (response.data && response.data.success) {
+            // Đóng modal xóa
+            showDeleteModal.value = false
+            
+            // Xóa khỏi danh sách thủ công
+            const index = brands.value.findIndex(b => b.id === selectedBrand.value.id)
+            if (index !== -1) {
+                brands.value.splice(index, 1)
+            }
+            
+            selectedBrand.value = null
+        } else {
+            errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
-        
-        selectedBrand.value = null
         
     } catch (error) {
         console.error('Lỗi xóa thương hiệu:', error)
+        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra khi xóa'
     } finally {
         isSaving.value = false
     }
@@ -165,6 +183,8 @@ const closeModal = () => {
     showDeleteModal.value = false
     selectedBrand.value = null
     form.value = { id: null, name: '', logo: '', description: '' }
+    errorMessage.value = ''
+    isSaving.value = false
 }
 
 const handleOverlayClick = (e) => {
@@ -185,13 +205,11 @@ onMounted(() => {
     
     <AdminLayout>
         <div class="p-6">
-            <!-- Header -->
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Quản lý thương hiệu</h1>
                 <p class="text-gray-500 mt-1">Thêm, sửa hoặc xóa các thương hiệu</p>
             </div>
 
-            <!-- Button thêm mới -->
             <div class="mb-6">
                 <button 
                     @click="openCreateModal" 
@@ -202,13 +220,11 @@ onMounted(() => {
                 </button>
             </div>
 
-            <!-- Loading - CHỈ HIỂN THỊ KHI LOAD LẦN ĐẦU -->
             <div v-if="isLoading && brands.length === 0" class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
                 <p class="mt-2 text-gray-500">Đang tải...</p>
             </div>
 
-            <!-- Bảng danh sách - Sắp xếp theo ID giảm dần (mới nhất lên đầu) -->
             <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
                 <table class="w-full min-w-[800px]">
                     <thead class="bg-gray-50 border-b border-gray-200">
@@ -308,6 +324,10 @@ onMounted(() => {
                             :disabled="isSaving"
                         ></textarea>
                     </div>
+                    
+                    <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-sm text-red-600">{{ errorMessage }}</p>
+                    </div>
                 </div>
                 
                 <div class="flex justify-end gap-3 mt-6">
@@ -339,6 +359,11 @@ onMounted(() => {
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">Xác nhận xóa</h3>
                 <p class="text-gray-600">Bạn có chắc muốn xóa thương hiệu <strong>{{ selectedBrand?.name }}</strong>?</p>
+                
+                <div v-if="errorMessage" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-600">{{ errorMessage }}</p>
+                </div>
+                
                 <div class="flex justify-end gap-3 mt-6">
                     <button 
                         @click="closeModal" 

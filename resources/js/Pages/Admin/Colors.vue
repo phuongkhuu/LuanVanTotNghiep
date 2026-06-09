@@ -11,7 +11,6 @@ const props = defineProps({
     }
 })
 
-// Sắp xếp màu sắc theo ID giảm dần (mới nhất lên đầu)
 const sortedColors = computed(() => {
     return [...colors.value].sort((a, b) => b.id - a.id)
 })
@@ -145,26 +144,34 @@ const saveColor = async () => {
         let response
         if (isEdit.value) {
             response = await axios.put(`/admin/colors/${form.value.id}`, { name: form.value.name })
-            // Cập nhật màu trong danh sách
-            const index = colors.value.findIndex(c => c.id === form.value.id)
-            if (index !== -1 && response.data && response.data.data) {
-                colors.value[index] = response.data.data
+            
+            if (response.data && response.data.success) {
+                // Cập nhật màu trong danh sách
+                const index = colors.value.findIndex(c => c.id === form.value.id)
+                if (index !== -1 && response.data.data) {
+                    colors.value[index] = response.data.data
+                }
+                // Đóng modal
+                showModal.value = false
+                // Reset form
+                form.value = { id: null, name: '' }
+                previewColor.value = '#CCCCCC'
+                previewColorCode.value = '#CCCCCC'
+            } else {
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         } else {
             response = await axios.post('/admin/colors', { name: form.value.name })
-            // Thêm màu mới vào đầu danh sách
             if (response.data && response.data.data) {
                 colors.value.unshift(response.data.data)
+                // Đóng modal
+                showModal.value = false
+                // Reset form
+                form.value = { id: null, name: '' }
+                previewColor.value = '#CCCCCC'
+                previewColorCode.value = '#CCCCCC'
             }
         }
-        
-        // Đóng modal
-        showModal.value = false
-        
-        // Reset form
-        form.value = { id: null, name: '' }
-        previewColor.value = '#CCCCCC'
-        previewColorCode.value = '#CCCCCC'
         
     } catch (error) {
         console.error('Lỗi lưu màu sắc:', error)
@@ -191,15 +198,11 @@ const deleteColor = async () => {
         const response = await axios.delete(`/admin/colors/${selectedColor.value.id}`)
         
         if (response.data && response.data.success) {
-            // Đóng modal xóa
             showDeleteModal.value = false
-            
-            // Xóa khỏi danh sách
             const index = colors.value.findIndex(c => c.id === selectedColor.value.id)
             if (index !== -1) {
                 colors.value.splice(index, 1)
             }
-            
             selectedColor.value = null
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
@@ -352,7 +355,6 @@ onMounted(() => {
                         </div>
                     </div>
                     
-                    <!-- Hiển thị lỗi -->
                     <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
@@ -387,7 +389,11 @@ onMounted(() => {
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">Xác nhận xóa</h3>
                 <p class="text-gray-600">Bạn có chắc muốn xóa màu <strong>{{ selectedColor?.name }}</strong>?</p>
-                <p v-if="errorMessage" class="text-sm text-red-600 mt-2">{{ errorMessage }}</p>
+                
+                <div v-if="errorMessage" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-600">{{ errorMessage }}</p>
+                </div>
+                
                 <div class="flex justify-end gap-3 mt-6">
                     <button 
                         @click="closeModal" 

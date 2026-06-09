@@ -58,11 +58,21 @@ class ColorController extends Controller
         }
     }
 
-    // API: Cập nhật
+    // API: Cập nhật - KIỂM TRA RÀNG BUỘC
     public function update(Request $request, $id)
     {
         try {
             $color = Color::findOrFail($id);
+            
+            // Kiểm tra xem có biến thể sản phẩm nào đang sử dụng màu này không
+            $variantCount = $color->productVariants()->count();
+            
+            if ($variantCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể sửa màu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
+                ], 400);
+            }
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:colors,name,' . $id,
@@ -85,17 +95,19 @@ class ColorController extends Controller
         }
     }
 
-    // API: Xóa - Kiểm tra ràng buộc với product_variant
+    // API: Xóa - Kiểm tra ràng buộc
     public function destroy($id)
     {
         try {
             $color = Color::findOrFail($id);
             
             // Kiểm tra xem có biến thể sản phẩm nào đang sử dụng màu này không
-            if ($color->productVariants()->count() > 0) {
+            $variantCount = $color->productVariants()->count();
+            
+            if ($variantCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa màu này vì đang có ' . $color->productVariants()->count() . ' biến thể sản phẩm đang sử dụng!'
+                    'message' => 'Không thể xóa màu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
                 ], 400);
             }
 
