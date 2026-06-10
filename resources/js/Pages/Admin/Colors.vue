@@ -11,10 +11,6 @@ const props = defineProps({
     }
 })
 
-const sortedColors = computed(() => {
-    return [...colors.value].sort((a, b) => b.id - a.id)
-})
-
 const colors = ref(props.colors)
 const showModal = ref(false)
 const showDeleteModal = ref(false)
@@ -26,23 +22,23 @@ const errorMessage = ref('')
 
 const form = ref({
     id: null,
-    name: ''
+    name: '',
+    code: ''
 })
 
 const previewColor = ref('#CCCCCC')
 const previewColorCode = ref('#CCCCCC')
 
+// Hàm kiểm tra mã hex
 const isHexCode = (value) => {
     return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)
 }
 
-const getColorCodeFromNameOrHex = (input) => {
-    if (!input) return '#CCCCCC'
-    
-    if (isHexCode(input)) {
-        return input
-    }
-    
+// Chuyển đổi tên màu -> mã hex (mặc định)
+const getColorCodeFromName = (name) => {
+    if (!name) return '#CCCCCC'
+    if (isHexCode(name)) return name
+
     const colorMap = {
         'đen': '#000000', 'den': '#000000', 'black': '#000000',
         'trắng': '#FFFFFF', 'trang': '#FFFFFF', 'white': '#FFFFFF',
@@ -57,33 +53,35 @@ const getColorCodeFromNameOrHex = (input) => {
         'tím': '#800080', 'tim': '#800080', 'purple': '#800080',
         'nâu': '#8B4513', 'nau': '#8B4513', 'brown': '#8B4513',
         'be': '#F5F5DC', 'beige': '#F5F5DC',
-        'vàng kem': '#FFF8DC', 'cream': '#FFF8DC',
         'bạc': '#C0C0C0', 'silver': '#C0C0C0',
         'vàng gold': '#FFD700', 'gold': '#FFD700'
     }
-    
-    const key = input.toLowerCase().trim()
+    const key = name.toLowerCase().trim()
     return colorMap[key] || '#CCCCCC'
 }
 
 const updateColorPreview = () => {
-    const inputValue = form.value.name.trim()
+    const inputName = form.value.name.trim()
+    const inputCode = form.value.code?.trim() || ''
     
-    if (!inputValue) {
+    if (inputCode && isHexCode(inputCode)) {
+        previewColor.value = inputCode
+        previewColorCode.value = inputCode
+        return
+    }
+    
+    if (inputName) {
+        const code = getColorCodeFromName(inputName)
+        previewColor.value = code
+        previewColorCode.value = code
+        // Tự động gợi ý mã hex vào ô code nếu chưa có
+        if (!form.value.code && code !== '#CCCCCC') {
+            form.value.code = code
+        }
+    } else {
         previewColor.value = '#CCCCCC'
         previewColorCode.value = '#CCCCCC'
-        return
     }
-    
-    if (isHexCode(inputValue)) {
-        previewColor.value = inputValue
-        previewColorCode.value = inputValue
-        return
-    }
-    
-    const colorCode = getColorCodeFromNameOrHex(inputValue)
-    previewColor.value = colorCode
-    previewColorCode.value = colorCode
 }
 
 const formatDate = (date) => {
@@ -94,18 +92,14 @@ const formatDate = (date) => {
 
 const fetchColors = async () => {
     if (isLoading.value) return
-    
     isLoading.value = true
     try {
         const response = await axios.get('/admin/colors/data')
         if (response.data && Array.isArray(response.data)) {
             colors.value = response.data
-        } else {
-            colors.value = []
         }
     } catch (error) {
-        console.error('Lỗi lấy danh sách màu sắc:', error)
-        colors.value = []
+        console.error('Lỗi lấy danh sách màu:', error)
     } finally {
         isLoading.value = false
     }
@@ -113,7 +107,7 @@ const fetchColors = async () => {
 
 const openCreateModal = () => {
     isEdit.value = false
-    form.value = { id: null, name: '' }
+    form.value = { id: null, name: '', code: '' }
     previewColor.value = '#CCCCCC'
     previewColorCode.value = '#CCCCCC'
     errorMessage.value = ''
@@ -123,16 +117,17 @@ const openCreateModal = () => {
 const openEditModal = (color) => {
     isEdit.value = true
     form.value = { ...color }
-    const colorCode = getColorCodeFromNameOrHex(color.name)
-    previewColor.value = colorCode
-    previewColorCode.value = colorCode
+    const code = color.code || getColorCodeFromName(color.name)
+    previewColor.value = code
+    previewColorCode.value = code
+    if (!form.value.code) form.value.code = code
     errorMessage.value = ''
     showModal.value = true
 }
 
 const saveColor = async () => {
     if (!form.value.name.trim()) {
-        errorMessage.value = 'Vui lòng nhập tên màu sắc hoặc mã màu'
+        errorMessage.value = 'Vui lòng nhập tên màu sắc'
         return
     }
 
@@ -142,39 +137,39 @@ const saveColor = async () => {
 
     try {
         let response
+        const payload = {
+            name: form.value.name.trim(),
+            code: form.value.code?.trim() || null
+        }
+
         if (isEdit.value) {
-            response = await axios.put(`/admin/colors/${form.value.id}`, { name: form.value.name })
-            
-            if (response.data && response.data.success) {
-                // Cập nhật màu trong danh sách
+            response = await axios.put(`/admin/colors/${form.value.id}`, payload)
+            if (response.data?.success) {
                 const index = colors.value.findIndex(c => c.id === form.value.id)
                 if (index !== -1 && response.data.data) {
                     colors.value[index] = response.data.data
                 }
-                // Đóng modal
                 showModal.value = false
-                // Reset form
-                form.value = { id: null, name: '' }
-                previewColor.value = '#CCCCCC'
-                previewColorCode.value = '#CCCCCC'
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         } else {
-            response = await axios.post('/admin/colors', { name: form.value.name })
-            if (response.data && response.data.data) {
+            response = await axios.post('/admin/colors', payload)
+            if (response.data?.data) {
                 colors.value.unshift(response.data.data)
-                // Đóng modal
                 showModal.value = false
-                // Reset form
-                form.value = { id: null, name: '' }
-                previewColor.value = '#CCCCCC'
-                previewColorCode.value = '#CCCCCC'
+            } else {
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         }
         
+        if (response.data?.success || response.data?.data) {
+            form.value = { id: null, name: '', code: '' }
+            previewColor.value = '#CCCCCC'
+            previewColorCode.value = '#CCCCCC'
+        }
     } catch (error) {
-        console.error('Lỗi lưu màu sắc:', error)
+        console.error('Lỗi lưu màu:', error)
         errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
     } finally {
         isSaving.value = false
@@ -196,21 +191,17 @@ const deleteColor = async () => {
     
     try {
         const response = await axios.delete(`/admin/colors/${selectedColor.value.id}`)
-        
-        if (response.data && response.data.success) {
+        if (response.data?.success) {
             showDeleteModal.value = false
             const index = colors.value.findIndex(c => c.id === selectedColor.value.id)
-            if (index !== -1) {
-                colors.value.splice(index, 1)
-            }
+            if (index !== -1) colors.value.splice(index, 1)
             selectedColor.value = null
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
-        
     } catch (error) {
-        console.error('Lỗi xóa màu sắc:', error)
-        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra khi xóa'
+        console.error('Lỗi xóa màu:', error)
+        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
     } finally {
         isSaving.value = false
     }
@@ -220,27 +211,22 @@ const closeModal = () => {
     showModal.value = false
     showDeleteModal.value = false
     selectedColor.value = null
-    form.value = { id: null, name: '' }
+    form.value = { id: null, name: '', code: '' }
     errorMessage.value = ''
     isSaving.value = false
 }
 
 const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-        closeModal()
-    }
+    if (e.target === e.currentTarget) closeModal()
 }
 
 onMounted(() => {
-    if (colors.value.length === 0) {
-        fetchColors()
-    }
+    if (colors.value.length === 0) fetchColors()
 })
 </script>
 
 <template>
     <Head title="Quản lý màu sắc" />
-    
     <AdminLayout>
         <div class="p-6">
             <div class="mb-6">
@@ -249,11 +235,7 @@ onMounted(() => {
             </div>
 
             <div class="mb-6">
-                <button 
-                    @click="openCreateModal" 
-                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition"
-                    :disabled="isSaving"
-                >
+                <button @click="openCreateModal" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition">
                     + Thêm màu sắc mới
                 </button>
             </div>
@@ -269,52 +251,31 @@ onMounted(() => {
                         <tr>
                             <th class="text-left p-4 font-semibold text-gray-700">ID</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Màu sắc</th>
+                            <th class="text-left p-4 font-semibold text-gray-700">Mã hex</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Ngày tạo</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Cập nhật</th>
                             <th class="text-center p-4 font-semibold text-gray-700">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr 
-                            v-for="color in sortedColors" 
-                            :key="color.id" 
-                            class="border-b border-gray-100 hover:bg-gray-50 transition"
-                        >
+                        <tr v-for="color in colors" :key="color.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
                             <td class="p-4 text-gray-700">{{ color.id }}</td>
-                            <td class="p-4 font-medium text-gray-700">
+                            <td class="p-4">
                                 <div class="flex items-center gap-3">
-                                    <div 
-                                        class="w-8 h-8 rounded border border-gray-300 shadow-sm" 
-                                        :style="{ backgroundColor: getColorCodeFromNameOrHex(color.name) }"
-                                    ></div>
-                                    <span>{{ color.name }}</span>
+                                    <div class="w-8 h-8 rounded border border-gray-300 shadow-sm" :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"></div>
+                                    <span class="font-medium text-gray-700">{{ color.name }}</span>
                                 </div>
                             </td>
+                            <td class="p-4 text-gray-500 text-sm font-mono">{{ color.code || '—' }}</td>
                             <td class="p-4 text-gray-500 text-sm">{{ formatDate(color.created_at) }}</td>
-                            <td class="p-4 text-gray-500 text-sm">{{ formatDate(color.updated_at) }}</td>
                             <td class="p-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button 
-                                        @click="openEditModal(color)" 
-                                        class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
-                                        :disabled="isSaving"
-                                    >
-                                        Sửa
-                                    </button>
-                                    <button 
-                                        @click="confirmDelete(color)" 
-                                        class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
-                                        :disabled="isSaving"
-                                    >
-                                        Xóa
-                                    </button>
+                                    <button @click="openEditModal(color)" class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50">Sửa</button>
+                                    <button @click="confirmDelete(color)" class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50">Xóa</button>
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="sortedColors.length === 0 && !isLoading">
-                            <td colspan="5" class="p-8 text-center text-gray-400">
-                                Chưa có màu sắc nào
-                            </td>
+                        <tr v-if="colors.length === 0 && !isLoading">
+                            <td colspan="5" class="p-8 text-center text-gray-400">Chưa có màu sắc nào</td>
                         </tr>
                     </tbody>
                 </table>
@@ -322,57 +283,33 @@ onMounted(() => {
         </div>
 
         <!-- Modal Thêm/Sửa -->
-        <div 
-            v-if="showModal" 
-            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-            @click="handleOverlayClick"
-        >
+        <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="handleOverlayClick">
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">{{ isEdit ? 'Sửa màu sắc' : 'Thêm màu sắc mới' }}</h3>
-                
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Màu sắc *</label>
-                        <input 
-                            v-model="form.name"
-                            type="text" 
-                            class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" 
-                            placeholder="VD: Đỏ, Xanh Navy, #FF0000, #000080"
-                            @input="updateColorPreview"
-                            :disabled="isSaving"
-                        >
-                        <p class="text-xs text-gray-400 mt-1">Có thể nhập tên màu (VD: Đỏ) hoặc mã hex (VD: #FF0000)</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên màu *</label>
+                        <input v-model="form.name" type="text" class="w-full border rounded-lg p-2 focus:ring-primary focus:border-primary" placeholder="VD: Đỏ, Xanh Navy" @input="updateColorPreview">
                     </div>
-                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã hex (tùy chọn)</label>
+                        <input v-model="form.code" type="text" class="w-full border rounded-lg p-2 font-mono focus:ring-primary focus:border-primary" placeholder="#dc2626" @input="updateColorPreview">
+                        <p class="text-xs text-gray-400 mt-1">Để trống sẽ tự động sinh mã từ tên màu</p>
+                    </div>
                     <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div 
-                            class="w-12 h-12 rounded-lg border border-gray-300 shadow-md" 
-                            :style="{ backgroundColor: previewColor }"
-                        ></div>
+                        <div class="w-12 h-12 rounded-lg border border-gray-300 shadow-md" :style="{ backgroundColor: previewColor }"></div>
                         <div class="text-sm text-gray-600">
                             Xem trước màu<br>
-                            <span class="text-xs text-gray-400">{{ previewColorCode }}</span>
+                            <span class="text-xs text-gray-400 font-mono">{{ previewColorCode }}</span>
                         </div>
                     </div>
-                    
                     <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
                 </div>
-                
                 <div class="flex justify-end gap-3 mt-6">
-                    <button 
-                        @click="closeModal" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                        :disabled="isSaving"
-                    >
-                        Hủy
-                    </button>
-                    <button 
-                        @click="saveColor" 
-                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition flex items-center gap-2"
-                        :disabled="isSaving"
-                    >
+                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Hủy</button>
+                    <button @click="saveColor" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center gap-2" :disabled="isSaving">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xử lý...' : 'Lưu' }}
                     </button>
@@ -380,33 +317,17 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Modal Xác nhận xóa -->
-        <div 
-            v-if="showDeleteModal" 
-            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-            @click="handleOverlayClick"
-        >
+        <!-- Modal Xóa -->
+        <div v-if="showDeleteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="handleOverlayClick">
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">Xác nhận xóa</h3>
                 <p class="text-gray-600">Bạn có chắc muốn xóa màu <strong>{{ selectedColor?.name }}</strong>?</p>
-                
                 <div v-if="errorMessage" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p class="text-sm text-red-600">{{ errorMessage }}</p>
                 </div>
-                
                 <div class="flex justify-end gap-3 mt-6">
-                    <button 
-                        @click="closeModal" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                        :disabled="isSaving"
-                    >
-                        Hủy
-                    </button>
-                    <button 
-                        @click="deleteColor" 
-                        class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center gap-2"
-                        :disabled="isSaving"
-                    >
+                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Hủy</button>
+                    <button @click="deleteColor" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2" :disabled="isSaving">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xóa...' : 'Xóa' }}
                     </button>
@@ -418,15 +339,8 @@ onMounted(() => {
 
 <style scoped>
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
-
-.animate-spin {
-    animation: spin 1s linear infinite;
-}
+.animate-spin { animation: spin 1s linear infinite; }
 </style>

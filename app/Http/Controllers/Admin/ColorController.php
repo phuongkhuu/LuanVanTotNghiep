@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Admin/ColorController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -11,21 +10,18 @@ use Illuminate\Support\Facades\Log;
 
 class ColorController extends Controller
 {
-    // Hiển thị trang danh sách
+    // Hiển thị trang danh sách (Inertia)
     public function index()
     {
-        $colors = Color::orderBy('id', 'desc')->get();
-        
-        return Inertia::render('Admin/Colors', [
-            'colors' => $colors
-        ]);
+        $colors = Color::orderBy('name')->get();
+        return Inertia::render('Admin/Colors', ['colors' => $colors]);
     }
 
-    // API: Lấy danh sách
+    // API: Lấy danh sách (dùng cho fetch nếu cần)
     public function getColors()
     {
         try {
-            $colors = Color::orderBy('id', 'desc')->get();
+            $colors = Color::orderBy('name')->get();
             return response()->json($colors);
         } catch (\Exception $e) {
             Log::error('Lỗi getColors: ' . $e->getMessage());
@@ -39,6 +35,7 @@ class ColorController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:colors,name',
+                'code' => 'nullable|string|max:50|regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/',
             ]);
 
             $color = Color::create($validated);
@@ -48,7 +45,6 @@ class ColorController extends Controller
                 'message' => 'Thêm màu sắc thành công!',
                 'data' => $color
             ], 201);
-            
         } catch (\Exception $e) {
             Log::error('Lỗi store color: ' . $e->getMessage());
             return response()->json([
@@ -58,15 +54,14 @@ class ColorController extends Controller
         }
     }
 
-    // API: Cập nhật - KIỂM TRA RÀNG BUỘC
+    // API: Cập nhật
     public function update(Request $request, $id)
     {
         try {
             $color = Color::findOrFail($id);
-            
-            // Kiểm tra xem có biến thể sản phẩm nào đang sử dụng màu này không
+
+            // Kiểm tra ràng buộc với biến thể sản phẩm
             $variantCount = $color->productVariants()->count();
-            
             if ($variantCount > 0) {
                 return response()->json([
                     'success' => false,
@@ -76,6 +71,7 @@ class ColorController extends Controller
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:colors,name,' . $id,
+                'code' => 'nullable|string|max:50|regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/',
             ]);
 
             $color->update($validated);
@@ -85,7 +81,6 @@ class ColorController extends Controller
                 'message' => 'Cập nhật màu sắc thành công!',
                 'data' => $color
             ]);
-            
         } catch (\Exception $e) {
             Log::error('Lỗi update color: ' . $e->getMessage());
             return response()->json([
@@ -95,15 +90,13 @@ class ColorController extends Controller
         }
     }
 
-    // API: Xóa - Kiểm tra ràng buộc
+    // API: Xóa
     public function destroy($id)
     {
         try {
             $color = Color::findOrFail($id);
-            
-            // Kiểm tra xem có biến thể sản phẩm nào đang sử dụng màu này không
+
             $variantCount = $color->productVariants()->count();
-            
             if ($variantCount > 0) {
                 return response()->json([
                     'success' => false,
@@ -117,7 +110,6 @@ class ColorController extends Controller
                 'success' => true,
                 'message' => 'Xóa màu sắc thành công!'
             ]);
-            
         } catch (\Exception $e) {
             Log::error('Lỗi delete color: ' . $e->getMessage());
             return response()->json([
