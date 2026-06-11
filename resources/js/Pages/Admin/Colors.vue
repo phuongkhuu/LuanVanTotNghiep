@@ -11,6 +11,11 @@ const props = defineProps({
     }
 })
 
+// Sắp xếp màu sắc theo ID giảm dần
+const sortedColors = computed(() => {
+    return [...colors.value].sort((a, b) => b.id - a.id)
+})
+
 const colors = ref(props.colors)
 const showModal = ref(false)
 const showDeleteModal = ref(false)
@@ -19,6 +24,7 @@ const selectedColor = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
+const validationErrors = ref({})
 
 const form = ref({
     id: null,
@@ -28,16 +34,18 @@ const form = ref({
 
 const previewColor = ref('#CCCCCC')
 const previewColorCode = ref('#CCCCCC')
+const isGenerating = ref(false)
 
 // Hàm kiểm tra mã hex
 const isHexCode = (value) => {
+    if (!value) return false
     return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)
 }
 
-// Chuyển đổi tên màu -> mã hex (mặc định)
+// Chuyển đổi tên màu -> mã hex
 const getColorCodeFromName = (name) => {
     if (!name) return '#CCCCCC'
-    if (isHexCode(name)) return name
+    if (isHexCode(name)) return name.toUpperCase()
 
     const colorMap = {
         'đen': '#000000', 'den': '#000000', 'black': '#000000',
@@ -47,26 +55,74 @@ const getColorCodeFromName = (name) => {
         'hồng': '#FFC0CB', 'hong': '#FFC0CB', 'pink': '#FFC0CB',
         'cam': '#FFA500', 'orange': '#FFA500',
         'vàng': '#FFD700', 'vang': '#FFD700', 'yellow': '#FFD700',
-        'xanh lá': '#008000', 'green': '#008000',
-        'xanh dương': '#0000FF', 'blue': '#0000FF',
-        'xanh navy': '#000080', 'navy': '#000080',
+        'xanh lá': '#008000', 'xanhla': '#008000', 'green': '#008000',
+        'xanh dương': '#0000FF', 'xanhduong': '#0000FF', 'blue': '#0000FF',
+        'xanh navy': '#000080', 'xanhnavy': '#000080', 'navy': '#000080',
         'tím': '#800080', 'tim': '#800080', 'purple': '#800080',
         'nâu': '#8B4513', 'nau': '#8B4513', 'brown': '#8B4513',
         'be': '#F5F5DC', 'beige': '#F5F5DC',
-        'bạc': '#C0C0C0', 'silver': '#C0C0C0',
-        'vàng gold': '#FFD700', 'gold': '#FFD700'
+        'bạc': '#C0C0C0', 'bac': '#C0C0C0', 'silver': '#C0C0C0',
+        'tím than': '#490C42', 'tim than': '#490C42'
     }
     const key = name.toLowerCase().trim()
     return colorMap[key] || '#CCCCCC'
 }
 
+// Chuyển đổi mã hex -> tên màu (chỉ dùng để gợi ý)
+const suggestColorNameFromCode = (code) => {
+    if (!code) return ''
+    
+    const codeMap = {
+        '#000000': 'Đen', '#000': 'Đen',
+        '#FFFFFF': 'Trắng', '#FFF': 'Trắng',
+        '#808080': 'Xám',
+        '#FF0000': 'Đỏ', '#F00': 'Đỏ',
+        '#FFC0CB': 'Hồng',
+        '#FFA500': 'Cam',
+        '#FFD700': 'Vàng',
+        '#008000': 'Xanh lá',
+        '#0000FF': 'Xanh dương', '#00F': 'Xanh dương',
+        '#000080': 'Xanh navy',
+        '#800080': 'Tím',
+        '#8B4513': 'Nâu',
+        '#F5F5DC': 'Be',
+        '#C0C0C0': 'Bạc',
+        '#6200EE': 'Tím đậm',
+        '#9C27B0': 'Tím hồng',
+        '#490C42': 'Tím than',
+        '#FF5733': 'Cam đỏ',
+        '#E91E63': 'Hồng đậm',
+        '#2196F3': 'Xanh dương sáng',
+        '#00BCD4': 'Xanh cyan',
+        '#009688': 'Xanh lá cây',
+        '#4CAF50': 'Xanh lá',
+        '#FFC107': 'Vàng cam',
+        '#FF9800': 'Cam',
+        '#795548': 'Nâu đậm',
+        '#9E9E9E': 'Xám'
+    }
+    const upperCode = code.toUpperCase()
+    return codeMap[upperCode] || ''
+}
+
 const updateColorPreview = () => {
-    const inputName = form.value.name.trim()
+    if (isGenerating.value) return
+    
+    const inputName = form.value.name?.trim() || ''
     const inputCode = form.value.code?.trim() || ''
     
+    // Ưu tiên hiển thị theo code nếu có
     if (inputCode && isHexCode(inputCode)) {
-        previewColor.value = inputCode
-        previewColorCode.value = inputCode
+        const normalizedCode = inputCode.toUpperCase()
+        previewColor.value = normalizedCode
+        previewColorCode.value = normalizedCode
+        
+        // Gợi ý tên từ code (chỉ gợi ý, không tự động điền)
+        const suggestedName = suggestColorNameFromCode(normalizedCode)
+        if (suggestedName && !inputName) {
+            // Chỉ hiển thị gợi ý trong preview, không tự động điền vào input
+            // Người dùng có thể nhập tên tùy ý
+        }
         return
     }
     
@@ -74,7 +130,7 @@ const updateColorPreview = () => {
         const code = getColorCodeFromName(inputName)
         previewColor.value = code
         previewColorCode.value = code
-        // Tự động gợi ý mã hex vào ô code nếu chưa có
+        // Gợi ý code từ tên
         if (!form.value.code && code !== '#CCCCCC') {
             form.value.code = code
         }
@@ -111,6 +167,7 @@ const openCreateModal = () => {
     previewColor.value = '#CCCCCC'
     previewColorCode.value = '#CCCCCC'
     errorMessage.value = ''
+    validationErrors.value = {}
     showModal.value = true
 }
 
@@ -122,55 +179,56 @@ const openEditModal = (color) => {
     previewColorCode.value = code
     if (!form.value.code) form.value.code = code
     errorMessage.value = ''
+    validationErrors.value = {}
     showModal.value = true
 }
 
 const saveColor = async () => {
-    if (!form.value.name.trim()) {
-        errorMessage.value = 'Vui lòng nhập tên màu sắc'
+    // Kiểm tra ít nhất một trong hai trường có dữ liệu
+    if (!form.value.name?.trim() && !form.value.code?.trim()) {
+        errorMessage.value = 'Vui lòng nhập tên màu hoặc mã hex!'
         return
     }
 
     if (isSaving.value) return
     isSaving.value = true
     errorMessage.value = ''
+    validationErrors.value = {}
 
     try {
         let response
         const payload = {
-            name: form.value.name.trim(),
+            name: form.value.name?.trim() || null,
             code: form.value.code?.trim() || null
         }
 
         if (isEdit.value) {
             response = await axios.put(`/admin/colors/${form.value.id}`, payload)
-            if (response.data?.success) {
-                const index = colors.value.findIndex(c => c.id === form.value.id)
-                if (index !== -1 && response.data.data) {
-                    colors.value[index] = response.data.data
-                }
-                showModal.value = false
-            } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
-            }
         } else {
             response = await axios.post('/admin/colors', payload)
-            if (response.data?.data) {
-                colors.value.unshift(response.data.data)
-                showModal.value = false
-            } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
-            }
         }
         
-        if (response.data?.success || response.data?.data) {
+        if (response.data?.success) {
+            await fetchColors()
+            showModal.value = false
             form.value = { id: null, name: '', code: '' }
             previewColor.value = '#CCCCCC'
             previewColorCode.value = '#CCCCCC'
+            errorMessage.value = ''
+        } else if (response.data?.message && typeof response.data.message === 'object') {
+            validationErrors.value = response.data.message
+            errorMessage.value = Object.values(response.data.message).flat()[0]
+        } else {
+            errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
     } catch (error) {
         console.error('Lỗi lưu màu:', error)
-        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
+        if (error.response?.data?.message && typeof error.response.data.message === 'object') {
+            validationErrors.value = error.response.data.message
+            errorMessage.value = Object.values(error.response.data.message).flat()[0]
+        } else {
+            errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
+        }
     } finally {
         isSaving.value = false
     }
@@ -192,9 +250,8 @@ const deleteColor = async () => {
     try {
         const response = await axios.delete(`/admin/colors/${selectedColor.value.id}`)
         if (response.data?.success) {
+            await fetchColors()
             showDeleteModal.value = false
-            const index = colors.value.findIndex(c => c.id === selectedColor.value.id)
-            if (index !== -1) colors.value.splice(index, 1)
             selectedColor.value = null
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
@@ -213,6 +270,7 @@ const closeModal = () => {
     selectedColor.value = null
     form.value = { id: null, name: '', code: '' }
     errorMessage.value = ''
+    validationErrors.value = {}
     isSaving.value = false
 }
 
@@ -232,6 +290,7 @@ onMounted(() => {
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Quản lý màu sắc</h1>
                 <p class="text-gray-500 mt-1">Thêm, sửa hoặc xóa các màu sắc sản phẩm</p>
+                <p class="text-xs text-gray-400 mt-1">💡 Nhập tên màu sẽ tự động sinh mã hex. Nhập mã hex mới cần nhập tên tương ứng.</p>
             </div>
 
             <div class="mb-6">
@@ -249,16 +308,16 @@ onMounted(() => {
                 <table class="w-full min-w-[600px]">
                     <thead class="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th class="text-left p-4 font-semibold text-gray-700">ID</th>
+                            <th class="text-left p-4 font-semibold text-gray-700 w-16">STT</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Màu sắc</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Mã hex</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Ngày tạo</th>
-                            <th class="text-center p-4 font-semibold text-gray-700">Thao tác</th>
+                            <th class="text-center p-4 font-semibold text-gray-700 w-32">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="color in colors" :key="color.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
-                            <td class="p-4 text-gray-700">{{ color.id }}</td>
+                        <tr v-for="(color, index) in sortedColors" :key="color.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
+                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-8 h-8 rounded border border-gray-300 shadow-sm" :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"></div>
@@ -274,7 +333,7 @@ onMounted(() => {
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="colors.length === 0 && !isLoading">
+                        <tr v-if="sortedColors.length === 0 && !isLoading">
                             <td colspan="5" class="p-8 text-center text-gray-400">Chưa có màu sắc nào</td>
                         </tr>
                     </tbody>
@@ -288,13 +347,29 @@ onMounted(() => {
                 <h3 class="text-xl font-bold mb-4">{{ isEdit ? 'Sửa màu sắc' : 'Thêm màu sắc mới' }}</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên màu *</label>
-                        <input v-model="form.name" type="text" class="w-full border rounded-lg p-2 focus:ring-primary focus:border-primary" placeholder="VD: Đỏ, Xanh Navy" @input="updateColorPreview">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên màu <span v-if="!form.code" class="text-red-500">*</span></label>
+                        <input 
+                            v-model="form.name" 
+                            type="text" 
+                            class="w-full border rounded-lg p-2 focus:ring-primary focus:border-primary" 
+                            :class="{ 'border-red-500': validationErrors.name }"
+                            placeholder="VD: Đỏ, Xanh Navy, Tím than..." 
+                            @input="updateColorPreview"
+                        >
+                        <p v-if="validationErrors.name" class="text-xs text-red-500 mt-1">{{ validationErrors.name[0] }}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã hex (tùy chọn)</label>
-                        <input v-model="form.code" type="text" class="w-full border rounded-lg p-2 font-mono focus:ring-primary focus:border-primary" placeholder="#dc2626" @input="updateColorPreview">
-                        <p class="text-xs text-gray-400 mt-1">Để trống sẽ tự động sinh mã từ tên màu</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã hex</label>
+                        <input 
+                            v-model="form.code" 
+                            type="text" 
+                            class="w-full border rounded-lg p-2 font-mono focus:ring-primary focus:border-primary" 
+                            :class="{ 'border-red-500': validationErrors.code }"
+                            placeholder="#dc2626, #FFA500, #490C42..." 
+                            @input="updateColorPreview"
+                        >
+                        <p v-if="validationErrors.code" class="text-xs text-red-500 mt-1">{{ validationErrors.code[0] }}</p>
+                        <p class="text-xs text-gray-400 mt-1">💡 Nhập tên màu sẽ tự sinh mã hex. Nhập mã hex cần nhập tên tương ứng.</p>
                     </div>
                     <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                         <div class="w-12 h-12 rounded-lg border border-gray-300 shadow-md" :style="{ backgroundColor: previewColor }"></div>
@@ -303,7 +378,7 @@ onMounted(() => {
                             <span class="text-xs text-gray-400 font-mono">{{ previewColorCode }}</span>
                         </div>
                     </div>
-                    <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div v-if="errorMessage && !validationErrors.name && !validationErrors.code" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
                 </div>

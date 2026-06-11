@@ -26,11 +26,23 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 
+// Chọn phương thức nhập logo: 'url' hoặc 'file'
+const imageInputMode = ref('url')
+const selectedFile = ref(null)
+const imagePreviewUrl = ref('')
+
 const form = ref({
     id: null,
     name: '',
     logo: '',
     description: ''
+})
+
+// Xem trước logo
+const imagePreview = computed(() => {
+    if (imagePreviewUrl.value) return imagePreviewUrl.value
+    if (form.value.logo) return form.value.logo
+    return null
 })
 
 // Hàm tạo slug từ name
@@ -73,6 +85,9 @@ const fetchBrands = async () => {
 const openCreateModal = () => {
     isEdit.value = false
     form.value = { id: null, name: '', logo: '', description: '' }
+    selectedFile.value = null
+    imagePreviewUrl.value = ''
+    imageInputMode.value = 'url'
     errorMessage.value = ''
     showModal.value = true
 }
@@ -80,8 +95,43 @@ const openCreateModal = () => {
 const openEditModal = (brand) => {
     isEdit.value = true
     form.value = { ...brand }
+    selectedFile.value = null
+    imagePreviewUrl.value = ''
+    imageInputMode.value = 'url'
     errorMessage.value = ''
     showModal.value = true
+}
+
+// Xử lý khi chọn file
+const handleFileChange = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+        errorMessage.value = 'Vui lòng chọn file ảnh (jpg, png, ...)'
+        return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        errorMessage.value = 'Kích thước ảnh không quá 2MB'
+        return
+    }
+    selectedFile.value = file
+    errorMessage.value = ''
+    // Tạo preview
+    const reader = new FileReader()
+    reader.onload = (e) => { imagePreviewUrl.value = e.target.result }
+    reader.readAsDataURL(file)
+    // Xóa logo cũ nếu có
+    form.value.logo = ''
+}
+
+// Reset chọn file
+const clearFile = () => {
+    selectedFile.value = null
+    imagePreviewUrl.value = ''
+    if (imageInputMode.value === 'file') {
+        const fileInput = document.getElementById('fileInput')
+        if (fileInput) fileInput.value = ''
+    }
 }
 
 const saveBrand = async () => {
@@ -95,16 +145,31 @@ const saveBrand = async () => {
     errorMessage.value = ''
 
     try {
-        const dataToSave = {
-            name: form.value.name,
-            logo: form.value.logo || null,
-            description: form.value.description || null,
-            slug: generateSlug(form.value.name)
-        }
-        
         let response
+        
         if (isEdit.value) {
-            response = await axios.put(`/admin/brands/${form.value.id}`, dataToSave)
+            // Cập nhật
+            if (selectedFile.value) {
+                // Có file upload -> dùng FormData
+                const formData = new FormData()
+                formData.append('_method', 'PUT')
+                formData.append('name', form.value.name)
+                formData.append('description', form.value.description || '')
+                formData.append('logo_file', selectedFile.value)
+                
+                response = await axios.post(`/admin/brands/${form.value.id}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                })
+            } else {
+                // Không có file -> dùng JSON
+                const dataToSave = {
+                    name: form.value.name,
+                    logo: form.value.logo || null,
+                    description: form.value.description || null,
+                    slug: generateSlug(form.value.name)
+                }
+                response = await axios.put(`/admin/brands/${form.value.id}`, dataToSave)
+            }
             
             if (response.data && response.data.success) {
                 // Cập nhật brand trong danh sách
@@ -112,22 +177,43 @@ const saveBrand = async () => {
                 if (index !== -1 && response.data.data) {
                     brands.value[index] = response.data.data
                 }
-                // Đóng modal
                 showModal.value = false
-                // Reset form
                 form.value = { id: null, name: '', logo: '', description: '' }
+                clearFile()
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         } else {
-            response = await axios.post('/admin/brands', dataToSave)
-            // Thêm brand mới vào đầu danh sách (vì ID lớn nhất)
+            // Thêm mới
+            if (selectedFile.value) {
+                // Có file upload -> dùng FormData
+                const formData = new FormData()
+                formData.append('name', form.value.name)
+                formData.append('description', form.value.description || '')
+                formData.append('logo_file', selectedFile.value)
+                formData.append('slug', generateSlug(form.value.name))
+                
+                response = await axios.post('/admin/brands', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                })
+            } else {
+                // Không có file -> dùng JSON
+                const dataToSave = {
+                    name: form.value.name,
+                    logo: form.value.logo || null,
+                    description: form.value.description || null,
+                    slug: generateSlug(form.value.name)
+                }
+                response = await axios.post('/admin/brands', dataToSave)
+            }
+            
             if (response.data && response.data.data) {
                 brands.value.unshift(response.data.data)
-                // Đóng modal
                 showModal.value = false
-                // Reset form
                 form.value = { id: null, name: '', logo: '', description: '' }
+                clearFile()
+            } else {
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         }
         
@@ -156,15 +242,11 @@ const deleteBrand = async () => {
         const response = await axios.delete(`/admin/brands/${selectedBrand.value.id}`)
         
         if (response.data && response.data.success) {
-            // Đóng modal xóa
             showDeleteModal.value = false
-            
-            // Xóa khỏi danh sách thủ công
             const index = brands.value.findIndex(b => b.id === selectedBrand.value.id)
             if (index !== -1) {
                 brands.value.splice(index, 1)
             }
-            
             selectedBrand.value = null
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
@@ -185,6 +267,7 @@ const closeModal = () => {
     form.value = { id: null, name: '', logo: '', description: '' }
     errorMessage.value = ''
     isSaving.value = false
+    clearFile()
 }
 
 const handleOverlayClick = (e) => {
@@ -229,26 +312,26 @@ onMounted(() => {
                 <table class="w-full min-w-[800px]">
                     <thead class="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th class="text-left p-4 font-semibold text-gray-700">ID</th>
+                            <th class="text-left p-4 font-semibold text-gray-700 w-16">STT</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Tên thương hiệu</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Slug</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Logo</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Mô tả</th>
                             <th class="text-left p-4 font-semibold text-gray-700">Ngày tạo</th>
-                            <th class="text-center p-4 font-semibold text-gray-700">Thao tác</th>
+                            <th class="text-center p-4 font-semibold text-gray-700 w-32">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr 
-                            v-for="brand in sortedBrands" 
+                            v-for="(brand, index) in sortedBrands" 
                             :key="brand.id" 
                             class="border-b border-gray-100 hover:bg-gray-50 transition"
                         >
-                            <td class="p-4 text-gray-700">{{ brand.id }}</td>
+                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
                             <td class="p-4 font-medium text-gray-700">{{ brand.name }}</td>
                             <td class="p-4 text-gray-500 text-sm">{{ brand.slug }}</td>
                             <td class="p-4 text-gray-500">
-                                <img v-if="brand.logo" :src="brand.logo" class="h-8 w-auto" alt="logo">
+                                <img v-if="brand.logo" :src="brand.logo" class="h-8 w-auto object-contain" alt="logo">
                                 <span v-else class="text-gray-400">---</span>
                             </td>
                             <td class="p-4 text-gray-500 max-w-xs truncate">{{ brand.description || '---' }}</td>
@@ -301,17 +384,75 @@ onMounted(() => {
                             placeholder="VD: BigBag, Solo, KingBag"
                             :disabled="isSaving"
                         >
+                        <p class="text-xs text-gray-400 mt-1">Slug tự động sinh từ tên</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                        <input 
-                            v-model="form.logo" 
-                            type="text" 
-                            class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" 
-                            placeholder="https://example.com/logo.png"
-                            :disabled="isSaving"
-                        >
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                        
+                        <!-- Tab chọn phương thức nhập -->
+                        <div class="flex gap-2 border-b pb-2 mb-2">
+                            <button 
+                                type="button" 
+                                @click="imageInputMode = 'url'" 
+                                :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-600']"
+                            >
+                                🔗 Nhập URL
+                            </button>
+                            <button 
+                                type="button" 
+                                @click="imageInputMode = 'file'" 
+                                :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-600']"
+                            >
+                                📁 Tải ảnh lên
+                            </button>
+                        </div>
+                        
+                        <!-- Nhập URL -->
+                        <div v-if="imageInputMode === 'url'">
+                            <input 
+                                v-model="form.logo" 
+                                type="text" 
+                                class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" 
+                                placeholder="https://example.com/logo.png"
+                                :disabled="isSaving"
+                            >
+                            <p class="text-xs text-gray-400 mt-1">Nhập đường dẫn ảnh logo</p>
+                        </div>
+                        
+                        <!-- Upload file -->
+                        <div v-else>
+                            <input 
+                                id="fileInput" 
+                                type="file" 
+                                accept="image/*" 
+                                @change="handleFileChange" 
+                                class="w-full"
+                                :disabled="isSaving"
+                            >
+                            <button 
+                                v-if="selectedFile" 
+                                @click="clearFile" 
+                                class="text-red-500 text-xs mt-1 hover:underline"
+                                type="button"
+                            >
+                                Xóa file đã chọn
+                            </button>
+                            <p class="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG, GIF, SVG. Kích thước tối đa 2MB</p>
+                        </div>
+                        
+                        <!-- Xem trước ảnh -->
+                        <div v-if="imagePreview" class="mt-2">
+                            <p class="text-sm text-gray-600 mb-1">Xem trước:</p>
+                            <div class="w-24 h-24 border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                <img 
+                                    :src="imagePreview" 
+                                    class="max-w-full max-h-full object-contain" 
+                                    @error="imagePreviewUrl = ''; form.logo = ''"
+                                    alt="Logo preview"
+                                >
+                            </div>
+                        </div>
                     </div>
                     
                     <div>
@@ -319,7 +460,7 @@ onMounted(() => {
                         <textarea 
                             v-model="form.description" 
                             rows="3" 
-                            class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" 
+                            class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none resize-none" 
                             placeholder="Mô tả về thương hiệu..."
                             :disabled="isSaving"
                         ></textarea>

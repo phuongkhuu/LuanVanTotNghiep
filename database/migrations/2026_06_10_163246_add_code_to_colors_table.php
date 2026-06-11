@@ -17,30 +17,40 @@ return new class extends Migration
                 $table->timestamps();
             });
         } else {
-            // Nếu đã có, chỉ thêm cột code
-            Schema::table('colors', function (Blueprint $table) {
-                $table->string('code', 50)->nullable()->after('name');
-            });
+            // Nếu đã có, chỉ thêm cột code nếu chưa có
+            if (!Schema::hasColumn('colors', 'code')) {
+                Schema::table('colors', function (Blueprint $table) {
+                    $table->string('code', 50)->nullable()->after('name');
+                });
+            }
         }
 
-        // Gán mã hex mặc định cho các màu hiện có (nếu cột code vừa được thêm)
-        $colors = \App\Models\Color::all();
-        $colorMap = [
-            'Đen' => '#000000',
-            'Xám' => '#9ca3af',
-            'Xanh Navy' => '#1e3a8a',
-            'Nâu' => '#78350f',
-            'Đỏ' => '#dc2626',
-            'Vàng' => '#fbbf24',
-            'Trắng' => '#ffffff',
-            'Hồng' => '#fbcfe8',
-            'Cam' => '#f97316',
-            'Tím' => '#a855f7',
-        ];
-        foreach ($colors as $color) {
-            if (empty($color->code)) {
-                $color->code = $colorMap[$color->name] ?? '#cccccc';
-                $color->save();
+        // Gán mã hex mặc định cho các màu hiện có (nếu cột code vừa được thêm hoặc đang trống)
+        if (class_exists('App\Models\Color')) {
+            $colors = \App\Models\Color::all();
+            $colorMap = [
+                'Đen' => '#000000', 'den' => '#000000', 'black' => '#000000',
+                'Trắng' => '#FFFFFF', 'trang' => '#FFFFFF', 'white' => '#FFFFFF',
+                'Xám' => '#808080', 'xam' => '#808080', 'gray' => '#808080',
+                'Đỏ' => '#FF0000', 'do' => '#FF0000', 'red' => '#FF0000',
+                'Hồng' => '#FFC0CB', 'hong' => '#FFC0CB', 'pink' => '#FFC0CB',
+                'Cam' => '#FFA500', 'orange' => '#FFA500',
+                'Vàng' => '#FFD700', 'vang' => '#FFD700', 'yellow' => '#FFD700',
+                'Xanh lá' => '#008000', 'green' => '#008000',
+                'Xanh dương' => '#0000FF', 'blue' => '#0000FF',
+                'Xanh navy' => '#000080', 'navy' => '#000080',
+                'Tím' => '#800080', 'tim' => '#800080', 'purple' => '#800080',
+                'Nâu' => '#8B4513', 'nau' => '#8B4513', 'brown' => '#8B4513',
+                'Be' => '#F5F5DC', 'beige' => '#F5F5DC',
+                'Bạc' => '#C0C0C0', 'silver' => '#C0C0C0',
+            ];
+            
+            foreach ($colors as $color) {
+                if (empty($color->code)) {
+                    $key = strtolower($color->name);
+                    $color->code = $colorMap[$key] ?? '#CCCCCC';
+                    $color->save();
+                }
             }
         }
     }
@@ -48,7 +58,9 @@ return new class extends Migration
     public function down()
     {
         Schema::table('colors', function (Blueprint $table) {
-            $table->dropColumn('code');
+            if (Schema::hasColumn('colors', 'code')) {
+                $table->dropColumn('code');
+            }
         });
     }
 };
