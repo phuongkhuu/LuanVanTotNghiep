@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
 // Sidebar state
 const sidebarCollapsed = ref(false);
 
-// Submenu states - mở rộng dựa trên route hiện tại
+// Submenu states - khởi tạo với false, sẽ được kiểm tra sau
 const orderSubmenuOpen = ref(false);
 const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
@@ -18,36 +18,30 @@ const user = computed(() => page.props.auth?.user);
 // Kiểm tra route hiện tại
 const currentRoute = computed(() => page.component);
 
-// Tự động mở submenu dựa trên route hiện tại
-const checkActiveSubmenus = () => {
-    const route = currentRoute.value;
-    
-    // Kiểm tra submenu Đơn hàng
-    if (route === 'Admin/Orders' || route?.includes('Orders')) {
-        orderSubmenuOpen.value = true;
+// Kiểm tra active cho menu item
+const isActive = (routeNames) => {
+    if (typeof routeNames === 'string') {
+        return route().current(routeNames);
     }
-    
-    // Kiểm tra submenu Sản phẩm
-    if (route === 'Admin/Products' || route?.includes('Products')) {
-        productSubmenuOpen.value = true;
+    if (Array.isArray(routeNames)) {
+        return routeNames.some(name => route().current(name));
     }
-    
-    // Kiểm tra submenu Khách hàng
-    if (route === 'Admin/Customers' || route?.includes('Customers')) {
-        customerSubmenuOpen.value = true;
-    }
-    
-    // Kiểm tra submenu Thuộc tính
-    if (route === 'Admin/Categories' || route === 'Admin/Colors' || route === 'Admin/Brands' || 
-        route?.includes('Categories') || route?.includes('Colors') || route?.includes('Brands')) {
-        attributeSubmenuOpen.value = true;
-    }
+    return false;
 };
 
-// Gọi kiểm tra khi component mount
-setTimeout(checkActiveSubmenus, 100);
+// Cập nhật trạng thái submenu dựa trên route hiện tại
+const updateSubmenuState = () => {
+    const route = currentRoute.value;
+    
+    // Chỉ mở submenu khi đang ở trong trang liên quan
+    orderSubmenuOpen.value = (route === 'Admin/Orders' || route?.includes('Orders'));
+    productSubmenuOpen.value = (route === 'Admin/Products' || route?.includes('Products'));
+    customerSubmenuOpen.value = (route === 'Admin/Customers' || route?.includes('Customers'));
+    attributeSubmenuOpen.value = (route === 'Admin/Categories' || route === 'Admin/Colors' || route === 'Admin/Brands' || 
+        route?.includes('Categories') || route?.includes('Colors') || route?.includes('Brands'));
+};
 
-// Toggle functions
+// Toggle functions - đóng/mở thủ công
 const toggleOrderSubmenu = () => {
     orderSubmenuOpen.value = !orderSubmenuOpen.value;
 };
@@ -61,32 +55,27 @@ const toggleAttributeSubmenu = () => {
     attributeSubmenuOpen.value = !attributeSubmenuOpen.value;
 };
 
-// Kiểm tra active cho menu item
-const isActive = (routeNames) => {
-    if (typeof routeNames === 'string') {
-        return route().current(routeNames);
-    }
-    if (Array.isArray(routeNames)) {
-        return routeNames.some(name => route().current(name));
-    }
-    return false;
-};
+// Lắng nghe sự thay đổi route để cập nhật submenu
+watch(currentRoute, () => {
+    updateSubmenuState();
+}, { immediate: true });
+
+onMounted(() => {
+    updateSubmenuState();
+});
 </script>
 
 <template>
     <div class="flex min-h-screen bg-background">
-        <!-- ==================== SIDEBAR ==================== -->
         <aside 
             class="w-72 bg-white border-r border-border-light fixed h-full z-20 transition-all duration-300 flex flex-col"
             :class="{ 'hidden lg:block': sidebarCollapsed, 'block': !sidebarCollapsed }"
         >
-            <!-- Logo - Phần cố định đầu trang -->
             <div class="p-6 border-b border-border-light flex-shrink-0">
                 <h1 class="text-2xl font-bold text-primary">BigBag<span class="text-on-surface">.vn</span></h1>
                 <p class="text-xs text-on-surface-variant mt-1">Admin Portal</p>
             </div>
             
-            <!-- Menu Area - Có thể cuộn -->
             <div class="flex-1 overflow-y-auto">
                 <nav class="p-4 space-y-1">
                     <!-- Dashboard -->
@@ -107,15 +96,9 @@ const isActive = (routeNames) => {
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': orderSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="orderSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🛒 Đơn bán lẻ
-                            </Link>
-                            <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'wholesale' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🏭 Đơn bán sỉ
-                            </Link>
-                            <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                ⏳ Đơn Pre-order
-                            </Link>
+                            <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🛒 Đơn bán lẻ</Link>
+                            <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'wholesale' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🏭 Đơn bán sỉ</Link>
+                            <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">⏳ Đơn Pre-order</Link>
                         </div>
                     </div>
 
@@ -131,12 +114,8 @@ const isActive = (routeNames) => {
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': productSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'normal' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🎒 Sản phẩm thường
-                            </Link>
-                            <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🔮 Sản phẩm Pre-order
-                            </Link>
+                            <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'normal' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🎒 Sản phẩm thường</Link>
+                            <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🔮 Sản phẩm Pre-order</Link>
                         </div>
                     </div>
 
@@ -152,15 +131,9 @@ const isActive = (routeNames) => {
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': attributeSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="attributeSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.categories.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.categories.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                📁 Danh mục
-                            </Link>
-                            <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.colors.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🎨 Màu sắc
-                            </Link>
-                            <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.brands.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🏷️ Thương hiệu
-                            </Link>
+                            <Link :href="route('admin.categories.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.categories.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">📁 Danh mục</Link>
+                            <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.colors.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🎨 Màu sắc</Link>
+                            <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.brands.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🏷️ Thương hiệu</Link>
                         </div>
                     </div>
 
@@ -169,19 +142,15 @@ const isActive = (routeNames) => {
                         <div 
                             @click="toggleCustomerSubmenu" 
                             class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
-                            :class="isActive(['admin.customers.index', 'admin.customers.retail', 'admin.customers.business']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
+                            :class="isActive(['admin.customers.index']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
                         >
                             <span class="material-symbols-outlined">group</span>
                             <span class="flex-1 text-sm font-medium">Khách hàng</span>
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': customerSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="customerSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                👤 Khách hàng lẻ
-                            </Link>
-                            <Link :href="route('admin.customers.index', { type: 'business' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'business' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                                🏢 Khách hàng doanh nghiệp
-                            </Link>
+                            <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">👤 Khách lẻ</Link>
+                            <Link :href="route('admin.customers.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'wholesale' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🏢 Khách doanh nghiệp</Link>
                         </div>
                     </div>
 
@@ -218,7 +187,6 @@ const isActive = (routeNames) => {
                 </nav>
             </div>
             
-            <!-- Admin Info - Cố định ở dưới cùng -->
             <div class="flex-shrink-0 p-4 border-t border-border-light bg-white">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
@@ -235,16 +203,9 @@ const isActive = (routeNames) => {
             </div>
         </aside>
 
-        <!-- Mobile overlay -->
-        <div 
-            v-if="!sidebarCollapsed" 
-            @click="sidebarCollapsed = true" 
-            class="fixed inset-0 bg-black/50 z-10 lg:hidden"
-        ></div>
+        <div v-if="!sidebarCollapsed" @click="sidebarCollapsed = true" class="fixed inset-0 bg-black/50 z-10 lg:hidden"></div>
 
-        <!-- ==================== MAIN CONTENT ==================== -->
         <main class="flex-1 lg:ml-72 transition-all duration-300">
-            <!-- Header -->
             <header class="sticky top-0 z-10 glass-header border-b border-border-light px-4 md:px-8 py-4 flex justify-between items-center bg-white/95 backdrop-blur-sm">
                 <div class="flex items-center gap-4">
                     <button @click="sidebarCollapsed = !sidebarCollapsed" class="text-on-surface-variant hover:text-primary lg:hidden">
@@ -252,11 +213,7 @@ const isActive = (routeNames) => {
                     </button>
                     <div class="relative hidden md:block">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm kiếm..." 
-                            class="pl-10 pr-4 py-2 bg-white border border-border-light rounded-full w-80 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm"
-                        >
+                        <input type="text" placeholder="Tìm kiếm..." class="pl-10 pr-4 py-2 bg-white border border-border-light rounded-full w-80 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm">
                     </div>
                 </div>
                 <div class="flex items-center gap-4">               
@@ -268,8 +225,6 @@ const isActive = (routeNames) => {
                     </div>
                 </div>
             </header>
-
-            <!-- Slot cho nội dung chính -->
             <slot />
         </main>
     </div>
@@ -280,30 +235,23 @@ const isActive = (routeNames) => {
     background-color: #fff5f2;
     color: #ff6b00;
 }
-
 .rotate-180 {
     transform: rotate(180deg);
 }
-
 .glass-header {
     backdrop-filter: blur(12px);
     background-color: rgba(251, 249, 245, 0.95);
 }
-
-/* Custom scrollbar cho phần menu */
 aside .overflow-y-auto::-webkit-scrollbar {
     width: 4px;
 }
-
 aside .overflow-y-auto::-webkit-scrollbar-track {
     background: #f1f1f1;
 }
-
 aside .overflow-y-auto::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 4px;
 }
-
 aside .overflow-y-auto::-webkit-scrollbar-thumb:hover {
     background: #ff6b00;
 }
