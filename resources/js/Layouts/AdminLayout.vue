@@ -5,11 +5,47 @@ import { Link, usePage } from '@inertiajs/vue3';
 // Sidebar state
 const sidebarCollapsed = ref(false);
 
-// Submenu states
-const orderSubmenuOpen = ref(true);
+// Submenu states - mở rộng dựa trên route hiện tại
+const orderSubmenuOpen = ref(false);
 const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
 const attributeSubmenuOpen = ref(false);
+
+// Lấy thông tin user từ page props
+const page = usePage();
+const user = computed(() => page.props.auth?.user);
+
+// Kiểm tra route hiện tại
+const currentRoute = computed(() => page.component);
+
+// Tự động mở submenu dựa trên route hiện tại
+const checkActiveSubmenus = () => {
+    const route = currentRoute.value;
+    
+    // Kiểm tra submenu Đơn hàng
+    if (route === 'Admin/Orders' || route?.includes('Orders')) {
+        orderSubmenuOpen.value = true;
+    }
+    
+    // Kiểm tra submenu Sản phẩm
+    if (route === 'Admin/Products' || route?.includes('Products')) {
+        productSubmenuOpen.value = true;
+    }
+    
+    // Kiểm tra submenu Khách hàng
+    if (route === 'Admin/Customers' || route?.includes('Customers')) {
+        customerSubmenuOpen.value = true;
+    }
+    
+    // Kiểm tra submenu Thuộc tính
+    if (route === 'Admin/Categories' || route === 'Admin/Colors' || route === 'Admin/Brands' || 
+        route?.includes('Categories') || route?.includes('Colors') || route?.includes('Brands')) {
+        attributeSubmenuOpen.value = true;
+    }
+};
+
+// Gọi kiểm tra khi component mount
+setTimeout(checkActiveSubmenus, 100);
 
 // Toggle functions
 const toggleOrderSubmenu = () => {
@@ -25,9 +61,16 @@ const toggleAttributeSubmenu = () => {
     attributeSubmenuOpen.value = !attributeSubmenuOpen.value;
 };
 
-// Lấy thông tin user từ page props
-const page = usePage();
-const user = computed(() => page.props.auth?.user);
+// Kiểm tra active cho menu item
+const isActive = (routeNames) => {
+    if (typeof routeNames === 'string') {
+        return route().current(routeNames);
+    }
+    if (Array.isArray(routeNames)) {
+        return routeNames.some(name => route().current(name));
+    }
+    return false;
+};
 </script>
 
 <template>
@@ -47,7 +90,7 @@ const user = computed(() => page.props.auth?.user);
             <div class="flex-1 overflow-y-auto">
                 <nav class="p-4 space-y-1">
                     <!-- Dashboard -->
-                    <Link :href="route('admin.dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.dashboard') }">
+                    <Link :href="route('admin.dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.dashboard') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">dashboard</span>
                         <span class="flex-1 text-sm font-medium">Dashboard</span>
                     </Link>
@@ -56,21 +99,21 @@ const user = computed(() => page.props.auth?.user);
                     <div class="space-y-1">
                         <div 
                             @click="toggleOrderSubmenu" 
-                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                            :class="{ 'text-primary': route().current('admin.orders.*') }"
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
+                            :class="isActive(['admin.orders.index', 'admin.orders.show']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
                         >
                             <span class="material-symbols-outlined">receipt_long</span>
                             <span class="flex-1 text-sm font-medium">Đơn hàng</span>
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': orderSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="orderSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.orders.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🛒 Đơn bán lẻ
                             </Link>
-                            <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.orders.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'wholesale' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🏭 Đơn bán sỉ
                             </Link>
-                            <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.orders.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.orders.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 ⏳ Đơn Pre-order
                             </Link>
                         </div>
@@ -80,18 +123,18 @@ const user = computed(() => page.props.auth?.user);
                     <div class="space-y-1">
                         <div 
                             @click="toggleProductSubmenu" 
-                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                            :class="{ 'text-primary': route().current('admin.products.*') }"
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
+                            :class="isActive(['admin.products.index']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
                         >
                             <span class="material-symbols-outlined">inventory_2</span>
                             <span class="flex-1 text-sm font-medium">Sản phẩm</span>
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': productSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="productSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.products.index', { type: 'normal' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'normal' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🎒 Sản phẩm thường
                             </Link>
-                            <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🔮 Sản phẩm Pre-order
                             </Link>
                         </div>
@@ -101,21 +144,21 @@ const user = computed(() => page.props.auth?.user);
                     <div class="space-y-1">
                         <div 
                             @click="toggleAttributeSubmenu" 
-                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                            :class="{ 'text-primary': route().current('admin.categories.*') || route().current('admin.colors.*') || route().current('admin.sizes.*') || route().current('admin.brands.*') }"
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
+                            :class="isActive(['admin.categories.index', 'admin.colors.index', 'admin.brands.index']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
                         >
                             <span class="material-symbols-outlined">settings_input_component</span>
                             <span class="flex-1 text-sm font-medium">Thuộc tính</span>
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': attributeSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="attributeSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.categories.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.categories.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.categories.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 📁 Danh mục
                             </Link>
-                            <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.colors.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.colors.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🎨 Màu sắc
                             </Link>
-                            <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.brands.index')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.brands.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🏷️ Thương hiệu
                             </Link>
                         </div>
@@ -125,50 +168,50 @@ const user = computed(() => page.props.auth?.user);
                     <div class="space-y-1">
                         <div 
                             @click="toggleCustomerSubmenu" 
-                            class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary cursor-pointer transition-all"
-                            :class="{ 'text-primary': route().current('admin.customers.*') }"
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
+                            :class="isActive(['admin.customers.index', 'admin.customers.retail', 'admin.customers.business']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
                         >
                             <span class="material-symbols-outlined">group</span>
                             <span class="flex-1 text-sm font-medium">Khách hàng</span>
                             <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': customerSubmenuOpen }">keyboard_arrow_down</span>
                         </div>
                         <div v-show="customerSubmenuOpen" class="ml-8 space-y-1">
-                            <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 👤 Khách hàng lẻ
                             </Link>
-                            <Link :href="route('admin.customers.index', { type: 'business' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary text-sm">
+                            <Link :href="route('admin.customers.index', { type: 'business' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'business' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                                 🏢 Khách hàng doanh nghiệp
                             </Link>
                         </div>
                     </div>
 
                     <!-- Tùy chỉnh -->
-                    <Link :href="route('admin.customize.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.customize.*') }">
+                    <Link :href="route('admin.customize.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.customize.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">palette</span>
                         <span class="flex-1 text-sm font-medium">Tùy chỉnh</span>
                         <span class="text-xs bg-primary text-white px-2 py-0.5 rounded-full">3 mới</span>
                     </Link>
 
                     <!-- Khuyến mãi -->
-                    <Link :href="route('admin.promotions.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.promotions.index') }">
+                    <Link :href="route('admin.promotions.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.promotions.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">local_offer</span>
                         <span class="flex-1 text-sm font-medium">Khuyến mãi</span>
                     </Link>
 
                     <!-- Báo cáo -->
-                    <Link :href="route('admin.reports.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.reports.index') }">
+                    <Link :href="route('admin.reports.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.reports.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">bar_chart</span>
                         <span class="flex-1 text-sm font-medium">Báo cáo</span>
                     </Link>
 
                     <!-- Cài đặt -->
-                    <Link :href="route('admin.settings.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all" :class="{ 'sidebar-item-active text-primary': route().current('admin.settings.index') }">
+                    <Link :href="route('admin.settings.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.settings.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">settings</span>
                         <span class="flex-1 text-sm font-medium">Cài đặt</span>
                     </Link>
 
-                    <!-- ===== THÊM MỚI: Liên kết về trang chủ ===== -->
-                    <Link :href="route('home')" class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-hover-bg hover:text-primary transition-all">
+                    <!-- Liên kết về trang chủ -->
+                    <Link :href="route('home')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-on-surface-variant hover:bg-hover-bg hover:text-primary">
                         <span class="material-symbols-outlined">home</span>
                         <span class="flex-1 text-sm font-medium">Về trang chủ</span>
                     </Link>

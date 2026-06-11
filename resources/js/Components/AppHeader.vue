@@ -11,7 +11,9 @@
         <div class="hidden md:flex items-center gap-6">
           <!-- Dropdown Balo -->
           <div class="relative dropdown-group">
-            <Link :href="route('category', { slug: 'balo' })" class="font-label-md text-sm text-gray-700 hover:text-primary transition-colors py-4 block">
+            <Link :href="route('category', { slug: 'balo' })" 
+                  class="font-label-md text-sm py-4 block transition-colors"
+                  :class="isActiveCategory('balo') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
               Balo
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
@@ -32,7 +34,9 @@
 
           <!-- Dropdown Cặp - Túi -->
           <div class="relative dropdown-group">
-            <Link :href="route('category', { slug: 'cap-tui' })" class="font-label-md text-sm text-gray-700 hover:text-primary transition-colors py-4 block">
+            <Link :href="route('category', { slug: 'cap-tui' })" 
+                  class="font-label-md text-sm py-4 block transition-colors"
+                  :class="isActiveCategory('cap-tui') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
               Cặp - Túi
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
@@ -53,7 +57,9 @@
 
           <!-- Dropdown Thương hiệu -->
           <div class="relative dropdown-group">
-            <Link :href="route('category', { slug: 'thuong-hieu' })" class="font-label-md text-sm text-gray-700 hover:text-primary transition-colors py-4 block">
+            <Link :href="route('category', { slug: 'thuong-hieu' })" 
+                  class="font-label-md text-sm py-4 block transition-colors"
+                  :class="isActiveCategory('thuong-hieu') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
               Thương hiệu
             </Link>
             <div class="dropdown-menu absolute top-full left-0 bg-white border border-gray-200 shadow-xl p-6 min-w-[400px] rounded-b-lg z-50">
@@ -73,10 +79,26 @@
           </div>
 
           <!-- Các link đơn -->
-          <Link :href="route('wholesale')" class="font-label-md text-sm text-gray-700 hover:text-primary">Mua sỉ</Link>
-          <Link :href="route('promotion')" class="font-label-md text-sm text-gray-700 hover:text-primary">Khuyến mãi</Link>
-          <Link :href="route('home') + '#gioi-thieu'" class="font-label-md text-sm text-gray-700 hover:text-primary">Giới thiệu</Link>
-          <Link :href="route('category', { slug: 'new-arrivals' })" class="font-label-md text-sm text-primary border-b-2 border-primary pb-1">Sản phẩm mới</Link>
+          <Link :href="route('wholesale')" 
+                class="font-label-md text-sm py-4 block transition-colors"
+                :class="isActiveRoute('wholesale') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
+            Mua sỉ
+          </Link>
+          <Link :href="route('promotion')" 
+                class="font-label-md text-sm py-4 block transition-colors"
+                :class="isActiveRoute('promotion') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
+            Khuyến mãi
+          </Link>
+          <Link :href="route('home') + '#gioi-thieu'" 
+                class="font-label-md text-sm py-4 block transition-colors"
+                :class="isActiveHash('gioi-thieu') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
+            Giới thiệu
+          </Link>
+          <Link :href="route('category', { slug: 'new-arrivals' })" 
+                class="font-label-md text-sm py-4 block transition-colors"
+                :class="isActiveCategory('new-arrivals') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
+            Sản phẩm mới
+          </Link>
         </div>
       </div>
 
@@ -182,6 +204,31 @@ const getCategoryUrl = (slug) => {
     console.warn(`Invalid slug: ${slug}`, e)
     return '#'
   }
+}
+
+// Helper: kiểm tra active cho route name
+const isActiveRoute = (routeName) => {
+  return route().current(routeName)
+}
+
+// Helper: kiểm tra active cho category slug
+const isActiveCategory = (slug) => {
+  const currentRoute = route().current()
+  const params = route().params
+  
+  if (currentRoute === 'category') {
+    const currentSlug = params.slug
+    return currentSlug === slug
+  }
+  return false
+}
+
+// Helper: kiểm tra active cho hash anchor (#gioi-thieu)
+const isActiveHash = (hash) => {
+  if (typeof window !== 'undefined') {
+    return window.location.hash === `#${hash}`
+  }
+  return false
 }
 
 // Toggle dropdown
