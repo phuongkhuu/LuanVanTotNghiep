@@ -68,6 +68,29 @@ class BrandController extends Controller
         }
     }
 
+    /**
+     * Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
+     */
+    protected function isBrandInUse($brandId): bool
+    {
+        // Kiểm tra trong bảng products (thương hiệu được gán cho sản phẩm)
+        $productCount = \App\Models\Product::where('brand_id', $brandId)->count();
+        
+        if ($productCount > 0) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Lấy số lượng sản phẩm đang sử dụng thương hiệu
+     */
+    protected function getBrandUsageCount($brandId): int
+    {
+        return \App\Models\Product::where('brand_id', $brandId)->count();
+    }
+
     // Hiển thị trang danh sách
     public function index()
     {
@@ -96,13 +119,17 @@ class BrandController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name',
-                'slug' => 'required|string|unique:brands,slug',
+                'slug' => 'nullable|string|unique:brands,slug',
                 'logo' => 'nullable|string|max:500',
                 'description' => 'nullable|string',
                 'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
-            $validated['slug'] = Str::slug($validated['name']);
+            // Tạo slug từ name nếu không có slug
+            if (empty($validated['slug'])) {
+                $validated['slug'] = Str::slug($validated['name']);
+            }
+            
             // Đảm bảo slug không trùng
             $base = $validated['slug'];
             $i = 1;
@@ -165,31 +192,27 @@ class BrandController extends Controller
         }
     }
 
-    // API: Cập nhật
+    // API: Cập nhật (KHÔNG ràng buộc)
     public function update(Request $request, $id)
     {
         try {
             $brand = Brand::findOrFail($id);
             
-            // Kiểm tra ràng buộc với product_variant
-            $variantCount = $brand->productVariants()->count();
-            
-            if ($variantCount > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
-                ], 400);
-            }
+            // KHÔNG kiểm tra ràng buộc khi sửa - đã bỏ phần này
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name,' . $id,
-                'slug' => 'required|string|unique:brands,slug,' . $id,
+                'slug' => 'nullable|string|unique:brands,slug,' . $id,
                 'logo' => 'nullable|string|max:500',
                 'description' => 'nullable|string',
                 'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
-            $validated['slug'] = Str::slug($validated['name']);
+            // Tạo slug từ name nếu không có slug
+            if (empty($validated['slug'])) {
+                $validated['slug'] = Str::slug($validated['name']);
+            }
+            
             // Tránh trùng slug
             $base = $validated['slug'];
             $i = 1;
@@ -263,18 +286,19 @@ class BrandController extends Controller
         }
     }
 
-    // API: Xóa
+    // API: Xóa (CÓ ràng buộc)
     public function destroy($id)
     {
         try {
             $brand = Brand::findOrFail($id);
             
-            $variantCount = $brand->productVariants()->count();
+            // Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
+            $productCount = $this->getBrandUsageCount($id);
             
-            if ($variantCount > 0) {
+            if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
+                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $productCount . ' sản phẩm đang sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước.'
                 ], 400);
             }
 
@@ -294,6 +318,23 @@ class BrandController extends Controller
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    // API: Tìm kiếm
+    public function search(Request $request)
+    {
+        try {
+            $keyword = $request->get('q', '');
+            $brands = Brand::where('name', 'like', "%{$keyword}%")
+                ->orWhere('slug', 'like', "%{$keyword}%")
+                ->limit(10)
+                ->get();
+            
+            return response()->json($brands);
+        } catch (\Exception $e) {
+            Log::error('Lỗi search brand: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }
