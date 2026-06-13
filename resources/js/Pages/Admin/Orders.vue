@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
-// Nhận dữ liệu từ Controller qua props
 const props = defineProps({
     initialOrders: {
         type: Array,
@@ -19,8 +18,6 @@ const props = defineProps({
 const search = ref('');
 const activeType = ref(['retail', 'wholesale', 'preorder'].includes(props.type) ? props.type : 'retail');
 const statusFilter = ref('all');
-
-// Chỉ dùng dữ liệu từ server, không fallback mock data
 const orders = ref(props.initialOrders);
 
 // Order types tabs
@@ -30,27 +27,30 @@ const orderTypes = [
     { value: 'preorder', label: 'Pre-order', icon: '⏳' }
 ];
 
-// Status options for each order type
+// Status options for each order type (đã đồng bộ với status từ DB)
 const statusOptions = {
     retail: [
         { value: 'pending', label: 'Chờ xử lý' },
         { value: 'processing', label: 'Đang xử lý' },
         { value: 'shipping', label: 'Đang giao' },
-        { value: 'completed', label: 'Hoàn thành' }
+        { value: 'completed', label: 'Hoàn thành' },
+        { value: 'cancelled', label: 'Đã hủy' }
     ],
     wholesale: [
         { value: 'pending', label: 'Chờ xác nhận' },
         { value: 'approved', label: 'Đã duyệt' },
         { value: 'production', label: 'Đang sản xuất' },
         { value: 'shipping', label: 'Đang giao' },
-        { value: 'completed', label: 'Hoàn thành' }
+        { value: 'completed', label: 'Hoàn thành' },
+        { value: 'cancelled', label: 'Đã hủy' }
     ],
     preorder: [
         { value: 'pending', label: 'Chờ xác nhận' },
         { value: 'confirmed', label: 'Đã xác nhận' },
         { value: 'waiting', label: 'Chờ hàng' },
         { value: 'shipping', label: 'Đang giao' },
-        { value: 'completed', label: 'Hoàn thành' }
+        { value: 'completed', label: 'Hoàn thành' },
+        { value: 'cancelled', label: 'Đã hủy' }
     ]
 };
 
@@ -92,23 +92,31 @@ const getTypeCount = (type) => {
 
 // Format price
 const formatPrice = (value) => {
-    if (!value) return '0₫';
+    if (!value && value !== 0) return '0₫';
     return value.toLocaleString('vi-VN') + '₫';
 };
 
-// Get status class (dùng cho select)
+// Get status class for styling
 const getStatusClass = (status) => {
     const classes = {
         pending: 'bg-yellow-100 text-yellow-800',
         processing: 'bg-blue-100 text-blue-800',
-        shipping: 'bg-orange-100 text-orange-800',
+        shipping: 'bg-purple-100 text-purple-800',
         completed: 'bg-green-100 text-green-800',
+        cancelled: 'bg-red-100 text-red-800',
         approved: 'bg-green-100 text-green-800',
         production: 'bg-orange-100 text-orange-800',
-        confirmed: 'bg-green-100 text-green-800',
+        confirmed: 'bg-blue-100 text-blue-800',
         waiting: 'bg-yellow-100 text-yellow-800'
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
+};
+
+// Get status label from value
+const getStatusLabel = (status, type) => {
+    const options = statusOptions[type] || statusOptions.retail;
+    const found = options.find(opt => opt.value === status);
+    return found ? found.label : status;
 };
 
 // Update status
@@ -120,11 +128,14 @@ const updateStatus = async (order) => {
         }, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log(`Đã cập nhật đơn hàng ${order.code}`);
+                // Update local display label
+                order.statusLabel = getStatusLabel(order.status, order.type);
             },
             onError: (errors) => {
                 console.error('Lỗi cập nhật:', errors);
                 alert('Có lỗi xảy ra khi cập nhật trạng thái');
+                // Reload to get fresh data
+                router.reload();
             }
         });
     } catch (error) {
@@ -155,16 +166,12 @@ const exportExcel = async () => {
     }
 };
 
-// Get status label
-const getStatusLabel = (status) => {
-    const allOptions = [...statusOptions.retail, ...statusOptions.wholesale, ...statusOptions.preorder];
-    const found = allOptions.find(opt => opt.value === status);
-    return found ? found.label : status;
-};
-
-// Hàm thay đổi loại đơn hàng và cập nhật URL
+// Change order type and update URL
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
+    activeType.value = typeValue;
+    statusFilter.value = 'all';
+    search.value = '';
     router.get(route('admin.orders.index', { type: typeValue }), {}, {
         preserveState: true,
         preserveScroll: true,
@@ -172,7 +179,7 @@ const changeActiveType = (typeValue) => {
     });
 };
 
-// Theo dõi thay đổi của props.type từ URL và cập nhật orders khi cần
+// Watch for props changes
 watch(() => props.type, (newType) => {
     if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
         activeType.value = newType;
@@ -181,10 +188,9 @@ watch(() => props.type, (newType) => {
     }
 });
 
-// Theo dõi props.initialOrders (khi điều hướng bằng Inertia, dữ liệu mới sẽ được gán)
 watch(() => props.initialOrders, (newOrders) => {
     orders.value = newOrders;
-}, { immediate: true });
+}, { immediate: true, deep: true });
 </script>
 
 <template>
@@ -281,7 +287,6 @@ watch(() => props.initialOrders, (newOrders) => {
                                             v-for="s in statusOptions[activeType]" 
                                             :key="s.value" 
                                             :value="s.value"
-                                            class="text-gray-800"
                                         >
                                             {{ s.label }}
                                         </option>
@@ -292,12 +297,14 @@ watch(() => props.initialOrders, (newOrders) => {
                                         @click="viewDetail(order)" 
                                         class="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
                                         title="Xem chi tiết"
-                                    >Xem chi tiết
+                                    >
+                                        Xem chi tiết
                                     </button>
                                     <button 
                                         class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors"
                                         title="In đơn hàng"
-                                    >In
+                                    >
+                                        In
                                     </button>
                                 </td>
                             </tr>
