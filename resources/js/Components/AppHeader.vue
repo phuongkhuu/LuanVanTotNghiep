@@ -136,6 +136,16 @@
             v-if="dropdownOpen" 
             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50"
           >
+            <!-- Mục Dashboard cho admin -->
+            <Link 
+              v-if="user.role === 'admin'"
+              :href="route('admin.dashboard')" 
+              class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              @click="closeDropdown"
+            >
+              <span class="material-symbols-outlined text-base mr-2 align-middle">dashboard</span>
+              Dashboard
+            </Link>
             <Link 
               :href="route('profile.edit')" 
               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

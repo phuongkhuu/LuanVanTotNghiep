@@ -58,7 +58,7 @@ class ProductSeeder extends Seeder
             ['name' => 'KingBag', 'logo' => 'https://logo.clearbit.com/kingbag.com', 'description' => 'KingBag'],
             ['name' => 'Everki', 'logo' => 'https://logo.clearbit.com/everki.com', 'description' => 'Balo cao cấp Mỹ'],
             ['name' => 'Targus', 'logo' => 'https://logo.clearbit.com/targus.com', 'description' => 'Chuyên gia balo doanh nghiệp'],
-            ['name' => 'Samsonite', 'logo' => 'https://logo.clearbit.com/samsonite.com', 'description' => 'Thương hiệu du lịch toàn cầu'],
+            ['name' => 'Samsonite', 'logo' => 'https://file.hstatic.net/200000321545/file/logo_samsonite_4fcb80dea8d547f781ddff7aebfd59a5.svg', 'description' => 'Thương hiệu du lịch toàn cầu'],
         ];
         foreach ($brands as $brand) {
             $brand['slug'] = Str::slug($brand['name']);
