@@ -192,13 +192,22 @@ class BrandController extends Controller
         }
     }
 
-    // API: Cập nhật (KHÔNG ràng buộc)
+    // API: Cập nhật (CÓ ràng buộc - không cho sửa khi có sản phẩm)
     public function update(Request $request, $id)
     {
         try {
             $brand = Brand::findOrFail($id);
             
-            // KHÔNG kiểm tra ràng buộc khi sửa - đã bỏ phần này
+            // Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
+            $productCount = $this->getBrandUsageCount($id);
+            
+            // Nếu có sản phẩm sử dụng, không cho phép sửa
+            if ($productCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm đang sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước khi sửa thương hiệu.'
+                ], 400);
+            }
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name,' . $id,
