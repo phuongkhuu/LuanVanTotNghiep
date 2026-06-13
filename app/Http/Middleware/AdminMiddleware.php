@@ -15,7 +15,7 @@ class AdminMiddleware
     {
         // Kiểm tra user đã đăng nhập và có role admin
         if (!$request->user() || $request->user()->role !== 'admin') {
-            abort(403, 'Bạn không có quyền truy cập trang quản trị.');
+            return redirect()->intended(route('home'));
         }
 
         return $next($request);

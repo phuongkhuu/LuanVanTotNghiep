@@ -51,7 +51,6 @@ class RegisteredUserController extends Controller
             return redirect()->intended(route('admin.dashboard'));
         }
 
-        // Mặc định cho user thường (không phải admin)
         return redirect()->intended(route('home'));
     }
 }
