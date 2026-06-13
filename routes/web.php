@@ -104,8 +104,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
             ->where('type', 'normal|preorder')
             ->name('products.index');
         Route::post('/', [AdminProductController::class, 'store'])->name('products.store');
-        Route::put('/{id}', [AdminProductController::class, 'update'])->name('products.update');
-        Route::delete('/{id}', [AdminProductController::class, 'destroy'])->name('products.destroy');
+        Route::put('/{product}', [AdminProductController::class, 'update'])->name('products.update');
+        Route::delete('/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
     });
     
     // Categories Management

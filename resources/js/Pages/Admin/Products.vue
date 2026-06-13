@@ -237,7 +237,7 @@ const saveProduct = async () => {
         formData.append('material', form.value.material || '');
         formData.append('description', form.value.description || '');
         formData.append('image_file', selectedFile.value);
-        
+        console.log('Variants before submit:', JSON.parse(JSON.stringify(form.value.variants)));
         // Gửi variants dưới dạng mảng (không dùng JSON.stringify)
         form.value.variants.forEach((variant, index) => {
             if (variant.id) formData.append(`variants[${index}][id]`, variant.id);

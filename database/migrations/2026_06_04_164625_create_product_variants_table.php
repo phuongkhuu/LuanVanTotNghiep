@@ -19,8 +19,8 @@ return new class extends Migration
                 ->constrained()
                 ->onDelete('restrict');
 
-            // Thay size_id bằng size_name
-            $table->string('size_name');
+            // ✅ Đã thêm nullable() để cho phép không nhập kích thước
+            $table->string('size_name')->nullable();
 
             $table->decimal('rating', 2, 1)->default(0);
             $table->integer('stock')->default(0);
