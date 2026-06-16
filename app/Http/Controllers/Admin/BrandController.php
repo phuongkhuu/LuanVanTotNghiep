@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -69,18 +70,75 @@ class BrandController extends Controller
     }
 
     /**
+     * Handle file upload: validate, move, return public URL
+     */
+    protected function handleFileUpload($file): string
+    {
+        // Validate file
+        if (!$file->isValid()) {
+            throw new \Exception('File upload không hợp lệ.');
+        }
+
+        if ($file->getSize() === 0) {
+            throw new \Exception('File rỗng, vui lòng chọn file hợp lệ.');
+        }
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            throw new \Exception('File không đúng định dạng ảnh. Chỉ chấp nhận: jpeg, png, jpg, gif, svg.');
+        }
+
+        $this->ensureImageDir();
+
+        // Lấy extension an toàn
+        $ext = $file->getClientOriginalExtension();
+        if (!$ext) {
+            $mimeMap = [
+                'image/jpeg' => 'jpg',
+                'image/png'  => 'png',
+                'image/gif'  => 'gif',
+                'image/svg+xml' => 'svg'
+            ];
+            $ext = $mimeMap[$file->getMimeType()] ?? 'png';
+        }
+
+        $filename = uniqid() . '.' . $ext;
+        $file->move($this->imageDir(), $filename);
+
+        return '/image/' . $filename;
+    }
+
+    /**
+     * Handle logo from URL: download, validate, save, return public URL
+     */
+    protected function handleLogoFromUrl(string $url): string
+    {
+        $res = Http::timeout(15)->get($url);
+        if (!$res->ok()) {
+            throw new \Exception('Không thể tải logo từ URL');
+        }
+
+        $type = $res->header('Content-Type', '');
+        if (!str_starts_with($type, 'image/')) {
+            throw new \Exception('URL không phải ảnh');
+        }
+
+        // Optional: check size? (max 2MB)
+        $size = strlen($res->body());
+        if ($size > 2 * 1024 * 1024) {
+            throw new \Exception('Ảnh từ URL vượt quá 2MB');
+        }
+
+        $ext = explode('/', $type)[1] ?? 'png';
+        return $this->saveContentToImage($res->body(), $ext);
+    }
+
+    /**
      * Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
      */
     protected function isBrandInUse($brandId): bool
     {
-        // Kiểm tra trong bảng products (thương hiệu được gán cho sản phẩm)
-        $productCount = \App\Models\Product::where('brand_id', $brandId)->count();
-        
-        if ($productCount > 0) {
-            return true;
-        }
-        
-        return false;
+        return $this->getBrandUsageCount($brandId) > 0;
     }
 
     /**
@@ -88,7 +146,7 @@ class BrandController extends Controller
      */
     protected function getBrandUsageCount($brandId): int
     {
-        return \App\Models\Product::where('brand_id', $brandId)->count();
+        return Product::where('brand_id', $brandId)->count();
     }
 
     // Hiển thị trang danh sách
@@ -139,38 +197,26 @@ class BrandController extends Controller
 
             // Xử lý logo từ file upload
             if ($request->hasFile('logo_file')) {
-                $this->ensureImageDir();
-                $file = $request->file('logo_file');
-                $ext = $file->getClientOriginalExtension() ?: 'png';
-                $filename = uniqid() . '.' . $ext;
-                $file->move($this->imageDir(), $filename);
-                $validated['logo'] = '/image/' . $filename;
-                unset($validated['logo_file']);
+                try {
+                    $file = $request->file('logo_file');
+                    $validated['logo'] = $this->handleFileUpload($file);
+                    unset($validated['logo_file']);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 400);
+                }
             }
             // Xử lý logo từ URL (nếu không có file)
             elseif (!empty($validated['logo'])) {
                 try {
-                    $res = Http::timeout(15)->get($validated['logo']);
-                    if (!$res->ok()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Không thể tải logo từ URL'
-                        ], 400);
-                    }
-                    $type = $res->header('Content-Type', '');
-                    if (!str_starts_with($type, 'image/')) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'URL không phải ảnh'
-                        ], 400);
-                    }
-                    $ext = explode('/', $type)[1] ?? 'png';
-                    $validated['logo'] = $this->saveContentToImage($res->body(), $ext);
+                    $validated['logo'] = $this->handleLogoFromUrl($validated['logo']);
                 } catch (\Exception $e) {
                     Log::error('Brand logo fetch failed', ['error' => $e->getMessage()]);
                     return response()->json([
                         'success' => false,
-                        'message' => 'Lỗi tải logo từ URL'
+                        'message' => $e->getMessage()
                     ], 400);
                 }
             }
@@ -201,11 +247,10 @@ class BrandController extends Controller
             // Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
             $productCount = $this->getBrandUsageCount($id);
             
-            // Nếu có sản phẩm sử dụng, không cho phép sửa
             if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm đang sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước khi sửa thương hiệu.'
+                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước khi sửa.'
                 ], 400);
             }
 
@@ -229,54 +274,48 @@ class BrandController extends Controller
                 $validated['slug'] = $base . '-' . $i++;
             }
 
+            // Xử lý logo mới (nếu có file upload hoặc URL mới)
+            $hasNewLogo = false;
+
             // Nếu có file upload mới
             if ($request->hasFile('logo_file')) {
-                // Xóa logo cũ nếu có
-                $this->deleteImageIfExists($brand->logo);
-
-                $this->ensureImageDir();
-                $file = $request->file('logo_file');
-                $ext = $file->getClientOriginalExtension() ?: 'png';
-                $filename = uniqid() . '.' . $ext;
-                $file->move($this->imageDir(), $filename);
-                $validated['logo'] = '/image/' . $filename;
-                unset($validated['logo_file']);
+                try {
+                    $file = $request->file('logo_file');
+                    $newLogo = $this->handleFileUpload($file);
+                    $hasNewLogo = true;
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 400);
+                }
             }
             // Nếu có URL logo mới (và không có file)
-            elseif (!empty($validated['logo'])) {
-                // Nếu URL khác với logo cũ thì tải mới và xóa cũ
-                if ($validated['logo'] !== $brand->logo) {
-                    try {
-                        $res = Http::timeout(15)->get($validated['logo']);
-                        if (!$res->ok()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Không thể tải logo từ URL'
-                            ], 400);
-                        }
-                        $type = $res->header('Content-Type', '');
-                        if (!str_starts_with($type, 'image/')) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'URL không phải ảnh'
-                            ], 400);
-                        }
-
-                        $this->deleteImageIfExists($brand->logo);
-                        $ext = explode('/', $type)[1] ?? 'png';
-                        $validated['logo'] = $this->saveContentToImage($res->body(), $ext);
-                    } catch (\Exception $e) {
-                        Log::error('Brand logo update failed', ['error' => $e->getMessage()]);
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Lỗi tải logo từ URL'
-                        ], 400);
-                    }
+            elseif (!empty($validated['logo']) && $validated['logo'] !== $brand->logo) {
+                try {
+                    $newLogo = $this->handleLogoFromUrl($validated['logo']);
+                    $hasNewLogo = true;
+                } catch (\Exception $e) {
+                    Log::error('Brand logo update failed', ['error' => $e->getMessage()]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 400);
                 }
+            }
+
+            // Nếu có logo mới (từ file hoặc URL)
+            if ($hasNewLogo) {
+                // Xóa logo cũ
+                $this->deleteImageIfExists($brand->logo);
+                $validated['logo'] = $newLogo;
             } else {
-                // Nếu không có logo mới, giữ nguyên logo cũ
+                // Không có logo mới: giữ nguyên logo cũ
                 unset($validated['logo']);
             }
+
+            // Xóa trường logo_file vì không có trong DB
+            unset($validated['logo_file']);
 
             $brand->update($validated);
 
@@ -301,13 +340,12 @@ class BrandController extends Controller
         try {
             $brand = Brand::findOrFail($id);
             
-            // Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
             $productCount = $this->getBrandUsageCount($id);
             
             if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $productCount . ' sản phẩm đang sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước.'
+                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước.'
                 ], 400);
             }
 

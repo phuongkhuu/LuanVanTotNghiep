@@ -16,7 +16,6 @@ class ColorController extends Controller
     public function index()
     {
         $colors = Color::orderBy('id', 'desc')->get();
-        
         return Inertia::render('Admin/Colors', [
             'colors' => $colors
         ]);
@@ -107,7 +106,7 @@ class ColorController extends Controller
         try {
             $color = Color::findOrFail($id);
             
-            $validated = $request->validate([
+            $validated = $request->validate([  //required là không được null
                 'name' => ['nullable', 'string', 'max:255'],
                 'code' => ['nullable', 'string', 'max:20', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/']
             ]);
@@ -119,7 +118,7 @@ class ColorController extends Controller
                 $validated['code'] = $this->getColorCodeFromName($validated['name']);
             } elseif (!empty($validated['code']) && empty($validated['name'])) {
                 $code = $this->normalizeHexCode($validated['code']);
-                $generatedName = $this->getColorNameFromCode($code);
+                $generatedName = $this->getColorNameFromCode($code); //Tạo tên từ mã màu
                 if ($generatedName && $generatedName !== 'Màu khác') {
                     $validated['name'] = $generatedName;
                 } else {

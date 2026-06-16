@@ -25,6 +25,7 @@ const selectedBrand = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
+const fileError = ref('') 
 
 // Chọn phương thức nhập logo: 'url' hoặc 'file'
 const imageInputMode = ref('url')
@@ -89,6 +90,7 @@ const openCreateModal = () => {
     imagePreviewUrl.value = ''
     imageInputMode.value = 'url'
     errorMessage.value = ''
+    fileError.value = '' 
     showModal.value = true
 }
 
@@ -99,23 +101,28 @@ const openEditModal = (brand) => {
     imagePreviewUrl.value = ''
     imageInputMode.value = 'url'
     errorMessage.value = ''
+    fileError.value = ''
     showModal.value = true
 }
 
 // Xử lý khi chọn file
 const handleFileChange = (event) => {
     const file = event.target.files[0]
+    fileError.value = '' // Reset lỗi file trước khi kiểm tra
     if (!file) return
+    
+    // Kiểm tra định dạng ảnh
     if (!file.type.startsWith('image/')) {
-        errorMessage.value = 'Vui lòng chọn file ảnh (jpg, png, ...)'
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg)'
         return
     }
+    // Kiểm tra kích thước
     if (file.size > 2 * 1024 * 1024) {
-        errorMessage.value = 'Kích thước ảnh không quá 2MB'
+        fileError.value = 'Kích thước ảnh không quá 2MB'
         return
     }
+    // Hợp lệ
     selectedFile.value = file
-    errorMessage.value = ''
     // Tạo preview
     const reader = new FileReader()
     reader.onload = (e) => { imagePreviewUrl.value = e.target.result }
@@ -128,6 +135,7 @@ const handleFileChange = (event) => {
 const clearFile = () => {
     selectedFile.value = null
     imagePreviewUrl.value = ''
+    fileError.value = '' 
     if (imageInputMode.value === 'file') {
         const fileInput = document.getElementById('fileInput')
         if (fileInput) fileInput.value = ''
@@ -135,10 +143,20 @@ const clearFile = () => {
 }
 
 const saveBrand = async () => {
+    // Kiểm tra tên
     if (!form.value.name.trim()) {
         errorMessage.value = 'Vui lòng nhập tên thương hiệu'
         return
     }
+
+    // Kiểm tra lỗi file trước khi gửi
+    if (fileError.value) {
+        errorMessage.value = fileError.value
+        return
+    }
+
+    // Nếu đang ở chế độ file mà chưa chọn file thì không sao (logo không bắt buộc)
+    // Nhưng nếu đã chọn file thì phải hợp lệ (đã được kiểm tra)
 
     if (isSaving.value) return
     isSaving.value = true
@@ -266,6 +284,7 @@ const closeModal = () => {
     selectedBrand.value = null
     form.value = { id: null, name: '', logo: '', description: '' }
     errorMessage.value = ''
+    fileError.value = ''
     isSaving.value = false
     clearFile()
 }
@@ -430,6 +449,8 @@ onMounted(() => {
                                 class="w-full"
                                 :disabled="isSaving"
                             >
+                            <!-- Hiển thị lỗi file -->
+                            <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                             <button 
                                 v-if="selectedFile" 
                                 @click="clearFile" 
@@ -482,7 +503,7 @@ onMounted(() => {
                     <button 
                         @click="saveBrand" 
                         class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition flex items-center gap-2"
-                        :disabled="isSaving"
+                        :disabled="isSaving || !!fileError"
                     >
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xử lý...' : 'Lưu' }}

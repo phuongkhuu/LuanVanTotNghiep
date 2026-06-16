@@ -32,6 +32,7 @@ const modalTitle = computed(() => editingId.value ? 'Sửa sản phẩm' : 'Thê
 const imageInputMode = ref('url');
 const selectedFile = ref(null);
 const imagePreviewUrl = ref('');
+const fileError = ref('');
 
 // Form data – variants: { id?, color_id, size_name, price, stock }
 const form = ref({
@@ -119,13 +120,15 @@ const formatPrice = (value) => {
 // Xử lý file ảnh
 const handleFileChange = (event) => {
     const file = event.target.files[0];
+    fileError.value = '';
     if (!file) return;
+    
     if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn file ảnh (jpg, png, ...)');
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg)';
         return;
     }
     if (file.size > 2 * 1024 * 1024) {
-        alert('Kích thước ảnh không quá 2MB');
+        fileError.value = 'Kích thước ảnh không quá 2MB';
         return;
     }
     selectedFile.value = file;
@@ -138,6 +141,7 @@ const handleFileChange = (event) => {
 const clearFile = () => {
     selectedFile.value = null;
     imagePreviewUrl.value = '';
+    fileError.value = '';
     if (imageInputMode.value === 'file') {
         const fileInput = document.getElementById('productImageInput');
         if (fileInput) fileInput.value = '';
@@ -150,6 +154,7 @@ const openModal = (product = null) => {
     selectedFile.value = null;
     imagePreviewUrl.value = '';
     imageInputMode.value = 'url';
+    fileError.value = '';
 
     if (product) {
         form.value = {
@@ -187,10 +192,20 @@ const editProduct = (product) => openModal(product);
 
 // Lưu sản phẩm (hỗ trợ upload file)
 const saveProduct = async () => {
+    // Kiểm tra tên
     if (!form.value.name.trim()) {
         alert('Vui lòng nhập tên sản phẩm');
         return;
     }
+
+    // 👇 Kiểm tra chất liệu (material)
+    const material = form.value.material.trim();
+    if (material && !/^[a-zA-ZÀ-ỹ\s\-]+$/.test(material)) {
+        alert('Chất liệu chỉ được chứa chữ cái (có dấu), dấu cách và dấu gạch ngang, không được chỉ gồm số hoặc ký tự đặc biệt.');
+        return;
+    }
+
+    // Kiểm tra biến thể
     if (form.value.variants.length === 0) {
         alert('Vui lòng thêm ít nhất một biến thể (màu, size, giá, tồn kho)');
         return;
@@ -209,6 +224,11 @@ const saveProduct = async () => {
             alert(`Tồn kho của biến thể ${i + 1} không hợp lệ`);
             return;
         }
+    }
+
+    if (fileError.value) {
+        alert(fileError.value);
+        return;
     }
 
     isSubmitting.value = true;
@@ -238,7 +258,6 @@ const saveProduct = async () => {
         formData.append('description', form.value.description || '');
         formData.append('image_file', selectedFile.value);
         console.log('Variants before submit:', JSON.parse(JSON.stringify(form.value.variants)));
-        // Gửi variants dưới dạng mảng (không dùng JSON.stringify)
         form.value.variants.forEach((variant, index) => {
             if (variant.id) formData.append(`variants[${index}][id]`, variant.id);
             formData.append(`variants[${index}][color_id]`, variant.color_id);
@@ -250,7 +269,6 @@ const saveProduct = async () => {
         submitData = formData;
         headers = { 'Content-Type': 'multipart/form-data' };
     } else {
-        // Nếu không có file, gửi image (URL) và variants dưới dạng object bình thường
         submitData.image = form.value.image;
     }
 
@@ -262,7 +280,6 @@ const saveProduct = async () => {
                 alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
                 showModal.value = false;
                 clearFile();
-                // 🔄 Reload only the product data from server to refresh counts and list
                 router.reload({ only: ['initialProducts'] });
             },
             onError: (errors) => {
@@ -305,6 +322,7 @@ const deleteProduct = async (id) => {
 const closeModal = () => {
     showModal.value = false;
     clearFile();
+    fileError.value = '';
 };
 
 const changeActiveType = (typeValue) => {
@@ -500,6 +518,8 @@ watch(() => props.initialProducts, (val) => {
                             </div>
                             <div v-else>
                                 <input id="productImageInput" type="file" accept="image/*" @change="handleFileChange" class="w-full">
+                                <!-- Hiển thị lỗi file -->
+                                <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                                 <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1">Xóa file đã chọn</button>
                             </div>
                             <div v-if="imagePreview" class="mt-2">
@@ -579,7 +599,11 @@ watch(() => props.initialProducts, (val) => {
 
                 <div class="flex justify-end gap-3 mt-6">
                     <button @click="closeModal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Hủy</button>
-                    <button @click="saveProduct" :disabled="isSubmitting" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                    <button 
+                        @click="saveProduct" 
+                        :disabled="isSubmitting || !!fileError" 
+                        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                    >
                         {{ isSubmitting ? 'Đang lưu...' : 'Lưu' }}
                     </button>
                 </div>

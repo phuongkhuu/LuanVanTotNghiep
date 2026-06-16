@@ -81,7 +81,11 @@ Route::middleware('auth')->group(function () {
 // ==================== ADMIN ROUTES (Backend - Cho quản trị viên) ====================
 
 Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(function () {
-    
+    //guest: chưa đăng nhập, auth: đã đăng nhập, admin: đã đăng nhập và có role là admin
+    //Prefix là cái phía trước của URL, vd: admin/dashboard, admin/orders, admin/products. 
+    // Name phía trước name của route.
+    //localhost:8000/dashboard, vì có prefix nên sẽ phải nhập localhost:8000/admin/dashboard mới vào được
+    //Trước name của các route bên trong sẽ phải có admin.'...', VD: route('admin.dashboard')
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/', [DashboardController::class, 'index'])->name('home');

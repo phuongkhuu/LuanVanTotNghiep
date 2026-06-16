@@ -44,8 +44,8 @@ const isHexCode = (value) => {
 
 // Chuyển đổi tên màu -> mã hex
 const getColorCodeFromName = (name) => {
-    if (!name) return '#CCCCCC'
-    if (isHexCode(name)) return name.toUpperCase()
+    if (!name) return '#CCCCCC' //Mặc định là xám
+    if (isHexCode(name)) return name.toUpperCase() //Nếu tên màu được viết dưới dạng mã màu, thì chỉ cần in hoa và trả về
 
     const colorMap = {
         'đen': '#000000', 'den': '#000000', 'black': '#000000',
@@ -146,7 +146,7 @@ const formatDate = (date) => {
     return d.toLocaleDateString('vi-VN')
 }
 
-const fetchColors = async () => {
+const fetchColors = async () => { //Không cần chờ theo thứ tự từ trên xuống trong code
     if (isLoading.value) return
     isLoading.value = true
     try {
@@ -180,7 +180,7 @@ const openEditModal = (color) => {
     if (!form.value.code) form.value.code = code
     errorMessage.value = ''
     validationErrors.value = {}
-    showModal.value = true
+    showModal.value = true //Bật form
 }
 
 const saveColor = async () => {
