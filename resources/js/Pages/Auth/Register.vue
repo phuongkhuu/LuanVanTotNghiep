@@ -5,6 +5,7 @@ import { ref } from 'vue';
 const form = useForm({
     name: '',
     email: '',
+    phone: '',
     password: '',
     password_confirmation: '',
 });
@@ -97,6 +98,29 @@ const submit = () => {
                         <p v-if="form.errors.email" class="mt-1 text-xs text-red-500">{{ form.errors.email }}</p>
                     </div>
 
+                    <!-- Phone -->
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                            Số điện thoại <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">phone</span>
+                            </span>
+                            <input
+                                id="phone"
+                                type="tel"
+                                v-model="form.phone"
+                                required
+                                autocomplete="tel"
+                                class="block w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-primary focus:border-primary bg-gray-50 text-gray-900 text-sm"
+                                :class="form.errors.phone ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="090 1234 567"
+                            />
+                        </div>
+                        <p v-if="form.errors.phone" class="mt-1 text-xs text-red-500">{{ form.errors.phone }}</p>
+                    </div>
+
                     <!-- Password -->
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
@@ -107,7 +131,7 @@ const submit = () => {
                                 <span class="material-symbols-outlined text-gray-400 text-xl">lock</span>
                             </span>
                             <input
-                                :id="passwordFieldType"
+                                id="password"
                                 :type="passwordFieldType === 'password' ? 'password' : 'text'"
                                 v-model="form.password"
                                 required

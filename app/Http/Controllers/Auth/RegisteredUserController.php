@@ -34,22 +34,24 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'phone' => 'required|string|max:20|unique:'.User::class, // 🔥 Thêm validation cho phone
             'password' => ['required', 'confirmed', Rules\Password::defaults()], 
             //Dựa theo ràng buộc của class rules/password. Chỉnh trong Provider/AppServiceProvider.php
         ]); 
-        //Bắt buộc phải có name, email, password. Email phải là email hợp lệ và chưa tồn tại trong bảng users.
+        //Bắt buộc phải có name, email, phone, password. Email và phone phải là duy nhất trong bảng users.
         //Password phải được xác nhận (có trường password_confirmation) và tuân theo các quy tắc mặc định 
         // của Laravel.
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone, // 🔥 Lưu số điện thoại
             'password' => Hash::make($request->password), 
             //Hash bằng thuật toán bcrypt, tạo ra một chuỗi hash an toàn cho mật khẩu. 
             // Hash này sẽ được lưu vào cơ sở dữ liệu thay vì mật khẩu gốc, 
             // giúp bảo vệ thông tin đăng nhập của người dùng.
         ]);
-        //Xài Eloquent để tạo một bản ghi mới trong bảng users với name, email và password đã được hash.
+        //Xài Eloquent để tạo một bản ghi mới trong bảng users với name, email, phone và password đã được hash.
 
         event(new Registered($user)); //Phát ra sự kiện Registered sau khi người dùng mới được tạo.
         //Để chạy bất kì chức năng nào được thực hiện khi 1 người dùng đăng ký
