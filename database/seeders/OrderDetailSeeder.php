@@ -17,18 +17,32 @@ class OrderDetailSeeder extends Seeder
         }
 
         foreach ($orders as $order) {
-            $variant = $productVariants->random();
-            $quantity = rand(1, 3);
-            $unitPrice = $variant->price;
-            DB::table('order_details')->insert([
-                'order_id' => $order->id,
-                'product_variant_id' => $variant->id,
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-                'subtotal' => $unitPrice * $quantity,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Mỗi đơn có 1-3 sản phẩm
+            $numProducts = rand(1, 3);
+            $usedVariants = [];
+
+            for ($i = 0; $i < $numProducts; $i++) {
+                $variant = $productVariants->random();
+                // Tránh trùng variant trong cùng đơn (tuỳ chọn)
+                while (in_array($variant->id, $usedVariants) && $productVariants->count() > $usedVariants) {
+                    $variant = $productVariants->random();
+                }
+                $usedVariants[] = $variant->id;
+
+                $quantity = rand(1, 3);
+                $unitPrice = $variant->price;
+                $subtotal = $unitPrice * $quantity;
+
+                DB::table('order_details')->insert([
+                    'order_id' => $order->id,
+                    'product_variant_id' => $variant->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'subtotal' => $subtotal,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
     }
 }

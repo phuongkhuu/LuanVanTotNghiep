@@ -32,11 +32,13 @@ class OrderSeeder extends Seeder
         DB::table('orders')->insert([
             [
                 'user_id' => $userId,
+                'customer_name' => 'Nguyễn Văn A',         // Người đặt
+                'customer_phone' => '0901234567',
                 'discount_id' => $discountId,
                 'campaign_id' => null,
                 'order_code' => 'retail',
-                'receiver_name' => 'Nguyễn Văn A',
-                'receiver_phone' => '0901234567',
+                'receiver_name' => 'Trần Thị B',           // Người nhận (có thể khác)
+                'receiver_phone' => '0912345678',
                 'shipping_fee' => 30000,
                 'total_amount' => 1450000,
                 'discount_amount' => 0,
@@ -49,11 +51,13 @@ class OrderSeeder extends Seeder
             ],
             [
                 'user_id' => $userId,
+                'customer_name' => 'Công ty TNHH ABC',    // Người đặt
+                'customer_phone' => '0987654321',
                 'discount_id' => null,
                 'campaign_id' => null,
                 'order_code' => 'wholesale',
-                'receiver_name' => 'Công ty TNHH ABC',
-                'receiver_phone' => '0987654321',
+                'receiver_name' => 'Nguyễn Văn C',          // Người nhận (có thể khác)
+                'receiver_phone' => '0978123456',
                 'shipping_fee' => 0,
                 'total_amount' => 2100000,
                 'discount_amount' => 0,
@@ -66,11 +70,13 @@ class OrderSeeder extends Seeder
             ],
             [
                 'user_id' => $userId,
+                'customer_name' => 'Trần Thị B',           // Người đặt (có thể trùng với người nhận ở đơn khác)
+                'customer_phone' => '0912345678',
                 'discount_id' => null,
                 'campaign_id' => null,
                 'order_code' => 'preorder',
-                'receiver_name' => 'Trần Thị B',
-                'receiver_phone' => '0912345678',
+                'receiver_name' => 'Lê Văn D',              // Người nhận
+                'receiver_phone' => '0934567890',
                 'shipping_fee' => 0,
                 'total_amount' => 3500000,
                 'discount_amount' => 0,

@@ -135,8 +135,8 @@ class ProductController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'type' => 'required|in:normal,preorder',
-            'image' => 'nullable|url|max:2048',
-            'image_file' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|url|max:2048', //Sua o day tu nullable thanh required
+            'image_file' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', //Sua o day tu nullable thanh required
             'material' => 'nullable|string',
             'description' => 'nullable|string',
             'variants' => 'required|array|min:1',
