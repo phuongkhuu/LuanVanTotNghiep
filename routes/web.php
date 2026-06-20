@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
@@ -66,9 +67,12 @@ Route::get('/gio-hang', function () {
     return Inertia::render('Web/Cart');
 })->name('cart');
 
-Route::get('/thanh-toan', function () {
-    return Inertia::render('Web/Checkout');
-})->name('checkout');
+
+
+// Thanh toán
+Route::get('/thanh-toan', [PaymentController::class, 'index'])->name('checkout');
+Route::post('/thanh-toan', [PaymentController::class, 'store'])->name('checkout.store');
+Route::get('/thanh-toan/thanh-cong', [PaymentController::class, 'success'])->name('checkout.success');
 
 // ==================== AUTHENTICATED WEB ROUTES ====================
 
