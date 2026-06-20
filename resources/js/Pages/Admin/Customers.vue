@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
-// Nhận dữ liệu từ Controller qua props
 const props = defineProps({
     customers: {
         type: Object,
@@ -15,24 +14,21 @@ const props = defineProps({
     }
 });
 
-// Search
 const search = ref('');
-const activeType = ref(['retail', 'wholesale'].includes(props.type) ? props.type : 'retail');
+const activeType = ref(['retail', 'wholesale', 'preorder'].includes(props.type) ? props.type : 'retail');
 
-// Customer types tabs (chỉ 2 loại: retail và wholesale)
 const customerTypes = [
     { value: 'retail', label: 'Khách lẻ', icon: '👤' },
-    { value: 'wholesale', label: 'Khách doanh nghiệp', icon: '🏢' }
+    { value: 'wholesale', label: 'Khách doanh nghiệp', icon: '🏢' },
+    { value: 'preorder', label: 'Pre-order', icon: '⏳' }
 ];
 
-// Modal state
 const showDetailModal = ref(false);
 const selectedCustomer = ref(null);
 const customerOrders = ref([]);
 const detailLoading = ref(false);
 const errorMessage = ref('');
 
-// Lấy danh sách khách hàng từ props
 const customersList = computed(() => {
     if (!props.customers || !props.customers.data || !Array.isArray(props.customers.data)) {
         return [];
@@ -40,27 +36,22 @@ const customersList = computed(() => {
     return props.customers.data;
 });
 
-// Format price
 const formatPrice = (value) => {
     if (!value && value !== 0) return '0₫';
     return Number(value).toLocaleString('vi-VN') + '₫';
 };
 
-// Format date
 const formatDate = (date) => {
     if (!date) return '---';
     if (typeof date === 'string' && date.includes('/')) return date;
     return date;
 };
 
-// Get count by type
 const getTypeCount = (type) => {
     if (!props.customers?.data) return 0;
-    // Chỉ hiển thị tổng số khách theo type đã được lọc từ server
     return props.customers.data.length;
 };
 
-// Xem chi tiết khách hàng - gọi API
 const viewDetail = async (customer) => {
     if (!customer || !customer.phone) {
         errorMessage.value = 'Không có thông tin khách hàng';
@@ -96,12 +87,10 @@ const viewDetail = async (customer) => {
     }
 };
 
-// Export Excel
 const exportExcel = () => {
     router.post('/admin/customers/export', { type: activeType.value });
 };
 
-// Hàm thay đổi loại khách hàng và cập nhật URL
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
     router.get(route('admin.customers.index', { type: typeValue, search: search.value }), {}, {
@@ -111,15 +100,13 @@ const changeActiveType = (typeValue) => {
     });
 };
 
-// Theo dõi thay đổi của props.type từ URL
 watch(() => props.type, (newType) => {
-    if (newType && ['retail', 'wholesale'].includes(newType)) {
+    if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
         activeType.value = newType;
         search.value = '';
     }
 });
 
-// Tìm kiếm
 watch(search, (val) => {
     router.get(route('admin.customers.index', { type: activeType.value, search: val }), {}, {
         preserveState: true,
@@ -254,7 +241,7 @@ watch(search, (val) => {
                 </div>
                 
                 <div v-else-if="selectedCustomer" class="space-y-4">
-                    <!-- Avatar và tên -->
+                    <!-- Avatar & tên -->
                     <div class="flex items-center gap-4 pb-4 border-b">
                         <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-600">
                             {{ selectedCustomer.name ? selectedCustomer.name.charAt(0).toUpperCase() : '?' }}
@@ -265,7 +252,7 @@ watch(search, (val) => {
                         </div>
                     </div>
                     
-                    <!-- Thông tin khách hàng -->
+                    <!-- Thông tin tổng quan -->
                     <div class="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg">
                         <div>
                             <p class="text-xs text-gray-500">Địa chỉ</p>
@@ -290,16 +277,35 @@ watch(search, (val) => {
                         <h5 class="font-semibold text-gray-800 mb-2">📦 Lịch sử đơn hàng</h5>
                         <div class="space-y-2 max-h-64 overflow-y-auto">
                             <div v-for="order in customerOrders" :key="order.id" class="border rounded-lg p-3 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="font-medium text-gray-800">Mã đơn #{{ order.id }}</span>
-                                    <span :class="order.status == 2 ? 'text-green-600' : order.status == 1 ? 'text-yellow-600' : 'text-gray-500'">
-                                        {{ order.status == 2 ? 'Hoàn thành' : order.status == 1 ? 'Đã xác nhận' : 'Chờ xử lý' }}
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <span class="font-medium text-gray-800">Mã đơn #{{ order.id }}</span>
+                                        <span class="ml-2 text-xs text-gray-500">({{ order.order_code }})</span>
+                                    </div>
+                                    <span class="text-xs px-2 py-0.5 rounded-full" :class="{
+                                        'bg-green-100 text-green-700': order.status === 2,
+                                        'bg-yellow-100 text-yellow-700': order.status === 1,
+                                        'bg-gray-100 text-gray-600': order.status === 0,
+                                        'bg-red-100 text-red-700': order.status === 3
+                                    }">
+                                        {{ order.status_text || 'Chờ xử lý' }}
                                     </span>
                                 </div>
-                                <div class="text-gray-500 text-xs mt-1">Ngày: {{ order.created_at }} | Loại: {{ order.order_code }}</div>
-                                <div class="text-gray-700">Tổng: {{ formatPrice(order.total_amount) }}</div>
-                                <div class="text-gray-500 text-xs mt-1">Người nhận: {{ order.receiver_name }} - {{ order.receiver_phone }}</div>
-                                <div class="text-gray-500 text-xs">Địa chỉ: {{ order.shipping_address }}</div>
+                                <div class="text-gray-500 text-xs mt-1">
+                                    Ngày: {{ order.created_at }}
+                                </div>
+                                <div class="text-gray-700 font-semibold mt-1">
+                                    Tổng: {{ formatPrice(order.total_amount) }}
+                                </div>
+                                <div class="text-gray-500 text-xs mt-1">
+                                    Người đặt: {{ order.customer_name || '---' }} - {{ order.customer_phone || '---' }}
+                                </div>
+                                <div class="text-gray-500 text-xs">
+                                    Người nhận: {{ order.receiver_name || '---' }} - {{ order.receiver_phone || '---' }}
+                                </div>
+                                <div class="text-gray-500 text-xs">
+                                    Địa chỉ: {{ order.shipping_address || '---' }}
+                                </div>
                             </div>
                             <div v-if="customerOrders.length === 0" class="text-gray-400 text-center py-4">Chưa có đơn hàng nào</div>
                         </div>

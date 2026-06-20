@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Admin/CustomerController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -17,41 +16,43 @@ class CustomerController extends Controller
         $type = $request->get('type', 'retail');
         $search = $request->get('search', '');
 
-        // Xác định order_code dựa vào type
-        $orderCodes = [];
-        if ($type === 'retail') {
-            $orderCodes = ['retail', 'preorder'];
-        } elseif ($type === 'wholesale') {
-            $orderCodes = ['wholesale'];
-        } else {
-            $orderCodes = ['retail', 'wholesale', 'preorder'];
-        }
+        $orderCodes = match ($type) {
+            'retail'    => ['retail'],
+            'wholesale' => ['wholesale'],
+            'preorder'  => ['preorder'],
+            default     => ['retail', 'wholesale', 'preorder'],
+        };
 
         $query = Order::select(
-                'receiver_phone',
-                DB::raw('MAX(receiver_name) as name'),
-                DB::raw('MAX(shipping_address) as address'),
-                DB::raw('MAX(created_at) as last_order_date'),
-                DB::raw('COUNT(*) as orders_count'),
-                DB::raw('SUM(final_amount) as total_spent'),
-                DB::raw('MIN(created_at) as join_date')
-            )
-            ->whereNotNull('receiver_phone')
+            'customer_phone',
+            DB::raw('MAX(customer_name) as name'),
+            DB::raw('MAX(shipping_address) as address'),
+            DB::raw('MAX(created_at) as last_order_date'),
+            DB::raw('COUNT(*) as orders_count'),
+            // 🔥 SỬA: tính tổng chi tiêu thực tế từ order_details
+            DB::raw('SUM(
+                COALESCE((SELECT SUM(subtotal) FROM order_details WHERE order_details.order_id = orders.id), 0)
+                + COALESCE(shipping_fee, 0)
+                - COALESCE(discount_amount, 0)
+            ) as total_spent'),
+            DB::raw('MIN(created_at) as join_date')
+        )
+            ->whereNotNull('customer_phone')
             ->whereIn('order_code', $orderCodes)
-            ->when($search, function($q) use ($search) {
-                return $q->where(function($sq) use ($search) {
-                    $sq->where('receiver_phone', 'like', "%{$search}%")
-                       ->orWhere('receiver_name', 'like', "%{$search}%");
+            ->when($search, function ($q) use ($search) {
+                return $q->where(function ($sq) use ($search) {
+                    $sq->where('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%");
                 });
             })
-            ->groupBy('receiver_phone')
+            ->groupBy('customer_phone')
             ->orderByDesc('last_order_date');
 
         $customers = $query->paginate(15);
 
         $customers->getCollection()->transform(function ($item) {
             return [
-                'phone'           => $item->receiver_phone ?? '',
+                'phone'           => $item->customer_phone ?? '',
                 'name'            => $item->name ?? 'Khách hàng',
                 'address'         => $item->address ?? '',
                 'last_order_date' => $item->last_order_date ? Carbon::parse($item->last_order_date)->format('d/m/Y') : null,
@@ -69,38 +70,61 @@ class CustomerController extends Controller
 
     public function show($phone)
     {
-        $orders = Order::where('receiver_phone', $phone)
+        // Lấy tất cả đơn hàng kèm chi tiết (đã tính lại total)
+        $orders = Order::where('customer_phone', $phone)
+            ->with('details')
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($order) {
-                $displayType = $order->order_code;
-                if ($displayType === 'retail') $displayType = 'Bán lẻ';
-                elseif ($displayType === 'wholesale') $displayType = 'Bán sỉ';
-                elseif ($displayType === 'preorder') $displayType = 'Pre-order';
-                
+                // Tính tổng từ details
+                $subtotal = $order->details->sum('subtotal');
+                $shipping = (float) ($order->shipping_fee ?? 0);
+                $discount = (float) ($order->discount_amount ?? 0);
+                $calculatedTotal = $subtotal + $shipping - $discount;
+
+                $statusText = match ((int) $order->order_status) {
+                    0 => 'Chờ xử lý',
+                    1 => 'Đã xác nhận',
+                    2 => 'Hoàn thành',
+                    3 => 'Đã hủy',
+                    default => 'Chờ xử lý',
+                };
+
+                $displayType = match ($order->order_code) {
+                    'retail'    => 'Bán lẻ',
+                    'wholesale' => 'Bán sỉ',
+                    'preorder'  => 'Pre-order',
+                    default     => $order->order_code,
+                };
+
                 return [
                     'id'               => $order->id,
                     'order_code'       => $displayType,
-                    'total_amount'     => (float) $order->final_amount,
+                    'total_amount'     => $calculatedTotal,
                     'status'           => (int) $order->order_status,
+                    'status_text'      => $statusText,
                     'created_at'       => Carbon::parse($order->created_at)->format('d/m/Y H:i'),
+                    'customer_name'    => $order->customer_name,
+                    'customer_phone'   => $order->customer_phone,
                     'receiver_name'    => $order->receiver_name,
                     'receiver_phone'   => $order->receiver_phone,
                     'shipping_address' => $order->shipping_address,
                 ];
             });
 
-        $customer = Order::where('receiver_phone', $phone)
+        // Tổng chi tiêu thực tế từ danh sách đã tính
+        $totalSpent = $orders->sum('total_amount');
+        $ordersCount = $orders->count();
+
+        $customer = Order::where('customer_phone', $phone)
             ->select(
-                'receiver_phone as phone',
-                DB::raw('MAX(receiver_name) as name'),
+                'customer_phone as phone',
+                DB::raw('MAX(customer_name) as name'),
                 DB::raw('MAX(shipping_address) as address'),
                 DB::raw('MAX(created_at) as last_order_date'),
-                DB::raw('COUNT(*) as orders_count'),
-                DB::raw('SUM(final_amount) as total_spent'),
                 DB::raw('MIN(created_at) as join_date')
             )
-            ->groupBy('receiver_phone')
+            ->groupBy('customer_phone')
             ->first();
 
         if (!$customer) {
@@ -112,8 +136,8 @@ class CustomerController extends Controller
             'name'            => $customer->name ?? 'Khách hàng',
             'address'         => $customer->address ?? '',
             'last_order_date' => $customer->last_order_date ? Carbon::parse($customer->last_order_date)->format('d/m/Y') : null,
-            'orders_count'    => (int) ($customer->orders_count ?? 0),
-            'total_spent'     => (float) ($customer->total_spent ?? 0),
+            'orders_count'    => $ordersCount,
+            'total_spent'     => $totalSpent,
             'join_date'       => $customer->join_date ? Carbon::parse($customer->join_date)->format('d/m/Y') : null,
             'orders'          => $orders,
         ]);

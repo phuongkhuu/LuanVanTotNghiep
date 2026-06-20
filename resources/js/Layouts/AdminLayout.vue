@@ -5,20 +5,17 @@ import { Link, usePage } from '@inertiajs/vue3';
 // Sidebar state
 const sidebarCollapsed = ref(false);
 
-// Submenu states - khởi tạo với false, sẽ được kiểm tra sau
+// Submenu states
 const orderSubmenuOpen = ref(false);
 const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
 const attributeSubmenuOpen = ref(false);
 
-// Lấy thông tin user từ page props
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
-// Kiểm tra route hiện tại
 const currentRoute = computed(() => page.component);
 
-// Kiểm tra active cho menu item
 const isActive = (routeNames) => {
     if (typeof routeNames === 'string') {
         return route().current(routeNames);
@@ -29,11 +26,8 @@ const isActive = (routeNames) => {
     return false;
 };
 
-// Cập nhật trạng thái submenu dựa trên route hiện tại
 const updateSubmenuState = () => {
     const route = currentRoute.value;
-    
-    // Chỉ mở submenu khi đang ở trong trang liên quan
     orderSubmenuOpen.value = (route === 'Admin/Orders' || route?.includes('Orders'));
     productSubmenuOpen.value = (route === 'Admin/Products' || route?.includes('Products'));
     customerSubmenuOpen.value = (route === 'Admin/Customers' || route?.includes('Customers'));
@@ -41,21 +35,11 @@ const updateSubmenuState = () => {
         route?.includes('Categories') || route?.includes('Colors') || route?.includes('Brands'));
 };
 
-// Toggle functions - đóng/mở thủ công
-const toggleOrderSubmenu = () => {
-    orderSubmenuOpen.value = !orderSubmenuOpen.value;
-};
-const toggleProductSubmenu = () => {
-    productSubmenuOpen.value = !productSubmenuOpen.value;
-};
-const toggleCustomerSubmenu = () => {
-    customerSubmenuOpen.value = !customerSubmenuOpen.value;
-};
-const toggleAttributeSubmenu = () => {
-    attributeSubmenuOpen.value = !attributeSubmenuOpen.value;
-};
+const toggleOrderSubmenu = () => { orderSubmenuOpen.value = !orderSubmenuOpen.value; };
+const toggleProductSubmenu = () => { productSubmenuOpen.value = !productSubmenuOpen.value; };
+const toggleCustomerSubmenu = () => { customerSubmenuOpen.value = !customerSubmenuOpen.value; };
+const toggleAttributeSubmenu = () => { attributeSubmenuOpen.value = !attributeSubmenuOpen.value; };
 
-// Lắng nghe sự thay đổi route để cập nhật submenu
 watch(currentRoute, () => {
     updateSubmenuState();
 }, { immediate: true });
@@ -151,6 +135,8 @@ onMounted(() => {
                         <div v-show="customerSubmenuOpen" class="ml-8 space-y-1">
                             <Link :href="route('admin.customers.index', { type: 'retail' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'retail' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">👤 Khách lẻ</Link>
                             <Link :href="route('admin.customers.index', { type: 'wholesale' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'wholesale' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🏢 Khách doanh nghiệp</Link>
+                            <!-- 🔥 THÊM TAB PRE-ORDER -->
+                            <Link :href="route('admin.customers.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.customers.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">⏳ Pre-order</Link>
                         </div>
                     </div>
 
@@ -179,7 +165,7 @@ onMounted(() => {
                         <span class="flex-1 text-sm font-medium">Cài đặt</span>
                     </Link>
 
-                    <!-- Liên kết về trang chủ -->
+                    <!-- Về trang chủ -->
                     <Link :href="route('home')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-on-surface-variant hover:bg-hover-bg hover:text-primary">
                         <span class="material-symbols-outlined">home</span>
                         <span class="flex-1 text-sm font-medium">Về trang chủ</span>
@@ -187,6 +173,7 @@ onMounted(() => {
                 </nav>
             </div>
             
+            <!-- User info -->
             <div class="flex-shrink-0 p-4 border-t border-border-light bg-white">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
