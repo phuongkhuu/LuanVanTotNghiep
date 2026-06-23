@@ -17,7 +17,7 @@ class CampaignProductSeeder extends Seeder
         }
 
         foreach ($campaigns as $campaignId) {
-            // Lấy 2 sản phẩm đầu tiên cho mỗi campaign
+
             $assigned = array_slice($productVariants, 0, 2);
             foreach ($assigned as $variantId) {
                 DB::table('campaign_products')->insert([

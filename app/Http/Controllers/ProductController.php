@@ -21,10 +21,10 @@ class ProductController extends Controller
         $originalPrice = $maxPrice > $minPrice ? $maxPrice : null;
         $discount = $originalPrice ? round((1 - $minPrice / $originalPrice) * 100) . '%' : null;
 
-        // Unique sizes from variants
+
         $sizes = $product->variants->pluck('size_name')->unique()->filter()->values();
 
-        // Unique colors
+
         $colors = $product->variants->map(function ($variant) {
             if ($variant->color) {
                 return [
@@ -35,17 +35,17 @@ class ProductController extends Controller
             return null;
         })->filter()->unique('value')->values();
 
-        // Thumbnails – you can use product.thumbnail and possibly additional images from a separate table
+
         $thumbnails = array_filter([$product->thumbnail]);
 
-        // Features (static for now, you can make them dynamic later)
+
         $features = [
             ['icon' => 'verified', 'text' => 'Bảo hành 12 tháng'],
             ['icon' => 'local_shipping', 'text' => 'Miễn phí vận chuyển'],
             ['icon' => 'history', 'text' => 'Đổi trả 30 ngày'],
         ];
 
-        // Related products (same category, exclude current)
+
         $relatedProducts = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->limit(4)
@@ -61,7 +61,7 @@ class ProductController extends Controller
                 ];
             });
 
-        // Dummy reviews – replace with real review system later
+
         $reviews = [
             [
                 'id' => 1,

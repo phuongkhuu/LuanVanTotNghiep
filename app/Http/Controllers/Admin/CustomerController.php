@@ -29,7 +29,7 @@ class CustomerController extends Controller
             DB::raw('MAX(shipping_address) as address'),
             DB::raw('MAX(created_at) as last_order_date'),
             DB::raw('COUNT(*) as orders_count'),
-            // 🔥 SỬA: tính tổng chi tiêu thực tế từ order_details
+
             DB::raw('SUM(
                 COALESCE((SELECT SUM(subtotal) FROM order_details WHERE order_details.order_id = orders.id), 0)
                 + COALESCE(shipping_fee, 0)
@@ -70,13 +70,13 @@ class CustomerController extends Controller
 
     public function show($phone)
     {
-        // Lấy tất cả đơn hàng kèm chi tiết (đã tính lại total)
+
         $orders = Order::where('customer_phone', $phone)
             ->with('details')
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($order) {
-                // Tính tổng từ details
+
                 $subtotal = $order->details->sum('subtotal');
                 $shipping = (float) ($order->shipping_fee ?? 0);
                 $discount = (float) ($order->discount_amount ?? 0);
@@ -112,7 +112,7 @@ class CustomerController extends Controller
                 ];
             });
 
-        // Tổng chi tiêu thực tế từ danh sách đã tính
+
         $totalSpent = $orders->sum('total_amount');
         $ordersCount = $orders->count();
 

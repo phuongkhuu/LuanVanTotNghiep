@@ -13,18 +13,18 @@ class CategoryController extends Controller
 {
     public function show($slug)
     {
-        // 1. Slug đặc biệt: hiển thị tất cả sản phẩm
+
         if (in_array($slug, ['danh-muc', 'tat-ca', 'thuong-hieu'])) {
             return $this->showAllProducts($slug);
         }
 
-        // 2. Tìm danh mục chính xác
+
         $category = Category::where('slug', $slug)->first();
         if ($category) {
             return $this->showProductsByCategory($slug, $category);
         }
 
-        // 3. Xử lý slug có dấu gạch ngang (ví dụ: cap-tui, balo-laptop)
+
         $keywords = explode('-', $slug);
         $query = Category::query();
         foreach ($keywords as $kw) {
@@ -39,13 +39,13 @@ class CategoryController extends Controller
             return $this->showProductsByMultipleCategories($slug, $matchingCategories);
         }
 
-        // 4. Coi slug là thương hiệu
+
         $brand = Brand::where('slug', $slug)->first();
         if ($brand) {
             return $this->showProductsByBrand($slug, $brand);
         }
 
-        // 5. Không tìm thấy gì
+
         abort(404, 'Không tìm thấy danh mục hoặc thương hiệu phù hợp');
     }
 
@@ -151,7 +151,7 @@ class CategoryController extends Controller
             ->get()
             ->map(fn($product) => $this->mapProduct($product));
 
-        // Chỉ hiển thị thương hiệu này trong bộ lọc (có thể thay đổi nếu muốn hiển thị tất cả)
+
         $brands = Brand::where('id', $brand->id)->get(['id', 'name']);
 
         $colorIds = $this->getColorIdsFromProducts($products);

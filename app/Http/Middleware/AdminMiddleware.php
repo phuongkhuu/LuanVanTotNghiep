@@ -13,7 +13,7 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Kiểm tra user đã đăng nhập và có role admin
+
         if (!$request->user() || $request->user()->role !== 'admin') {
             return redirect()->intended(route('home'));
         }

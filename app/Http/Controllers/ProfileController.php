@@ -31,7 +31,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         
-        // 🔥 Lấy dữ liệu hợp lệ và thêm phone
+
         $validated = $request->validated();
         $user->fill($validated);
 

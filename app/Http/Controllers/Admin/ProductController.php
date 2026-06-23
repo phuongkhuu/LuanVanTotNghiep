@@ -48,25 +48,23 @@ class ProductController extends Controller
         if (!$imageUrl) return;
 
         $parsed = parse_url($imageUrl); 
-        $path = ltrim($parsed['path'] ?? $imageUrl, '/');  //Lấy đường dẫn từ URL, loại bỏ dấu / ở đầu nếu có
+        $path = ltrim($parsed['path'] ?? $imageUrl, '/'); 
 
-        if (!str_starts_with($path, 'image/')) return; //Thoát hàm nếu đường dẫn không bắt đầu bằng image/
+        if (!str_starts_with($path, 'image/')) return; 
 
-        $fullPath = base_path($path); //Tạo đường dẫn tuyệt đối đến file ảnh
+        $fullPath = base_path($path); 
 
         if (File::exists($fullPath)) {
-            File::delete($fullPath); //Nếu tồn tại file ảnh thì xóa
+            File::delete($fullPath); 
         }
     }
 
-    /**
-     * Display a listing of products.
-     */
+ 
     public function index($type = 'normal')
     {
         $validTypes = ['normal', 'preorder'];
         $type = in_array($type, $validTypes) ? $type : 'normal';
-        // Lấy tất cả sản phẩm kèm theo category, brand, variants và color của chúng, sắp xếp theo thời gian tạo mới nhất
+
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->latest()
             ->get()
@@ -112,9 +110,7 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created product.
-     */
+ 
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -122,8 +118,8 @@ class ProductController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'type' => 'required|in:normal,preorder',
-            'image' => 'required|url|max:2048', //Sua o day tu nullable thanh required
-            'image_file' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', //Sua o day tu nullable thanh required
+            'image' => 'required|url|max:2048',
+            'image_file' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', 
             'material' => 'nullable|string',
             'description' => 'nullable|string',
             'variants' => 'required|array|min:1',
@@ -133,7 +129,7 @@ class ProductController extends Controller
             'variants.*.stock' => 'required|integer|min:0',
         ]);
 
-        // Xử lý ảnh
+
         $thumbnail = null;
 
         if ($request->hasFile('image_file')) {
@@ -188,9 +184,7 @@ class ProductController extends Controller
             ->with('success', 'Thêm sản phẩm thành công');
     }
 
-    /**
-     * Update the specified product.
-     */
+  
     public function update(Request $request, $id)
     {
         $product = Product::findOrFail($id);
@@ -214,7 +208,7 @@ class ProductController extends Controller
             'variants.*.stock' => 'required|integer|min:0',
         ]);
 
-        // Xử lý ảnh
+
         $thumbnail = $product->thumbnail;
 
         if ($request->hasFile('image_file')) {
@@ -246,7 +240,7 @@ class ProductController extends Controller
             }
         }
 
-        // Cập nhật product
+
         $product->update([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
@@ -258,14 +252,14 @@ class ProductController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        // Xử lý variants
+
         $existingVariantIds = $product->variants->pluck('id')->toArray();
         $submittedVariantIds = [];
 
         foreach ($validated['variants'] as $variantData) {
             if (isset($variantData['id'])) {
                 $variant = ProductVariant::find($variantData['id']);
-                // Validation đảm bảo variant thuộc product, nên không cần kiểm tra lại
+
                 $variant->update([
                     'color_id' => $variantData['color_id'],
                     'size_name' => $variantData['size_name'] ?? null,
@@ -295,17 +289,15 @@ class ProductController extends Controller
             ->with('success', 'Cập nhật sản phẩm thành công');
     }
 
-    /**
-     * Remove the specified product.
-     */
+  
     public function destroy(Request $request, $id)
     {
         $product = Product::findOrFail($id);
         try {
             $this->deleteImageIfExists($product->thumbnail);
-            // Xóa các variant liên quan
+
             $product->variants()->delete();
-            // Xóa product
+
             $product->delete();
 
             return redirect()->route('admin.products.index')

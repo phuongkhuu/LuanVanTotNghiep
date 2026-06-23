@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Admin/BrandController.php
+
 
 namespace App\Http\Controllers\Admin;
 
@@ -15,17 +15,12 @@ use Illuminate\Support\Str;
 
 class BrandController extends Controller
 {
-    /**
-     * Absolute path to htdocs/image (or base_path('image'))
-     */
+
     protected function imageDir(): string
     {
         return base_path('image');
     }
 
-    /**
-     * Ensure image directory exists
-     */
     protected function ensureImageDir(): void
     {
         $dir = $this->imageDir();
@@ -34,10 +29,7 @@ class BrandController extends Controller
         }
     }
 
-    /**
-     * Save raw image contents into image directory
-     * Returns public URL path
-     */
+ 
     protected function saveContentToImage(string $contents, string $ext): string
     {
         $this->ensureImageDir();
@@ -49,9 +41,7 @@ class BrandController extends Controller
         return '/image/' . $filename;
     }
 
-    /**
-     * Delete image file if it exists in image directory
-     */
+
     protected function deleteImageIfExists(?string $imageUrl): void
     {
         if (!$imageUrl) return;
@@ -59,7 +49,6 @@ class BrandController extends Controller
         $parsed = parse_url($imageUrl);
         $path = ltrim($parsed['path'] ?? $imageUrl, '/');
 
-        // Only allow deletion inside image/
         if (!str_starts_with($path, 'image/')) return;
 
         $fullPath = base_path($path);
@@ -69,12 +58,9 @@ class BrandController extends Controller
         }
     }
 
-    /**
-     * Handle file upload: validate, move, return public URL
-     */
+ 
     protected function handleFileUpload($file): string
     {
-        // Validate file
         if (!$file->isValid()) {
             throw new \Exception('File upload không hợp lệ.');
         }
@@ -90,7 +76,6 @@ class BrandController extends Controller
 
         $this->ensureImageDir();
 
-        // Lấy extension an toàn
         $ext = $file->getClientOriginalExtension();
         if (!$ext) {
             $mimeMap = [
@@ -108,9 +93,7 @@ class BrandController extends Controller
         return '/image/' . $filename;
     }
 
-    /**
-     * Handle logo from URL: download, validate, save, return public URL
-     */
+
     protected function handleLogoFromUrl(string $url): string
     {
         $res = Http::timeout(15)->get($url);
@@ -123,7 +106,7 @@ class BrandController extends Controller
             throw new \Exception('URL không phải ảnh');
         }
 
-        // Optional: check size? (max 2MB)
+
         $size = strlen($res->body());
         if ($size > 2 * 1024 * 1024) {
             throw new \Exception('Ảnh từ URL vượt quá 2MB');
@@ -133,23 +116,18 @@ class BrandController extends Controller
         return $this->saveContentToImage($res->body(), $ext);
     }
 
-    /**
-     * Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
-     */
     protected function isBrandInUse($brandId): bool
     {
         return $this->getBrandUsageCount($brandId) > 0;
     }
 
-    /**
-     * Lấy số lượng sản phẩm đang sử dụng thương hiệu
-     */
+  
     protected function getBrandUsageCount($brandId): int
     {
         return Product::where('brand_id', $brandId)->count();
     }
 
-    // Hiển thị trang danh sách
+
     public function index()
     {
         $brands = Brand::orderBy('id', 'desc')->get();
@@ -159,7 +137,7 @@ class BrandController extends Controller
         ]);
     }
 
-    // API: Lấy danh sách
+
     public function getBrands()
     {
         try {
@@ -171,7 +149,7 @@ class BrandController extends Controller
         }
     }
 
-    // API: Thêm mới
+
     public function store(Request $request)
     {
         try {
@@ -183,19 +161,19 @@ class BrandController extends Controller
                 'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
-            // Tạo slug từ name nếu không có slug
+
             if (empty($validated['slug'])) {
                 $validated['slug'] = Str::slug($validated['name']);
             }
             
-            // Đảm bảo slug không trùng
+
             $base = $validated['slug'];
             $i = 1;
             while (Brand::where('slug', $validated['slug'])->exists()) {
                 $validated['slug'] = $base . '-' . $i++;
             }
 
-            // Xử lý logo từ file upload
+
             if ($request->hasFile('logo_file')) {
                 try {
                     $file = $request->file('logo_file');
@@ -208,7 +186,7 @@ class BrandController extends Controller
                     ], 400);
                 }
             }
-            // Xử lý logo từ URL (nếu không có file)
+
             elseif (!empty($validated['logo'])) {
                 try {
                     $validated['logo'] = $this->handleLogoFromUrl($validated['logo']);
@@ -238,13 +216,13 @@ class BrandController extends Controller
         }
     }
 
-    // API: Cập nhật (CÓ ràng buộc - không cho sửa khi có sản phẩm)
+
     public function update(Request $request, $id)
     {
         try {
             $brand = Brand::findOrFail($id);
             
-            // Kiểm tra xem thương hiệu có đang được sử dụng trong sản phẩm không
+
             $productCount = $this->getBrandUsageCount($id);
             
             if ($productCount > 0) {
@@ -262,22 +240,22 @@ class BrandController extends Controller
                 'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
-            // Tạo slug từ name nếu không có slug
+
             if (empty($validated['slug'])) {
                 $validated['slug'] = Str::slug($validated['name']);
             }
             
-            // Tránh trùng slug
+
             $base = $validated['slug'];
             $i = 1;
             while (Brand::where('slug', $validated['slug'])->where('id', '!=', $id)->exists()) {
                 $validated['slug'] = $base . '-' . $i++;
             }
 
-            // Xử lý logo mới (nếu có file upload hoặc URL mới)
+
             $hasNewLogo = false;
 
-            // Nếu có file upload mới
+
             if ($request->hasFile('logo_file')) {
                 try {
                     $file = $request->file('logo_file');
@@ -290,7 +268,7 @@ class BrandController extends Controller
                     ], 400);
                 }
             }
-            // Nếu có URL logo mới (và không có file)
+
             elseif (!empty($validated['logo']) && $validated['logo'] !== $brand->logo) {
                 try {
                     $newLogo = $this->handleLogoFromUrl($validated['logo']);
@@ -304,17 +282,17 @@ class BrandController extends Controller
                 }
             }
 
-            // Nếu có logo mới (từ file hoặc URL)
+
             if ($hasNewLogo) {
-                // Xóa logo cũ
+
                 $this->deleteImageIfExists($brand->logo);
                 $validated['logo'] = $newLogo;
             } else {
-                // Không có logo mới: giữ nguyên logo cũ
+
                 unset($validated['logo']);
             }
 
-            // Xóa trường logo_file vì không có trong DB
+
             unset($validated['logo_file']);
 
             $brand->update($validated);
@@ -334,7 +312,7 @@ class BrandController extends Controller
         }
     }
 
-    // API: Xóa (CÓ ràng buộc)
+
     public function destroy($id)
     {
         try {
@@ -349,7 +327,7 @@ class BrandController extends Controller
                 ], 400);
             }
 
-            // Xóa logo nếu có
+
             $this->deleteImageIfExists($brand->logo);
             
             $brand->delete();
@@ -368,7 +346,7 @@ class BrandController extends Controller
         }
     }
 
-    // API: Tìm kiếm
+
     public function search(Request $request)
     {
         try {

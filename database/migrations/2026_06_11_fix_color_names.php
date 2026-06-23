@@ -1,5 +1,5 @@
 <?php
-// database/migrations/2026_06_11_fix_color_names.php
+
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up()
     {
-        // Sửa tên màu cho các bản ghi bị lỗi
+
         $colors = Color::all();
         
         $fixMap = [
@@ -26,7 +26,7 @@ return new class extends Migration
                 $color->save();
             }
             
-            // Chuẩn hóa code về dạng chữ hoa
+
             if ($color->code) {
                 $color->code = strtoupper($color->code);
                 $color->save();
@@ -36,6 +36,6 @@ return new class extends Migration
 
     public function down()
     {
-        // Không cần rollback
+
     }
 };

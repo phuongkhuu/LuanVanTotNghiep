@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
-        // Nếu bảng colors chưa tồn tại, tạo mới
+
         if (!Schema::hasTable('colors')) {
             Schema::create('colors', function (Blueprint $table) {
                 $table->id();
@@ -17,7 +17,7 @@ return new class extends Migration
                 $table->timestamps();
             });
         } else {
-            // Nếu đã có, chỉ thêm cột code nếu chưa có
+
             if (!Schema::hasColumn('colors', 'code')) {
                 Schema::table('colors', function (Blueprint $table) {
                     $table->string('code', 50)->nullable()->after('name');
@@ -25,7 +25,7 @@ return new class extends Migration
             }
         }
 
-        // Gán mã hex mặc định cho các màu hiện có (nếu cột code vừa được thêm hoặc đang trống)
+
         if (class_exists('App\Models\Color')) {
             $colors = \App\Models\Color::all();
             $colorMap = [

@@ -39,7 +39,7 @@ class Order extends Model
         'updated_at'     => 'datetime',
     ];
 
-    // ---------- RELATIONSHIPS ----------
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -71,10 +71,10 @@ class Order extends Model
         return $this->hasOne(Payment::class);
     }
 
-    // ---------- ACCESSORS (tuỳ chọn) ----------
-    // Nếu bạn muốn lấy trạng thái dạng text ngay từ model, có thể thêm accessor
-    // nhưng controller đã xử lý rồi, nên không bắt buộc.
-    // Tôi vẫn thêm để dùng khi cần.
+
+
+
+
 
     public function getStatusTextAttribute()
     {
@@ -86,7 +86,7 @@ class Order extends Model
         return $this->getStatusLabel();
     }
 
-    // ---------- HELPER METHODS ----------
+
     /**
      * Lấy mã trạng thái (dạng text) dựa trên order_code và order_status
      */

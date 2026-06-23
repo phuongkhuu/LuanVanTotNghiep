@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Admin/SettingController.php
+
 
 namespace App\Http\Controllers\Admin;
 
@@ -16,15 +16,15 @@ class SettingController extends Controller
 {
     public function index()
     {
-        // Lấy settings từ DB (nếu có bảng settings)
+
         $settings = [];
         
-        // Kiểm tra bảng settings có tồn tại không
+
         if (Schema::hasTable('settings')) {
             $settings = DB::table('settings')->pluck('value', 'key')->toArray();
         }
         
-        // Default settings
+
         $defaults = [
             'store_name' => 'BigBag.vn',
             'store_email' => 'contact@bigbag.vn',
@@ -45,7 +45,7 @@ class SettingController extends Controller
         
         $merged = array_merge($defaults, $settings);
         
-        // Lấy users
+
         $users = User::select('id', 'name', 'email', 'role', 'status')
             ->orderBy('id', 'desc')
             ->get()
@@ -82,9 +82,9 @@ class SettingController extends Controller
                 'seo' => 'nullable|array'
             ]);
             
-            // Kiểm tra bảng settings có tồn tại không
+
             if (!Schema::hasTable('settings')) {
-                // Nếu chưa có bảng, lưu vào session
+
                 session([
                     'store_name' => $data['store_name'],
                     'store_email' => $data['store_email'],
@@ -103,7 +103,7 @@ class SettingController extends Controller
                     'seo_keywords' => $data['seo']['keywords'] ?? ''
                 ]);
             } else {
-                // Nếu có bảng, lưu vào DB
+
                 $this->saveSetting('store_name', $data['store_name']);
                 $this->saveSetting('store_email', $data['store_email']);
                 $this->saveSetting('store_phone', $data['store_phone']);
@@ -152,7 +152,7 @@ class SettingController extends Controller
                 'new_password' => 'required|string|min:6|confirmed',
             ]);
             
-            // Kiểm tra mật khẩu hiện tại
+
             if (!Hash::check($request->current_password, $user->password)) {
                 \Log::warning('Current password mismatch', [
                     'user_id' => $user->id,
@@ -161,7 +161,7 @@ class SettingController extends Controller
                 return response()->json(['success' => false, 'message' => 'Mật khẩu hiện tại không đúng!'], 400);
             }
             
-            // Cập nhật mật khẩu mới
+
             $user->password = Hash::make($request->new_password);
             $user->save();
             

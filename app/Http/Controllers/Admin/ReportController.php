@@ -14,7 +14,7 @@ class ReportController extends Controller
     
     public function getData()
     {
-        // Logic lấy dữ liệu báo cáo theo period
+
         $data = [
             'revenue' => [
                 'retail' => [8, 10, 12, 15, 18, 22, 20],
@@ -44,7 +44,7 @@ class ReportController extends Controller
     
     public function export()
     {
-        // Logic export báo cáo
+
         return back()->with('success', 'Xuất báo cáo thành công!');
     }
 }

@@ -435,5 +435,5 @@ watch(() => props.initialOrders, (newOrders) => {
 </template>
 
 <style scoped>
-/* No additional styles needed */
+
 </style>

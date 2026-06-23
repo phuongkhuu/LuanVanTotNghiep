@@ -10,7 +10,7 @@ class OrderSeeder extends Seeder
 {
     public function run()
     {
-        // Đảm bảo có ít nhất một user
+
         $user = DB::table('users')->first();
         if (!$user) {
             $userId = DB::table('users')->insertGetId([
@@ -25,7 +25,7 @@ class OrderSeeder extends Seeder
             $userId = $user->id;
         }
 
-        // Discount có thể null
+
         $discount = DB::table('discounts')->where('order_code', 'retail')->first();
         $discountId = $discount ? $discount->id : null;
 

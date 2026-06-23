@@ -17,13 +17,13 @@ class OrderDetailSeeder extends Seeder
         }
 
         foreach ($orders as $order) {
-            // Mỗi đơn có 1-3 sản phẩm
+
             $numProducts = rand(1, 3);
             $usedVariants = [];
 
             for ($i = 0; $i < $numProducts; $i++) {
                 $variant = $productVariants->random();
-                // Tránh trùng variant trong cùng đơn (tuỳ chọn)
+
                 while (in_array($variant->id, $usedVariants) && $productVariants->count() > $usedVariants) {
                     $variant = $productVariants->random();
                 }

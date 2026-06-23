@@ -31,7 +31,7 @@ class DiscountSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-            // Dòng dưới đây đã được sửa: bỏ 'normal' (không hợp lệ) -> dùng null
+
             [
                 'min_quantity' => 1,
                 'discount_percent' => 0,

@@ -138,11 +138,11 @@ class OrderController extends Controller
 
     public function export()
     {
-        // Logic export
+
         return back()->with('success', 'Xuất file thành công');
     }
 
-    // ---------- HÀM HỖ TRỢ ----------
+
     protected function getStatusText($order)
     {
         $orderCode = $order->order_code ?? 'retail';

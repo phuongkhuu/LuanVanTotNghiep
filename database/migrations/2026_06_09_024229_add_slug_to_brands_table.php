@@ -13,14 +13,14 @@ return new class extends Migration
             $table->string('slug')->unique()->after('name')->nullable();
         });
 
-        // Populate slug for existing brands
+
         $brands = \App\Models\Brand::all();
         foreach ($brands as $brand) {
             $brand->slug = Str::slug($brand->name);
             $brand->save();
         }
 
-        // Now make slug not nullable
+
         Schema::table('brands', function (Blueprint $table) {
             $table->string('slug')->nullable(false)->change();
         });

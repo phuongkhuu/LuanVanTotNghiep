@@ -14,7 +14,7 @@ class ProductSeeder extends Seeder
 {
     public function run()
     {
-        // 1. Danh mục (kèm ảnh thật)
+
         $categories = [
             [
                 'name' => 'Balo Laptop',
@@ -51,7 +51,7 @@ class ProductSeeder extends Seeder
             Category::updateOrCreate(['slug' => $cat['slug']], $cat);
         }
 
-        // 2. Thương hiệu
+
         $brands = [
             ['name' => 'BigBag', 'logo' => 'https://logo.clearbit.com/bigbag.com', 'description' => 'Thương hiệu chính'],
             ['name' => 'Solo', 'logo' => 'https://logo.clearbit.com/solo.com', 'description' => 'Solo Professional'],
@@ -65,13 +65,13 @@ class ProductSeeder extends Seeder
             Brand::updateOrCreate(['slug' => $brand['slug']], $brand);
         }
 
-        // 3. Màu sắc
+
         $colors = ['Đen', 'Xám', 'Xanh Navy', 'Nâu', 'Đỏ', 'Xanh lá', 'Cam', 'Trắng'];
         foreach ($colors as $colorName) {
             Color::updateOrCreate(['name' => $colorName], ['name' => $colorName]);
         }
 
-        // Lấy ID các bản ghi
+
         $catLaptop = Category::where('slug', 'balo-laptop')->first();
         $catTravel = Category::where('slug', 'balo-du-lich')->first();
         $catCrossbody = Category::where('slug', 'tui-deo-cheo')->first();
@@ -94,8 +94,8 @@ class ProductSeeder extends Seeder
         $colorOrange = Color::where('name', 'Cam')->first();
         $colorWhite = Color::where('name', 'Trắng')->first();
 
-        // ========== SẢN PHẨM CŨ (đã cập nhật ảnh) ==========
-        // Sản phẩm 1: Balo Laptop BigBag Pro
+
+
         Product::updateOrCreate(
             ['slug' => 'balo-laptop-bigbag-pro-15-6'],
             [
@@ -120,7 +120,7 @@ class ProductSeeder extends Seeder
             ['price' => 1450000, 'stock' => 30, 'rating' => 4.7]
         );
 
-        // Sản phẩm 2: Solo Adventure 40L (đã thay link ảnh)
+
         Product::updateOrCreate(
             ['slug' => 'solo-adventure-40l'],
             [
@@ -141,7 +141,7 @@ class ProductSeeder extends Seeder
             ['price' => 2100000, 'stock' => 25, 'rating' => 4.9]
         );
 
-        // Sản phẩm 3: Túi đeo chéo KingBag
+
         Product::updateOrCreate(
             ['slug' => 'kingbag-crossbody-mini'],
             [
@@ -162,7 +162,7 @@ class ProductSeeder extends Seeder
             ['price' => 450000, 'stock' => 100, 'rating' => 4.5]
         );
 
-        // ========== SẢN PHẨM MỚI ==========
+
         $newProducts = [
             [
                 'name' => 'Everki Atlas 17.3 inch',
@@ -322,7 +322,7 @@ class ProductSeeder extends Seeder
             ],
         ];
 
-        // Chèn sản phẩm mới
+
         foreach ($newProducts as $np) {
             $product = Product::updateOrCreate(
                 ['slug' => $np['slug']],

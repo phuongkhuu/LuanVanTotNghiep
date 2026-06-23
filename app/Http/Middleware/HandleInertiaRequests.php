@@ -18,13 +18,13 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        // Only get categories that have a non‑empty slug
+
         $categories = Category::whereNotNull('slug')
             ->where('slug', '!=', '')
             ->orderBy('name')
             ->get();
 
-        // Only get brands that have a non‑empty slug
+
         $brands = Brand::whereNotNull('slug')
             ->where('slug', '!=', '')
             ->orderBy('name')

@@ -1,5 +1,5 @@
 <?php
-// app/Models/Color.php
+
 
 namespace App\Models;
 

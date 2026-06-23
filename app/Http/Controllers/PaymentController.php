@@ -14,7 +14,7 @@ class PaymentController extends Controller
 {
     public function index()
     {
-        // Lấy giỏ hàng từ session (hoặc database)
+
         $cartItems = session('cart', []);
 
         $products = [];
@@ -85,7 +85,7 @@ class PaymentController extends Controller
 
         DB::beginTransaction();
         try {
-            // Tạo đơn hàng
+
             $order = Order::create([
                 'user_id' => $user ? $user->id : null,
                 'order_code' => 'retail',
@@ -102,7 +102,7 @@ class PaymentController extends Controller
                 'order_status' => 0, // pending
             ]);
 
-            // Tạo chi tiết đơn hàng từ items
+
             foreach ($validated['items'] as $item) {
                 $variant = ProductVariant::find($item['id']);
                 if ($variant) {
@@ -116,7 +116,7 @@ class PaymentController extends Controller
                 }
             }
 
-            // Xóa giỏ hàng
+
             session()->forget('cart');
             DB::commit();
 
