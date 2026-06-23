@@ -53,7 +53,7 @@ const imagePreview = computed(() => {
     return null;
 });
 
-// Hàm ngăn giá trị âm ngay lập tức
+// Hàm ngăn giá trị âm
 const enforceNonNegative = (value) => {
     let num = parseFloat(value);
     if (isNaN(num)) return 0;
@@ -109,7 +109,7 @@ const typeCounts = computed(() => ({
 
 console.log('Initial products:', props.initialProducts);
 
-// Helper for template
+// Hàm lấy số lượng sản phẩm theo loại
 const getTypeCount = (type) => typeCounts.value[type] || 0;
 
 const formatPrice = (value) => {
@@ -198,7 +198,7 @@ const saveProduct = async () => {
         return;
     }
 
-    // 👇 Kiểm tra chất liệu (material)
+    // Kiểm tra chất liệu (material)
     const material = form.value.material.trim();
     if (material && !/^[a-zA-ZÀ-ỹ\s\-]+$/.test(material)) {
         alert('Chất liệu chỉ được chứa chữ cái (có dấu), dấu cách và dấu gạch ngang, không được chỉ gồm số hoặc ký tự đặc biệt.');
@@ -257,7 +257,6 @@ const saveProduct = async () => {
         formData.append('material', form.value.material || '');
         formData.append('description', form.value.description || '');
         formData.append('image_file', selectedFile.value);
-        console.log('Variants before submit:', JSON.parse(JSON.stringify(form.value.variants)));
         form.value.variants.forEach((variant, index) => {
             if (variant.id) formData.append(`variants[${index}][id]`, variant.id);
             formData.append(`variants[${index}][color_id]`, variant.color_id);
@@ -274,13 +273,13 @@ const saveProduct = async () => {
 
     try {
         await router[method](url, submitData, {
-            preserveScroll: true,
-            headers: headers,
+            preserveScroll: true, //Giữ vị trí cuộn trang
+            headers: headers, //Cần để gửi file 
             onSuccess: () => {
                 alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
                 showModal.value = false;
                 clearFile();
-                router.reload({ only: ['initialProducts'] });
+                router.reload({ only: ['initialProducts'] }); //Chỉ load lại dữ liệu sản phẩm, không reload toàn bộ trang
             },
             onError: (errors) => {
                 console.error(errors);

@@ -11,64 +11,51 @@ use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\File; 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
-    /**
-     * Absolute path to image directory (base_path('image'))
-     */
     protected function imageDir(): string
     {
         return base_path('image');
     }
 
-    /**
-     * Ensure image directory exists
-     */
+
     protected function ensureImageDir(): void
     {
         $dir = $this->imageDir();
-        if (!File::exists($dir)) {
+        if (!File::exists($dir)) { 
             File::makeDirectory($dir, 0755, true);
         }
     }
 
-    /**
-     * Save raw image contents into image directory
-     * Returns public URL path
-     */
     protected function saveContentToImage(string $contents, string $ext): string
     {
         $this->ensureImageDir();
-
-        $filename = uniqid() . '.' . $ext;
+        
+        $filename = uniqid() . '.' . $ext; 
         $path = $this->imageDir() . '/' . $filename;
         file_put_contents($path, $contents);
 
         return '/image/' . $filename;
     }
 
-    /**
-     * Delete image file if it exists in image directory
-     */
     protected function deleteImageIfExists(?string $imageUrl): void
     {
         if (!$imageUrl) return;
 
-        $parsed = parse_url($imageUrl);
-        $path = ltrim($parsed['path'] ?? $imageUrl, '/');
+        $parsed = parse_url($imageUrl); 
+        $path = ltrim($parsed['path'] ?? $imageUrl, '/');  //Lấy đường dẫn từ URL, loại bỏ dấu / ở đầu nếu có
 
-        // Only allow deletion inside image/
-        if (!str_starts_with($path, 'image/')) return;
+        if (!str_starts_with($path, 'image/')) return; //Thoát hàm nếu đường dẫn không bắt đầu bằng image/
 
-        $fullPath = base_path($path);
+        $fullPath = base_path($path); //Tạo đường dẫn tuyệt đối đến file ảnh
 
         if (File::exists($fullPath)) {
-            File::delete($fullPath);
+            File::delete($fullPath); //Nếu tồn tại file ảnh thì xóa
         }
     }
 
@@ -79,7 +66,7 @@ class ProductController extends Controller
     {
         $validTypes = ['normal', 'preorder'];
         $type = in_array($type, $validTypes) ? $type : 'normal';
-
+        // Lấy tất cả sản phẩm kèm theo category, brand, variants và color của chúng, sắp xếp theo thời gian tạo mới nhất
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->latest()
             ->get()
@@ -99,7 +86,7 @@ class ProductController extends Controller
                     'wholesalePrice' => (int) $wholesalePrice,
                     'stock' => $totalStock,
                     'type' => $product->is_preorder ? 'preorder' : 'normal',
-                    'image' => $product->thumbnail ?? 'https://picsum.photos/40/40',
+                    'image' => $product->thumbnail ?? '',
                     'status' => $product->status,
                     'variants' => $product->variants->map(fn($v) => [
                         'id' => $v->id,

@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Admin\BannerController;
+use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
@@ -152,6 +154,27 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::put('/{id}/status', [AdminCustomizeController::class, 'updateStatus'])->name('customize.update-status');
         Route::put('/{id}/approve', [AdminCustomizeController::class, 'approve'])->name('customize.approve');
         Route::post('/send-quote', [AdminCustomizeController::class, 'sendQuote'])->name('customize.send-quote');
+    });
+
+    // Banner Management
+    Route::prefix('banners')->group(function () {
+        Route::get('/', [BannerController::class, 'index'])->name('banners.index');
+        Route::get('/data', [BannerController::class, 'getBanners'])->name('banners.data');
+        Route::post('/', [BannerController::class, 'store'])->name('banners.store');
+        Route::put('/{id}', [BannerController::class, 'update'])->name('banners.update');
+        Route::delete('/{id}', [BannerController::class, 'destroy'])->name('banners.destroy');
+        Route::patch('/{id}/status', [BannerController::class, 'updateStatus'])->name('banners.update-status');
+        Route::patch('/{id}/order', [BannerController::class, 'updateOrder'])->name('banners.update-order');
+    });
+
+    // News Management
+    Route::prefix('news')->group(function () {
+        Route::get('/', [NewsController::class, 'index'])->name('news.index');
+        Route::get('/data', [NewsController::class, 'getNews'])->name('news.data');
+        Route::post('/', [NewsController::class, 'store'])->name('news.store');
+        Route::put('/{id}', [NewsController::class, 'update'])->name('news.update');
+        Route::delete('/{id}', [NewsController::class, 'destroy'])->name('news.destroy');
+        Route::patch('/{id}/status', [NewsController::class, 'updateStatus'])->name('news.update-status');
     });
     
     // Promotions
