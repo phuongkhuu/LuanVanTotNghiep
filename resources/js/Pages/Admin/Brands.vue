@@ -113,7 +113,7 @@ const handleFileChange = (event) => {
     
     // Kiểm tra định dạng ảnh
     if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg)'
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg ,jpeg)'
         return
     }
     // Kiểm tra kích thước
@@ -195,8 +195,8 @@ const saveBrand = async () => {
                 if (index !== -1 && response.data.data) {
                     brands.value[index] = response.data.data
                 }
-                showModal.value = false
-                form.value = { id: null, name: '', logo: '', description: '' }
+                showModal.value = false // tat form sua
+                form.value = { id: null, name: '', logo: '', description: '' }// clear form
                 clearFile()
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'

@@ -107,7 +107,7 @@ onMounted(() => {
                             <Link :href="route('admin.products.index', { type: 'preorder' })" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="route().current('admin.products.index') && route().params?.type === 'preorder' ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">🔮 Sản phẩm Pre-order</Link>
                         </div>
                     </div>
-
+                    
                     <!-- Thuộc tính sản phẩm -->
                     <div class="space-y-1">
                         <div 

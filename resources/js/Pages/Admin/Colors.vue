@@ -172,7 +172,7 @@ const openCreateModal = () => {
 }
 
 const openEditModal = (color) => {
-    isEdit.value = true
+    isEdit.value = true //#######
     form.value = { ...color }
     const code = color.code || getColorCodeFromName(color.name)
     previewColor.value = code

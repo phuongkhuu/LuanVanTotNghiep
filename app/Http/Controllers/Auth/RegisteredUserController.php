@@ -16,10 +16,9 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-
     public function create(): Response
     {
-        return Inertia::render('Auth/Register'); 
+        return Inertia::render('Auth/Register');
     }
 
     /**
@@ -31,19 +30,20 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'phone' => 'required|string|max:20|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()], 
-        ]); 
+            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
+            'phone' => 'required|string|max:20|unique:' . User::class,
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => $request->phone, 
-            'password' => Hash::make($request->password), 
-
+            'phone' => $request->phone,
+            'password' => Hash::make($request->password),
         ]);
-        Auth::login($user); 
+
+        // Đăng nhập người dùng mới tạo vào hệ thống
+        Auth::login($user);
 
         if ($user->role === 'admin') {
             return redirect()->intended(route('admin.dashboard'));
