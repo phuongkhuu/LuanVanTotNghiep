@@ -334,7 +334,6 @@ const closeModal = () => {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Khuyến mãi & Mã giảm giá</h1>
-                    <p class="text-gray-600 text-sm mt-1">Tạo và quản lý chương trình khuyến mãi cho bán lẻ, bán sỉ, pre-order</p>
                 </div>
                 <button 
                     @click="openModal()" 

@@ -143,20 +143,19 @@ const clearFile = () => {
 }
 
 const saveBrand = async () => {
-    // Kiểm tra tên
+    
     if (!form.value.name.trim()) {
         errorMessage.value = 'Vui lòng nhập tên thương hiệu'
         return
     }
 
-    // Kiểm tra lỗi file trước khi gửi
+   
     if (fileError.value) {
         errorMessage.value = fileError.value
         return
     }
 
-    // Nếu đang ở chế độ file mà chưa chọn file thì không sao (logo không bắt buộc)
-    // Nhưng nếu đã chọn file thì phải hợp lệ (đã được kiểm tra)
+    
 
     if (isSaving.value) return
     isSaving.value = true
@@ -168,7 +167,7 @@ const saveBrand = async () => {
         if (isEdit.value) {
             // Cập nhật
             if (selectedFile.value) {
-                // Có file upload -> dùng FormData
+                
                 const formData = new FormData()
                 formData.append('_method', 'PUT')
                 formData.append('name', form.value.name)
@@ -179,7 +178,7 @@ const saveBrand = async () => {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                // Không có file -> dùng JSON
+                
                 const dataToSave = {
                     name: form.value.name,
                     logo: form.value.logo || null,
@@ -204,7 +203,7 @@ const saveBrand = async () => {
         } else {
             // Thêm mới
             if (selectedFile.value) {
-                // Có file upload -> dùng FormData
+                
                 const formData = new FormData()
                 formData.append('name', form.value.name)
                 formData.append('description', form.value.description || '')
@@ -215,7 +214,6 @@ const saveBrand = async () => {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                // Không có file -> dùng JSON
                 const dataToSave = {
                     name: form.value.name,
                     logo: form.value.logo || null,
@@ -309,7 +307,6 @@ onMounted(() => {
         <div class="p-6">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Quản lý thương hiệu</h1>
-                <p class="text-gray-500 mt-1">Thêm, sửa hoặc xóa các thương hiệu</p>
             </div>
 
             <div class="mb-6">

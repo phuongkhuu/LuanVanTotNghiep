@@ -124,7 +124,6 @@ watch(search, (val) => {
             <!-- Header -->
             <div class="mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý khách hàng</h1>
-                <p class="text-gray-600 text-sm mt-1">Quản lý thông tin khách hàng dựa trên đơn hàng</p>
             </div>
 
             <!-- Tab loại khách hàng -->

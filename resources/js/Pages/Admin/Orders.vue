@@ -183,7 +183,6 @@ watch(() => props.initialOrders, (newOrders) => {
             <!-- Header -->
             <div class="mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý đơn hàng</h1>
-                <p class="text-gray-600 text-sm mt-1">Quản lý và theo dõi tất cả đơn hàng</p>
             </div>
 
             <!-- Tab loại đơn hàng -->

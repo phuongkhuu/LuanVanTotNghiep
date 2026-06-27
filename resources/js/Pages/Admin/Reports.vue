@@ -246,7 +246,6 @@ onMounted(() => {
             <!-- Header -->
             <div class="mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Báo cáo thống kê</h1>
-                <p class="text-gray-600 text-sm mt-1">Tổng quan doanh thu theo từng loại hình bán hàng</p>
             </div>
 
             <!-- Period Filter -->

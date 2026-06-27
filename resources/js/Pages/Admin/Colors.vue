@@ -289,8 +289,6 @@ onMounted(() => {
         <div class="p-6">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Quản lý màu sắc</h1>
-                <p class="text-gray-500 mt-1">Thêm, sửa hoặc xóa các màu sắc sản phẩm</p>
-                <p class="text-xs text-gray-400 mt-1">💡 Nhập tên màu sẽ tự động sinh mã hex. Nhập mã hex mới cần nhập tên tương ứng.</p>
             </div>
 
             <div class="mb-6">
@@ -369,7 +367,6 @@ onMounted(() => {
                             @input="updateColorPreview"
                         >
                         <p v-if="validationErrors.code" class="text-xs text-red-500 mt-1">{{ validationErrors.code[0] }}</p>
-                        <p class="text-xs text-gray-400 mt-1">💡 Nhập tên màu sẽ tự sinh mã hex. Nhập mã hex cần nhập tên tương ứng.</p>
                     </div>
                     <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                         <div class="w-12 h-12 rounded-lg border border-gray-300 shadow-md" :style="{ backgroundColor: previewColor }"></div>

@@ -185,7 +185,6 @@ const closeModal = () => {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý danh mục</h1>
-                    <p class="text-gray-600 text-sm mt-1">Quản lý danh mục sản phẩm</p>
                 </div>
                 <button @click="openModal()" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
                     <span class="material-symbols-outlined text-lg">add</span>

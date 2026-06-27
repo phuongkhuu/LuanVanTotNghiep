@@ -318,7 +318,6 @@ onMounted(() => {
         <div class="p-5">
             <div class="mb-5">
                 <h1 class="text-xl font-semibold text-gray-800">Cài đặt</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Cấu hình thông tin hệ thống</p>
             </div>
 
             <!-- Success Message -->

@@ -422,7 +422,6 @@ watch(() => props.initialProducts, (val) => {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý sản phẩm</h1>
-                    <p class="text-gray-600 text-sm mt-1">Quản lý sản phẩm thường và pre-order</p>
                 </div>
                 <button 
                     @click="openModal()" 

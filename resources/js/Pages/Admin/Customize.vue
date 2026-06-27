@@ -259,7 +259,6 @@ const formatPrice = (value) => {
             <!-- Header -->
             <div class="mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Yêu cầu tùy chỉnh</h1>
-                <p class="text-gray-600 text-sm mt-1">Quản lý yêu cầu in logo, thiết kế riêng cho khách hàng</p>
             </div>
 
             <!-- Filter Buttons and Action -->

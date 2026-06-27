@@ -52,6 +52,7 @@ class ColorController extends Controller
             } elseif (!empty($validated['code']) && empty($validated['name'])) {
 
                 $code = $this->normalizeHexCode($validated['code']);
+                $validated['code'] = $code;
                 $generatedName = $this->getColorNameFromCode($code);
                 if ($generatedName && $generatedName !== 'Màu khác') {
                     $validated['name'] = $generatedName;
@@ -62,11 +63,11 @@ class ColorController extends Controller
                         'message' => 'Mã màu này chưa có tên. Vui lòng nhập tên màu!'
                     ], 422);
                 }
-                $validated['code'] = $code;
+               
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Vui lòng nhập tên màu hoặc mã hex!'
+                    'message' => 'Vui lòng nhập tên màu và mã hex!'
                 ], 422);
             }
 
@@ -118,11 +119,11 @@ class ColorController extends Controller
                 $validated['code'] = $this->getColorCodeFromName($validated['name']);
             } elseif (!empty($validated['code']) && empty($validated['name'])) {
                 $code = $this->normalizeHexCode($validated['code']);
-                $generatedName = $this->getColorNameFromCode($code); //Tạo tên từ mã màu
+                $generatedName = $this->getColorNameFromCode($code);
                 if ($generatedName && $generatedName !== 'Màu khác') {
                     $validated['name'] = $generatedName;
                 } else {
-                    $validated['name'] = $color->name; // Giữ tên cũ
+                    $validated['name'] = $color->name; 
                 }
                 $validated['code'] = $code;
             } else {
@@ -173,7 +174,7 @@ class ColorController extends Controller
             if ($variantCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa màu này vì đang có ' . $variantCount . ' biến thể sản phẩm đang sử dụng!'
+                    'message' => 'Không thể xóa màu này vì đang có ' . $variantCount . ' sản phẩm đang sử dụng!'
                 ], 400);
             }
 

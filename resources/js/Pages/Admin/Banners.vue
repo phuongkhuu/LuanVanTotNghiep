@@ -310,7 +310,6 @@ onMounted(() => {
         <div class="p-6">
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Quản lý Banner</h1>
-                <p class="text-gray-500 mt-1">Thêm, sửa hoặc xóa các banner quảng cáo</p>
             </div>
 
             <div class="mb-6 flex flex-wrap gap-2">

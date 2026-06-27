@@ -228,7 +228,7 @@ class BrandController extends Controller
             if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước khi sửa.'
+                    'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng!'
                 ], 400);
             }
 
@@ -323,7 +323,7 @@ class BrandController extends Controller
             if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng! Vui lòng chuyển hoặc xóa các sản phẩm này trước.'
+                    'message' => 'Không thể xóa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng!'
                 ], 400);
             }
 

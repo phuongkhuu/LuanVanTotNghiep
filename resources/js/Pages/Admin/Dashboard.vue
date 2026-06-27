@@ -136,7 +136,6 @@ onMounted(() => {
             <!-- Welcome -->
             <div class="mb-6">
                 <h1 class="text-xl font-semibold text-gray-800">Chào mừng trở lại, Admin</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Đây là tổng quan hoạt động kinh doanh hôm nay</p>
             </div>
 
             <!-- Stats Cards - 3 loại hình bán hàng -->
