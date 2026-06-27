@@ -11,7 +11,7 @@ use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\File; 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -23,11 +23,10 @@ class ProductController extends Controller
         return base_path('image');
     }
 
-
     protected function ensureImageDir(): void
     {
         $dir = $this->imageDir();
-        if (!File::exists($dir)) { 
+        if (!File::exists($dir)) {
             File::makeDirectory($dir, 0755, true);
         }
     }
@@ -35,11 +34,19 @@ class ProductController extends Controller
     protected function saveContentToImage(string $contents, string $ext): string
     {
         $this->ensureImageDir();
-        
-        $filename = uniqid() . '.' . $ext; 
+
+        $filename = uniqid() . '.' . $ext;
         $path = $this->imageDir() . '/' . $filename;
         file_put_contents($path, $contents);
 
+        return '/image/' . $filename;
+    }
+
+    protected function saveUploadedImage($file): string
+    {
+        $this->ensureImageDir();
+        $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+        $file->move($this->imageDir(), $filename);
         return '/image/' . $filename;
     }
 
@@ -47,19 +54,18 @@ class ProductController extends Controller
     {
         if (!$imageUrl) return;
 
-        $parsed = parse_url($imageUrl); 
-        $path = ltrim($parsed['path'] ?? $imageUrl, '/'); 
+        $parsed = parse_url($imageUrl);
+        $path = ltrim($parsed['path'] ?? $imageUrl, '/');
 
-        if (!str_starts_with($path, 'image/')) return; 
+        if (!str_starts_with($path, 'image/')) return;
 
-        $fullPath = base_path($path); 
+        $fullPath = base_path($path);
 
         if (File::exists($fullPath)) {
-            File::delete($fullPath); 
+            File::delete($fullPath);
         }
     }
 
- 
     public function index($type = 'normal')
     {
         $validTypes = ['normal', 'preorder'];
@@ -73,6 +79,12 @@ class ProductController extends Controller
                 $minPrice = $product->variants->min('price') ?? 0;
                 $wholesalePrice = $minPrice;
 
+                // Lấy mảng ảnh
+                $images = $product->image_url ?? [];
+                if (!is_array($images)) {
+                    $images = [];
+                }
+
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -84,7 +96,8 @@ class ProductController extends Controller
                     'wholesalePrice' => (int) $wholesalePrice,
                     'stock' => $totalStock,
                     'type' => $product->is_preorder ? 'preorder' : 'normal',
-                    'image' => $product->thumbnail ?? '',
+                    'image_url' => $images,             
+                    'thumbnail' => $images[0] ?? null,   
                     'status' => $product->status,
                     'variants' => $product->variants->map(fn($v) => [
                         'id' => $v->id,
@@ -110,17 +123,24 @@ class ProductController extends Controller
         ]);
     }
 
- 
     public function store(Request $request)
     {
+        if ($request->has('image_url') && is_string($request->input('image_url'))) {
+            $request->merge([
+                'image_url' => json_decode($request->input('image_url'), true) ?? []
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'type' => 'required|in:normal,preorder',
-            'image' => 'required|url|max:2048',
-            'image_file' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', 
-            'material' => 'nullable|string',
+            'image_url' => 'nullable|array|max:10',
+            'image_url.*' => 'nullable|url|max:2048',
+            'image_files' => 'nullable|array|max:10',
+            'image_files.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'material' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'variants' => 'required|array|min:1',
             'variants.*.color_id' => 'required|exists:colors,id',
@@ -129,33 +149,16 @@ class ProductController extends Controller
             'variants.*.stock' => 'required|integer|min:0',
         ]);
 
+        $images = $validated['image_url'] ?? [];
 
-        $thumbnail = null;
-
-        if ($request->hasFile('image_file')) {
-            $this->ensureImageDir();
-            $file = $request->file('image_file');
-            $ext = $file->getClientOriginalExtension() ?: 'jpg';
-            $filename = uniqid() . '.' . $ext;
-            $file->move($this->imageDir(), $filename);
-            $thumbnail = '/image/' . $filename;
-        } elseif (!empty($validated['image'])) {
-            try {
-                $res = Http::timeout(15)->get($validated['image']);
-                if (!$res->ok()) {
-                    return redirect()->back()->withErrors(['image' => 'Không thể tải ảnh từ URL']);
-                }
-                $type = $res->header('Content-Type', '');
-                if (!str_starts_with($type, 'image/')) {
-                    return redirect()->back()->withErrors(['image' => 'URL không phải ảnh']);
-                }
-                $ext = explode('/', $type)[1] ?? 'jpg';
-                $thumbnail = $this->saveContentToImage($res->body(), $ext);
-            } catch (\Exception $e) {
-                Log::error('Product image fetch failed', ['error' => $e->getMessage()]);
-                return redirect()->back()->withErrors(['image' => 'Lỗi tải ảnh từ URL']);
+        if ($request->hasFile('image_files')) {
+            foreach ($request->file('image_files') as $file) {
+                $images[] = $this->saveUploadedImage($file);
             }
         }
+
+        $images = array_slice($images, 0, 10);
+        $thumbnail = $images[0] ?? null;
 
         $product = Product::create([
             'name' => $validated['name'],
@@ -163,6 +166,7 @@ class ProductController extends Controller
             'category_id' => $validated['category_id'],
             'brand_id' => $validated['brand_id'],
             'is_preorder' => $validated['type'] === 'preorder',
+            'image_url' => $images,
             'thumbnail' => $thumbnail,
             'material' => $validated['material'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -184,18 +188,26 @@ class ProductController extends Controller
             ->with('success', 'Thêm sản phẩm thành công');
     }
 
-  
     public function update(Request $request, $id)
     {
         $product = Product::findOrFail($id);
+
+        if ($request->has('image_url') && is_string($request->input('image_url'))) {
+            $request->merge([
+                'image_url' => json_decode($request->input('image_url'), true) ?? []
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'type' => 'required|in:normal,preorder',
-            'image' => 'nullable|string|max:2048',
-            'image_file' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'material' => 'nullable|string',
+            'image_url' => 'nullable|array|max:10',
+            'image_url.*' => 'nullable|url|max:2048',
+            'image_files' => 'nullable|array|max:10',
+            'image_files.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'material' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'variants' => 'required|array|min:1',
             'variants.*.id' => [
@@ -208,50 +220,28 @@ class ProductController extends Controller
             'variants.*.stock' => 'required|integer|min:0',
         ]);
 
+        $images = $validated['image_url'] ?? [];
 
-        $thumbnail = $product->thumbnail;
-
-        if ($request->hasFile('image_file')) {
-            $this->deleteImageIfExists($product->thumbnail);
-            $this->ensureImageDir();
-            $file = $request->file('image_file');
-            $ext = $file->getClientOriginalExtension() ?: 'jpg';
-            $filename = uniqid() . '.' . $ext;
-            $file->move($this->imageDir(), $filename);
-            $thumbnail = '/image/' . $filename;
-        } elseif (!empty($validated['image'])) {
-            if ($validated['image'] !== $product->thumbnail) {
-                try {
-                    $res = Http::timeout(15)->get($validated['image']);
-                    if (!$res->ok()) {
-                        return redirect()->back()->withErrors(['image' => 'Không thể tải ảnh từ URL']);
-                    }
-                    $type = $res->header('Content-Type', '');
-                    if (!str_starts_with($type, 'image/')) {
-                        return redirect()->back()->withErrors(['image' => 'URL không phải ảnh']);
-                    }
-                    $this->deleteImageIfExists($product->thumbnail);
-                    $ext = explode('/', $type)[1] ?? 'jpg';
-                    $thumbnail = $this->saveContentToImage($res->body(), $ext);
-                } catch (\Exception $e) {
-                    Log::error('Product image update failed', ['error' => $e->getMessage()]);
-                    return redirect()->back()->withErrors(['image' => 'Lỗi tải ảnh từ URL']);
-                }
+        if ($request->hasFile('image_files')) {
+            foreach ($request->file('image_files') as $file) {
+                $images[] = $this->saveUploadedImage($file);
             }
         }
 
-
+        $images = array_slice($images, 0, 10);
+        $thumbnail = $images[0] ?? null;
+  
         $product->update([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
             'category_id' => $validated['category_id'],
             'brand_id' => $validated['brand_id'],
             'is_preorder' => $validated['type'] === 'preorder',
+            'image_url' => $images,
             'thumbnail' => $thumbnail,
             'material' => $validated['material'] ?? null,
             'description' => $validated['description'] ?? null,
         ]);
-
 
         $existingVariantIds = $product->variants->pluck('id')->toArray();
         $submittedVariantIds = [];
@@ -259,14 +249,15 @@ class ProductController extends Controller
         foreach ($validated['variants'] as $variantData) {
             if (isset($variantData['id'])) {
                 $variant = ProductVariant::find($variantData['id']);
-
-                $variant->update([
-                    'color_id' => $variantData['color_id'],
-                    'size_name' => $variantData['size_name'] ?? null,
-                    'price' => $variantData['price'],
-                    'stock' => $variantData['stock'],
-                ]);
-                $submittedVariantIds[] = $variant->id;
+                if ($variant) {
+                    $variant->update([
+                        'color_id' => $variantData['color_id'],
+                        'size_name' => $variantData['size_name'] ?? null,
+                        'price' => $variantData['price'],
+                        'stock' => $variantData['stock'],
+                    ]);
+                    $submittedVariantIds[] = $variant->id;
+                }
             } else {
                 $newVariant = ProductVariant::create([
                     'product_id' => $product->id,
@@ -289,15 +280,17 @@ class ProductController extends Controller
             ->with('success', 'Cập nhật sản phẩm thành công');
     }
 
-  
     public function destroy(Request $request, $id)
     {
         $product = Product::findOrFail($id);
         try {
-            $this->deleteImageIfExists($product->thumbnail);
+            if ($product->image_url) {
+                foreach ($product->image_url as $imagePath) {
+                    $this->deleteImageIfExists($imagePath);
+                }
+            }
 
             $product->variants()->delete();
-
             $product->delete();
 
             return redirect()->route('admin.products.index')

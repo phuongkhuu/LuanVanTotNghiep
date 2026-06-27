@@ -21,9 +21,7 @@ class ProductController extends Controller
         $originalPrice = $maxPrice > $minPrice ? $maxPrice : null;
         $discount = $originalPrice ? round((1 - $minPrice / $originalPrice) * 100) . '%' : null;
 
-
         $sizes = $product->variants->pluck('size_name')->unique()->filter()->values();
-
 
         $colors = $product->variants->map(function ($variant) {
             if ($variant->color) {
@@ -35,16 +33,21 @@ class ProductController extends Controller
             return null;
         })->filter()->unique('value')->values();
 
-
-        $thumbnails = array_filter([$product->thumbnail]);
-
+        // ---- LẤY MẢNG ẢNH ----
+        $images = $product->image_url ?? [];
+        if (!is_array($images)) {
+            $images = [];
+        }
+        // Nếu không có ảnh, fallback thumbnail
+        if (empty($images) && $product->thumbnail) {
+            $images = [$product->thumbnail];
+        }
 
         $features = [
             ['icon' => 'verified', 'text' => 'Bảo hành 12 tháng'],
             ['icon' => 'local_shipping', 'text' => 'Miễn phí vận chuyển'],
             ['icon' => 'history', 'text' => 'Đổi trả 30 ngày'],
         ];
-
 
         $relatedProducts = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
@@ -60,7 +63,6 @@ class ProductController extends Controller
                     'image' => $item->thumbnail ?? 'https://picsum.photos/200/250',
                 ];
             });
-
 
         $reviews = [
             [
@@ -87,12 +89,13 @@ class ProductController extends Controller
             'oldPrice' => $originalPrice ? number_format($originalPrice) . '₫' : null,
             'discount' => $discount,
             'reviewCount' => $totalReviews,
-            'thumbnails' => $thumbnails,
+            'thumbnails' => $images,        // mảng ảnh
             'sizes' => $sizes,
             'colors' => $colors,
             'features' => $features,
             'description' => $product->description,
             'material' => $product->material,
+            // Thêm nếu cần: 'image_url' => $images (để tương thích)
         ];
 
         return Inertia::render('Web/ProductDetail', [

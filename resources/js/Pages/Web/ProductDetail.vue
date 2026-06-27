@@ -18,16 +18,39 @@
       <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
         <!-- Left Gallery -->
         <div class="md:col-span-7 flex flex-col-reverse md:flex-row gap-4">
-          <div class="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[600px] custom-scrollbar">
-            <div v-for="(thumb, idx) in product.thumbnails" :key="idx" 
-                 class="min-w-[80px] w-20 h-20 border-2 rounded-lg overflow-hidden cursor-pointer bg-white"
-                 :class="idx === activeThumb ? 'border-primary' : 'border-gray-200 hover:border-primary'"
-                 @click="activeThumb = idx">
+          <!-- Danh sách thumbnail -->
+          <div 
+            v-if="thumbnails.length > 0" 
+            class="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[600px] custom-scrollbar"
+          >
+            <div 
+              v-for="(thumb, idx) in thumbnails" 
+              :key="idx" 
+              class="min-w-[80px] w-20 h-20 border-2 rounded-lg overflow-hidden cursor-pointer bg-white flex-shrink-0"
+              :class="idx === activeThumb ? 'border-primary' : 'border-gray-200 hover:border-primary'"
+              @click="activeThumb = idx"
+            >
               <img :src="thumb" class="w-full h-full object-cover" :alt="'Hình ảnh ' + (idx + 1)">
             </div>
           </div>
+          <!-- Nếu không có ảnh, hiển thị placeholder -->
+          <div v-else class="flex md:flex-col gap-3">
+            <div class="min-w-[80px] w-20 h-20 border-2 rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+              No image
+            </div>
+          </div>
+
+          <!-- Ảnh chính -->
           <div class="flex-1 aspect-[4/5] bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-            <img :src="product.thumbnails[activeThumb]" class="w-full h-full object-cover" alt="Sản phẩm chính">
+            <img 
+              v-if="thumbnails.length > 0" 
+              :src="thumbnails[activeThumb]" 
+              class="w-full h-full object-cover" 
+              alt="Sản phẩm chính"
+            >
+            <div v-else class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+              Không có ảnh
+            </div>
           </div>
         </div>
 
@@ -38,7 +61,7 @@
             <h1 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-1">{{ product.name }}</h1>
             <div class="flex items-center gap-1 text-amber-400 mb-4">
               <span v-for="n in 5" :key="n" class="material-symbols-outlined text-base" :style="{ fontVariationSettings: n <= 4 ? '\'FILL\' 1' : '\'FILL\' 0' }">star</span>
-              <span class="text-gray-500 text-sm ml-2">({{ product.reviewCount }} đánh giá)</span>
+              <span class="text-gray-500 text-sm ml-2">({{ product.reviewCount || 0 }} đánh giá)</span>
             </div>
           </div>
 
@@ -54,22 +77,28 @@
           <!-- Size selection -->
           <div v-if="product.sizes && product.sizes.length" class="py-4 border-t border-gray-200">
             <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">Kích thước (Size):</span>
-            <div class="flex gap-3">
-              <button v-for="size in product.sizes" :key="size" 
-                      class="px-6 py-2 border-2 rounded-xl text-sm transition-all"
-                      :class="selectedSize === size ? 'border-primary text-primary bg-amber-50' : 'border-gray-200 text-gray-600 hover:border-primary'"
-                      @click="selectedSize = size">{{ size }}</button>
+            <div class="flex gap-3 flex-wrap">
+              <button 
+                v-for="size in product.sizes" 
+                :key="size" 
+                class="px-6 py-2 border-2 rounded-xl text-sm transition-all"
+                :class="selectedSize === size ? 'border-primary text-primary bg-amber-50' : 'border-gray-200 text-gray-600 hover:border-primary'"
+                @click="selectedSize = size"
+              >{{ size }}</button>
             </div>
           </div>
 
           <!-- Color selection -->
           <div v-if="product.colors && product.colors.length" class="py-4 border-t border-gray-200">
             <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">Màu sắc: {{ selectedColorName }}</span>
-            <div class="flex gap-3">
-              <button v-for="color in product.colors" :key="color.value" 
-                      class="w-10 h-10 rounded-full border-2 p-1"
-                      :class="selectedColor === color.value ? 'border-primary' : 'border-gray-200 hover:border-primary'"
-                      @click="selectedColor = color.value; selectedColorName = color.label">
+            <div class="flex gap-3 flex-wrap">
+              <button 
+                v-for="color in product.colors" 
+                :key="color.value" 
+                class="w-10 h-10 rounded-full border-2 p-1"
+                :class="selectedColor === color.value ? 'border-primary' : 'border-gray-200 hover:border-primary'"
+                @click="selectedColor = color.value; selectedColorName = color.label"
+              >
                 <div class="w-full h-full rounded-full" :style="{ backgroundColor: color.value }"></div>
               </button>
             </div>
@@ -99,7 +128,7 @@
         </div>
       </div>
 
-      <!-- Product Highlights (still static - can be dynamic later) -->
+      <!-- Product Highlights (giữ nguyên) -->
       <section class="mt-16">
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">Đặc điểm nổi bật</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -190,13 +219,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
-// Nhận dữ liệu từ controller qua props
 const props = defineProps({
   product: { type: Object, required: true },
   relatedProducts: { type: Array, default: () => [] },
@@ -204,7 +232,14 @@ const props = defineProps({
   totalReviews: { type: Number, default: 0 }
 })
 
-// State cho thumbnail, size, màu
+// Hợp nhất danh sách ảnh: ưu tiên thumbnails, fallback image_url
+const thumbnails = computed(() => {
+  return props.product.thumbnails?.length ? props.product.thumbnails : (props.product.image_url || [])
+})
+
+// Nếu không có ảnh, có thể thêm placeholder
+// const defaultThumbnails = computed(() => thumbnails.value.length ? thumbnails.value : ['/images/placeholder.jpg'])
+
 const activeThumb = ref(0)
 const selectedSize = ref(props.product.sizes?.[0] || '')
 const selectedColor = ref(props.product.colors?.[0]?.value || '')

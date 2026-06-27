@@ -30,27 +30,30 @@ const modalTitle = computed(() => editingId.value ? 'Sửa sản phẩm' : 'Thê
 
 // Image handling
 const imageInputMode = ref('url');
-const selectedFile = ref(null);
-const imagePreviewUrl = ref('');
 const fileError = ref('');
 
-// Form data – variants: { id?, color_id, size_name, price, stock }
+// Form data – hỗ trợ nhiều ảnh
 const form = ref({
     name: '',
     category_id: null,
     brand_id: null,
     type: 'normal',
-    image: '',
+    imageUrls: [],
+    imageFiles: [],
     material: '',
     description: '',
     variants: []
 });
 
-// Xem trước ảnh
-const imagePreview = computed(() => {
-    if (imagePreviewUrl.value) return imagePreviewUrl.value;
-    if (form.value.image) return form.value.image;
-    return null;
+// Computed: hợp nhất URL và file để hiển thị preview
+const allImagePreviews = computed(() => {
+    const urls = form.value.imageUrls.map(url => ({ url, type: 'url' }));
+    const files = form.value.imageFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        type: 'file',
+        file
+    }));
+    return [...urls, ...files];
 });
 
 // Hàm ngăn giá trị âm
@@ -60,7 +63,7 @@ const enforceNonNegative = (value) => {
     return Math.max(0, num);
 };
 
-// Cập nhật giá trị price với ràng buộc không âm
+// Cập nhật giá trị price
 const updatePrice = (variant, event) => {
     const raw = event.target.value;
     const newVal = enforceNonNegative(raw);
@@ -68,7 +71,7 @@ const updatePrice = (variant, event) => {
     event.target.value = newVal;
 };
 
-// Cập nhật stock không âm
+// Cập nhật stock
 const updateStock = (variant, event) => {
     const raw = event.target.value;
     const newVal = enforceNonNegative(raw);
@@ -107,9 +110,6 @@ const typeCounts = computed(() => ({
     preorder: products.value.filter(p => p.type === 'preorder').length
 }));
 
-console.log('Initial products:', props.initialProducts);
-
-// Hàm lấy số lượng sản phẩm theo loại
 const getTypeCount = (type) => typeCounts.value[type] || 0;
 
 const formatPrice = (value) => {
@@ -117,44 +117,76 @@ const formatPrice = (value) => {
     return value.toLocaleString('vi-VN') + '₫';
 };
 
-// Xử lý file ảnh
-const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    fileError.value = '';
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg)';
+// Thêm URL ảnh
+const addImageUrl = () => {
+    const input = document.getElementById('imageUrlInput');
+    const url = input.value.trim();
+    if (!url) {
+        alert('Vui lòng nhập URL');
         return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-        fileError.value = 'Kích thước ảnh không quá 2MB';
+    if (!url.match(/^https?:\/\/.+/)) {
+        alert('URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)');
         return;
     }
-    selectedFile.value = file;
-    const reader = new FileReader();
-    reader.onload = (e) => { imagePreviewUrl.value = e.target.result; };
-    reader.readAsDataURL(file);
-    form.value.image = '';
+    if (form.value.imageUrls.length + form.value.imageFiles.length >= 10) {
+        alert('Tối đa 10 ảnh');
+        return;
+    }
+    form.value.imageUrls.push(url);
+    input.value = '';
 };
 
-const clearFile = () => {
-    selectedFile.value = null;
-    imagePreviewUrl.value = '';
-    fileError.value = '';
-    if (imageInputMode.value === 'file') {
-        const fileInput = document.getElementById('productImageInput');
-        if (fileInput) fileInput.value = '';
+// Xóa ảnh
+const removeImage = (index, type) => {
+    if (type === 'url') {
+        form.value.imageUrls.splice(index, 1);
+    } else if (type === 'file') {
+        form.value.imageFiles.splice(index, 1);
     }
+};
+
+// Xử lý chọn file (multiple)
+const handleFileChange = (event) => {
+    const files = event.target.files;
+    fileError.value = '';
+    if (!files.length) return;
+
+    const total = form.value.imageFiles.length + files.length;
+    if (total > 10) {
+        fileError.value = `Chỉ được tối đa 10 ảnh (hiện có ${form.value.imageFiles.length})`;
+        event.target.value = '';
+        return;
+    }
+
+    for (let file of files) {
+        if (!file.type.startsWith('image/')) {
+            fileError.value = `File ${file.name} không phải ảnh`;
+            continue;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            fileError.value = `File ${file.name} vượt quá 2MB`;
+            continue;
+        }
+        form.value.imageFiles.push(file);
+    }
+    event.target.value = '';
+};
+
+// Xóa tất cả file (khi đóng modal)
+const clearFiles = () => {
+    form.value.imageFiles = [];
+    fileError.value = '';
+    const input = document.getElementById('productImageInput');
+    if (input) input.value = '';
 };
 
 // Mở modal
 const openModal = (product = null) => {
     editingId.value = product?.id || null;
-    selectedFile.value = null;
-    imagePreviewUrl.value = '';
     imageInputMode.value = 'url';
     fileError.value = '';
+    form.value.imageFiles = [];
 
     if (product) {
         form.value = {
@@ -162,7 +194,8 @@ const openModal = (product = null) => {
             category_id: product.category_id,
             brand_id: product.brand_id,
             type: product.type,
-            image: product.image || '',
+            imageUrls: product.image_url || [],
+            imageFiles: [],
             material: product.material || '',
             description: product.description || '',
             variants: product.variants ? product.variants.map(v => ({
@@ -179,7 +212,8 @@ const openModal = (product = null) => {
             category_id: null,
             brand_id: null,
             type: activeType.value,
-            image: '',
+            imageUrls: [],
+            imageFiles: [],
             material: '',
             description: '',
             variants: [{ color_id: null, size_name: '', price: 0, stock: 0 }]
@@ -190,7 +224,7 @@ const openModal = (product = null) => {
 
 const editProduct = (product) => openModal(product);
 
-// Lưu sản phẩm (hỗ trợ upload file)
+// Lưu sản phẩm
 const saveProduct = async () => {
     // Kiểm tra tên
     if (!form.value.name.trim()) {
@@ -198,16 +232,16 @@ const saveProduct = async () => {
         return;
     }
 
-    // Kiểm tra chất liệu (material)
+    // Kiểm tra chất liệu
     const material = form.value.material.trim();
     if (material && !/^[a-zA-ZÀ-ỹ\s\-]+$/.test(material)) {
-        alert('Chất liệu chỉ được chứa chữ cái (có dấu), dấu cách và dấu gạch ngang, không được chỉ gồm số hoặc ký tự đặc biệt.');
+        alert('Chất liệu chỉ được chứa chữ cái (có dấu), dấu cách và dấu gạch ngang.');
         return;
     }
 
     // Kiểm tra biến thể
     if (form.value.variants.length === 0) {
-        alert('Vui lòng thêm ít nhất một biến thể (màu, size, giá, tồn kho)');
+        alert('Vui lòng thêm ít nhất một biến thể');
         return;
     }
     for (let i = 0; i < form.value.variants.length; i++) {
@@ -233,30 +267,29 @@ const saveProduct = async () => {
 
     isSubmitting.value = true;
 
-    let submitData, headers = {};
-    let url, method;
-
-    if (editingId.value) {
-        url = route('admin.products.update', editingId.value);
-        method = 'post';
-        submitData = { _method: 'put', ...form.value };
-    } else {
-        url = route('admin.products.store');
-        method = 'post';
-        submitData = { ...form.value };
-    }
+    const url = editingId.value
+        ? route('admin.products.update', editingId.value)
+        : route('admin.products.store');
 
     // Nếu có file upload => FormData
-    if (selectedFile.value) {
+    if (form.value.imageFiles.length > 0) {
         const formData = new FormData();
-        formData.append('_method', editingId.value ? 'PUT' : 'POST');
+        if (editingId.value) {
+            formData.append('_method', 'PUT');
+        }
+
         formData.append('name', form.value.name);
         formData.append('category_id', form.value.category_id ?? '');
         formData.append('brand_id', form.value.brand_id ?? '');
         formData.append('type', form.value.type);
         formData.append('material', form.value.material || '');
         formData.append('description', form.value.description || '');
-        formData.append('image_file', selectedFile.value);
+        formData.append('image_url', JSON.stringify(form.value.imageUrls));
+
+        form.value.imageFiles.forEach(file => {
+            formData.append('image_files[]', file);
+        });
+
         form.value.variants.forEach((variant, index) => {
             if (variant.id) formData.append(`variants[${index}][id]`, variant.id);
             formData.append(`variants[${index}][color_id]`, variant.color_id);
@@ -264,34 +297,70 @@ const saveProduct = async () => {
             formData.append(`variants[${index}][price]`, variant.price);
             formData.append(`variants[${index}][stock]`, variant.stock);
         });
-        
-        submitData = formData;
-        headers = { 'Content-Type': 'multipart/form-data' };
-    } else {
-        submitData.image = form.value.image;
-    }
 
-    try {
-        await router[method](url, submitData, {
-            preserveScroll: true, //Giữ vị trí cuộn trang
-            headers: headers, //Cần để gửi file 
-            onSuccess: () => {
-                alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
-                showModal.value = false;
-                clearFile();
-                router.reload({ only: ['initialProducts'] }); //Chỉ load lại dữ liệu sản phẩm, không reload toàn bộ trang
-            },
-            onError: (errors) => {
-                console.error(errors);
-                const msg = errors.image_file?.[0] || errors.image?.[0] || 'Có lỗi xảy ra';
-                alert(msg);
+        try {
+            await router.post(url, formData, {
+                preserveScroll: true,
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onSuccess: () => {
+                    alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
+                    showModal.value = false;
+                    clearFiles();
+                    router.reload({ only: ['initialProducts'] });
+                },
+                onError: (errors) => {
+                    console.error(errors);
+                    alert(errors.image_files?.[0] || errors.image_url?.[0] || 'Có lỗi xảy ra');
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            alert('Có lỗi xảy ra khi gửi dữ liệu');
+        } finally {
+            isSubmitting.value = false;
+        }
+    } else {
+        // Không có file, gửi JSON bình thường
+        const data = {
+            ...form.value,
+            image_url: form.value.imageUrls,
+        };
+        delete data.imageFiles;
+
+        try {
+            if (editingId.value) {
+                await router.put(url, data, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        alert('Cập nhật thành công!');
+                        showModal.value = false;
+                        router.reload({ only: ['initialProducts'] });
+                    },
+                    onError: (errors) => {
+                        console.error(errors);
+                        alert(errors.image_url?.[0] || 'Có lỗi xảy ra');
+                    }
+                });
+            } else {
+                await router.post(url, data, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        alert('Thêm sản phẩm thành công!');
+                        showModal.value = false;
+                        router.reload({ only: ['initialProducts'] });
+                    },
+                    onError: (errors) => {
+                        console.error(errors);
+                        alert(errors.image_url?.[0] || 'Có lỗi xảy ra');
+                    }
+                });
             }
-        });
-    } catch (error) {
-        console.error(error);
-        alert('Có lỗi xảy ra khi gửi dữ liệu');
-    } finally {
-        isSubmitting.value = false;
+        } catch (error) {
+            console.error(error);
+            alert('Có lỗi xảy ra khi gửi dữ liệu');
+        } finally {
+            isSubmitting.value = false;
+        }
     }
 };
 
@@ -320,8 +389,7 @@ const deleteProduct = async (id) => {
 
 const closeModal = () => {
     showModal.value = false;
-    clearFile();
-    fileError.value = '';
+    clearFiles();
 };
 
 const changeActiveType = (typeValue) => {
@@ -416,9 +484,14 @@ watch(() => props.initialProducts, (val) => {
                                 <td class="py-3 px-4">
                                     <div class="flex items-center gap-2">
                                         <div class="w-10 h-10 bg-gray-100 rounded overflow-hidden">
-                                            <img :src="product.image" class="w-full h-full object-cover" :alt="product.name">
+                                            <img 
+                                                :src="product.thumbnail || ''" 
+                                                class="w-full h-full object-cover" 
+                                                :alt="product.name"
+                                            >
                                         </div>
                                         <span class="font-medium text-gray-800">{{ product.name }}</span>
+                                        <span class="text-xs text-gray-400 ml-1">({{ product.image_url?.length || 0 }})</span>
                                     </div>
                                 </td>
                                 <td class="py-3 px-4 text-gray-600">{{ product.category || '—' }}</td>
@@ -506,26 +579,40 @@ watch(() => props.initialProducts, (val) => {
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Chất liệu</label>
                             <input v-model="form.material" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="VD: Canvas, Da, ...">
                         </div>
+                        <!-- PHẦN HÌNH ẢNH MỚI -->
                         <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Hình ảnh</label>
+                            <label class="text-sm block mb-1 text-gray-700 font-medium">Hình ảnh sản phẩm (tối đa 10 ảnh)</label>
+
+                            <!-- Danh sách ảnh hiện có -->
+                            <div v-if="allImagePreviews.length" class="flex flex-wrap gap-2 mb-3">
+                                <div v-for="(img, idx) in allImagePreviews" :key="idx" class="relative w-20 h-20 border rounded overflow-hidden bg-gray-100 group">
+                                    <img :src="img.url" class="w-full h-full object-cover" />
+                                    <button 
+                                        @click="removeImage(idx, img.type)"
+                                        class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
+                                        title="Xóa ảnh"
+                                    >✕</button>
+                                </div>
+                            </div>
+                            <div v-else class="text-sm text-gray-400 mb-2">Chưa có ảnh</div>
+
+                            <!-- Chọn chế độ nhập URL hoặc file -->
                             <div class="flex gap-2 border-b pb-2 mb-2">
                                 <button type="button" @click="imageInputMode = 'url'" :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100']">🔗 Nhập URL</button>
                                 <button type="button" @click="imageInputMode = 'file'" :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100']">📁 Tải ảnh lên</button>
                             </div>
-                            <div v-if="imageInputMode === 'url'">
-                                <input v-model="form.image" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="https://example.com/image.jpg">
+
+                            <!-- Nhập URL -->
+                            <div v-if="imageInputMode === 'url'" class="flex gap-2">
+                                <input id="imageUrlInput" type="text" placeholder="Nhập URL ảnh" class="flex-1 border rounded-lg px-3 py-2 text-sm" />
+                                <button @click="addImageUrl" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm">Thêm</button>
                             </div>
+
+                            <!-- Upload file (multiple) -->
                             <div v-else>
-                                <input id="productImageInput" type="file" accept="image/*" @change="handleFileChange" class="w-full">
-                                <!-- Hiển thị lỗi file -->
+                                <input id="productImageInput" type="file" accept="image/*" multiple @change="handleFileChange" class="w-full text-sm" />
+                                <p class="text-xs text-gray-400 mt-1">Chọn nhiều ảnh (tối đa 2MB mỗi ảnh)</p>
                                 <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
-                                <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1">Xóa file đã chọn</button>
-                            </div>
-                            <div v-if="imagePreview" class="mt-2">
-                                <p class="text-sm text-gray-600">Xem trước:</p>
-                                <div class="w-32 h-32 border rounded overflow-hidden bg-gray-100">
-                                    <img :src="imagePreview" class="w-full h-full object-cover" @error="imagePreviewUrl = ''; form.image = ''">
-                                </div>
                             </div>
                         </div>
                     </div>

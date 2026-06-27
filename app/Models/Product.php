@@ -18,6 +18,7 @@ class Product extends Model
     protected $casts = [
         'is_featured' => 'boolean',
         'is_preorder' => 'boolean',
+        'image_url' => 'array',
         'status' => 'integer',
     ];
 

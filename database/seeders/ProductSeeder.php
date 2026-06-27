@@ -72,6 +72,7 @@ class ProductSeeder extends Seeder
         }
 
 
+        // Lấy các model đã tạo (giữ nguyên)
         $catLaptop = Category::where('slug', 'balo-laptop')->first();
         $catTravel = Category::where('slug', 'balo-du-lich')->first();
         $catCrossbody = Category::where('slug', 'tui-deo-cheo')->first();
@@ -94,8 +95,9 @@ class ProductSeeder extends Seeder
         $colorOrange = Color::where('name', 'Cam')->first();
         $colorWhite = Color::where('name', 'Trắng')->first();
 
-
-
+        // -------------------------------
+        // 1. SẢN PHẨM ĐƯỢC TẠO THỦ CÔNG
+        // -------------------------------
         Product::updateOrCreate(
             ['slug' => 'balo-laptop-bigbag-pro-15-6'],
             [
@@ -103,7 +105,10 @@ class ProductSeeder extends Seeder
                 'brand_id' => $brandBigbag->id,
                 'name' => 'Balo Laptop BigBag Pro 15.6 inch',
                 'material' => 'Ballistic Nylon 1680D',
-                'image_url' => 'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880',
+                'image_url' => [
+                    'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880',
+                    'https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500', // ảnh phụ
+                ],
                 'description' => 'Balo chống nước cao cấp, ngăn laptop riêng biệt.',
                 'thumbnail' => 'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880',
                 'is_featured' => true,
@@ -120,7 +125,7 @@ class ProductSeeder extends Seeder
             ['price' => 1450000, 'stock' => 30, 'rating' => 4.7]
         );
 
-
+        // Sản phẩm Solo Adventure 40L
         Product::updateOrCreate(
             ['slug' => 'solo-adventure-40l'],
             [
@@ -128,7 +133,10 @@ class ProductSeeder extends Seeder
                 'brand_id' => $brandSolo->id,
                 'name' => 'Solo Adventure 40L',
                 'material' => 'Polyester 600D',
-                'image_url' => 'https://wetrek.vn/pic/products/balo-leo-nui-senterlan-adventure-45-5l-s1009-green_639002717478433706-w.450-q.80.jpg',
+                'image_url' => [
+                    'https://wetrek.vn/pic/products/balo-leo-nui-senterlan-adventure-45-5l-s1009-green_639002717478433706-w.450-q.80.jpg',
+                    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500',
+                ],
                 'description' => 'Balo du lịch dung tích lớn, nhiều ngăn tiện lợi.',
                 'thumbnail' => 'https://wetrek.vn/pic/products/balo-leo-nui-senterlan-adventure-45-5l-s1009-green_639002717478433706-w.200-q.80.jpg',
                 'is_featured' => true,
@@ -141,7 +149,7 @@ class ProductSeeder extends Seeder
             ['price' => 2100000, 'stock' => 25, 'rating' => 4.9]
         );
 
-
+        // Sản phẩm KingBag Crossbody Mini
         Product::updateOrCreate(
             ['slug' => 'kingbag-crossbody-mini'],
             [
@@ -149,7 +157,10 @@ class ProductSeeder extends Seeder
                 'brand_id' => $brandKing->id,
                 'name' => 'KingBag Crossbody Mini',
                 'material' => 'Da PU cao cấp',
-                'image_url' => 'https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg',
+                'image_url' => [
+                    'https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg',
+                    'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500',
+                ],
                 'description' => 'Túi đeo chéo thời trang, thiết kế tối giản.',
                 'thumbnail' => 'https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg',
                 'is_featured' => false,
@@ -162,7 +173,9 @@ class ProductSeeder extends Seeder
             ['price' => 450000, 'stock' => 100, 'rating' => 4.5]
         );
 
-
+        // --------------------------------------------
+        // 2. DANH SÁCH SẢN PHẨM MỚI (vòng lặp)
+        // --------------------------------------------
         $newProducts = [
             [
                 'name' => 'Everki Atlas 17.3 inch',
@@ -170,7 +183,10 @@ class ProductSeeder extends Seeder
                 'category' => $catShock,
                 'brand' => $brandEverki,
                 'material' => 'Ballistic Nylon 1680D',
-                'image_url' => 'https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp121_01.jpg',
+                'image_url' => [
+                    'https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp121_01.jpg',
+                    'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500',
+                ],
                 'thumbnail' => 'https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp121_01.jpg',
                 'description' => 'Balo chống sốc cao cấp dành cho laptop 17.3 inch, nhiều ngăn phụ kiện.',
                 'is_featured' => true,
@@ -186,7 +202,10 @@ class ProductSeeder extends Seeder
                 'category' => $catFashion,
                 'brand' => $brandTargus,
                 'material' => 'Polyester 600D',
-                'image_url' => 'https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg',
+                'image_url' => [
+                    'https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg',
+                    'https://images.unsplash.com/photo-1594221708778-0f5e0b6d9a7a?w=500',
+                ],
                 'thumbnail' => 'https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg',
                 'description' => 'Balo thời trang, nhẹ, chống nước nhẹ, phù hợp văn phòng.',
                 'is_featured' => true,
@@ -201,7 +220,10 @@ class ProductSeeder extends Seeder
                 'category' => $catTravel,
                 'brand' => $brandSamsonite,
                 'material' => 'Nylon 900D',
-                'image_url' => 'https://cdn.deporvillage.com/cdn-cgi/image/h=960,w=768,dpr=1,f=auto,q=75,fit=contain,background=white/product-vertical/SSN-155708-1041_004.jpg',
+                'image_url' => [
+                    'https://cdn.deporvillage.com/cdn-cgi/image/h=960,w=768,dpr=1,f=auto,q=75,fit=contain,background=white/product-vertical/SSN-155708-1041_004.jpg',
+                    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500',
+                ],
                 'thumbnail' => 'https://cdn.deporvillage.com/cdn-cgi/image/h=960,w=768,dpr=1,f=auto,q=75,fit=contain,background=white/product-vertical/SSN-155708-1041_004.jpg',
                 'description' => 'Balo du lịch siêu nhẹ, chống nước, phong cách hiện đại.',
                 'is_featured' => false,
@@ -217,7 +239,10 @@ class ProductSeeder extends Seeder
                 'category' => $catFashion,
                 'brand' => $brandBigbag,
                 'material' => 'Vải Canvas',
-                'image_url' => 'https://bizweb.dktcdn.net/100/044/266/files/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4.png?v=1746292069590',
+                'image_url' => [
+                    'https://bizweb.dktcdn.net/100/044/266/files/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4.png?v=1746292069590',
+                    'https://images.unsplash.com/photo-1594221708778-0f5e0b6d9a7a?w=500',
+                ],
                 'thumbnail' => 'https://bizweb.dktcdn.net/100/044/266/files/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4.png?v=1746292069590',
                 'description' => 'Balo thời trang dành cho nữ, nhiều màu sắc trẻ trung.',
                 'is_featured' => true,
@@ -233,7 +258,10 @@ class ProductSeeder extends Seeder
                 'category' => $catLaptop,
                 'brand' => $brandKing,
                 'material' => 'Polyester 1200D',
-                'image_url' => 'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg',
+                'image_url' => [
+                    'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg',
+                    'https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500',
+                ],
                 'thumbnail' => 'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg',
                 'description' => 'Balo laptop chuyên dụng cho dân văn phòng, thiết kế tối giản.',
                 'is_featured' => false,
@@ -248,7 +276,10 @@ class ProductSeeder extends Seeder
                 'category' => $catShock,
                 'brand' => $brandEverki,
                 'material' => 'Ballistic Nylon 1680D',
-                'image_url' => 'https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTnqJEEcyv7_MjeOp9-qGQbIkHVQId4DrrUkv47NUWG2S9oDo4a2MpjyJbqOxdxqH6AkbkYH7_Kqt_mdQ2V6NzbMhx6yJws',
+                'image_url' => [
+                    'https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTnqJEEcyv7_MjeOp9-qGQbIkHVQId4DrrUkv47NUWG2S9oDo4a2MpjyJbqOxdxqH6AkbkYH7_Kqt_mdQ2V6NzbMhx6yJws',
+                    'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500',
+                ],
                 'thumbnail' => 'https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcTnqJEEcyv7_MjeOp9-qGQbIkHVQId4DrrUkv47NUWG2S9oDo4a2MpjyJbqOxdxqH6AkbkYH7_Kqt_mdQ2V6NzbMhx6yJws',
                 'description' => 'Balo chống sốc cỡ nhỏ dành cho laptop 14 inch, rất gọn nhẹ.',
                 'is_featured' => false,
@@ -263,7 +294,10 @@ class ProductSeeder extends Seeder
                 'category' => $catCrossbody,
                 'brand' => $brandTargus,
                 'material' => 'Polyester 300D',
-                'image_url' => 'https://anphat.com.vn/media/product/34030_3.jpg',
+                'image_url' => [
+                    'https://anphat.com.vn/media/product/34030_3.jpg',
+                    'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500',
+                ],
                 'thumbnail' => 'https://anphat.com.vn/media/product/34030_3.jpg',
                 'description' => 'Túi đeo chéo thời trang, chống nước, đựng vừa iPad.',
                 'is_featured' => true,
@@ -279,7 +313,10 @@ class ProductSeeder extends Seeder
                 'category' => $catTravel,
                 'brand' => $brandSamsonite,
                 'material' => 'Nylon 600D',
-                'image_url' => 'https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg',
+                'image_url' => [
+                    'https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg',
+                    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500',
+                ],
                 'thumbnail' => 'https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg',
                 'description' => 'Balo du lịch cỡ lớn 50L, phù hợp cho chuyến đi dài ngày.',
                 'is_featured' => false,
@@ -295,7 +332,10 @@ class ProductSeeder extends Seeder
                 'category' => $catLaptop,
                 'brand' => $brandSolo,
                 'material' => 'Polyester 900D',
-                'image_url' => 'https://www.sixmoondesigns.com/cdn/shop/products/OV06170.jpg?v=1682026829&width=1600',
+                'image_url' => [
+                    'https://www.sixmoondesigns.com/cdn/shop/products/OV06170.jpg?v=1682026829&width=1600',
+                    'https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500',
+                ],
                 'thumbnail' => 'https://www.sixmoondesigns.com/cdn/shop/products/OV06170.jpg?v=1682026829&width=1600',
                 'description' => 'Balo tối giản, phù hợp với môi trường công sở.',
                 'is_featured' => false,
@@ -310,7 +350,10 @@ class ProductSeeder extends Seeder
                 'category' => $catCrossbody,
                 'brand' => $brandBigbag,
                 'material' => 'Canvas tái chế',
-                'image_url' => 'https://cdn.awsli.com.br/2500x2500/2626/2626263/produto/254251738/20231226_155703-uu383ushc9.jpg',
+                'image_url' => [
+                    'https://cdn.awsli.com.br/2500x2500/2626/2626263/produto/254251738/20231226_155703-uu383ushc9.jpg',
+                    'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500',
+                ],
                 'thumbnail' => 'https://cdn.awsli.com.br/2500x2500/2626/2626263/produto/254251738/20231226_155703-uu383ushc9.jpg',
                 'description' => 'Balo thân thiện môi trường, chất liệu canvas tái chế.',
                 'is_featured' => true,
@@ -322,7 +365,7 @@ class ProductSeeder extends Seeder
             ],
         ];
 
-
+        // Lặp tạo sản phẩm và biến thể
         foreach ($newProducts as $np) {
             $product = Product::updateOrCreate(
                 ['slug' => $np['slug']],
@@ -331,7 +374,7 @@ class ProductSeeder extends Seeder
                     'brand_id' => $np['brand']->id,
                     'name' => $np['name'],
                     'material' => $np['material'],
-                    'image_url' => $np['image_url'],
+                    'image_url' => $np['image_url'], // mảng
                     'thumbnail' => $np['thumbnail'],
                     'description' => $np['description'],
                     'is_featured' => $np['is_featured'],
@@ -339,6 +382,7 @@ class ProductSeeder extends Seeder
                     'status' => 1,
                 ]
             );
+
             foreach ($np['variants'] as $variant) {
                 ProductVariant::updateOrCreate(
                     [
