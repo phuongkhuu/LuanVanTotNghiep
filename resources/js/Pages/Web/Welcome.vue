@@ -204,39 +204,29 @@ import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
+// Nhận dữ liệu từ HomeController
+const props = defineProps({
+  hotSales: { type: Array, default: () => [] },
+  trending: { type: Array, default: () => [] },
+  newProducts: { type: Array, default: () => [] },
+  newsList: { type: Array, default: () => [] }
+})
+
+// Gán dữ liệu vào ref
+const hotSales = ref(props.hotSales)
+const trending = ref(props.trending)
+const newProducts = ref(props.newProducts)
+const newsList = ref(props.newsList.length ? props.newsList : [
+  { id: 1, title: 'BigBag ra mắt bộ sưu tập Xuân Hè 2024', excerpt: 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.', image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop', category: 'Sự kiện', date: '15/03/2024' },
+  { id: 2, title: 'Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%', excerpt: 'Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.', image: 'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop', category: 'Khuyến mãi', date: '10/04/2024' },
+  { id: 3, title: 'Bí quyết chọn balo phù hợp với vóc dáng', excerpt: 'Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.', image: 'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop', category: 'Mẹo hay', date: '05/04/2024' }
+])
+
 const formatPrice = (price) => price.toLocaleString('vi-VN') + '₫'
 
 const addToCart = (product) => {
-  // Chuyển hướng đến trang chi tiết sản phẩm để thêm vào giỏ
   router.get(route('product.detail', { id: product.id }))
 }
-
-const hotSales = ref([
-  { id: 1, name: "Balo Laptop BigBag Pro 15.6 inch", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop", discount: 20, salePrice: 1160000, originalPrice: 1450000, rating: 5, reviews: 128 },
-  { id: 2, name: "Solo Adventure 40L - Balo Du Lịch Cao Cấp", image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500&h=600&fit=crop", discount: 15, salePrice: 1785000, originalPrice: 2100000, rating: 5, reviews: 89 },
-  { id: 3, name: "KingBag Crossbody Mini - Túi Đeo Chéo", image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&h=600&fit=crop", discount: 30, salePrice: 315000, originalPrice: 450000, rating: 4, reviews: 256 },
-  { id: 4, name: "Urban Backpack X-Pro - Phong Cách Hiện Đại", image: "https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=500&h=600&fit=crop", discount: 25, salePrice: 1312500, originalPrice: 1750000, rating: 5, reviews: 67 }
-])
-
-const trending = ref([
-  { id: 5, name: "Balo Công Sở Executive Leather", image: "https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500&h=600&fit=crop", price: 2850000, sold: 234 },
-  { id: 6, name: "Túi Messenger Da Thật Classic", image: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=500&h=600&fit=crop", price: 1950000, sold: 187 },
-  { id: 7, name: "Balo Chống Trộm SafeGuard Pro", image: "https://images.unsplash.com/photo-1601924582970-9238bcb495d9?w=500&h=600&fit=crop", price: 1650000, sold: 156 },
-  { id: 8, name: "Túi Gym 2 trong 1 SmartFit", image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&h=600&fit=crop", price: 890000, sold: 298 }
-])
-
-const newProducts = ref([
-  { id: 9, name: "Balo Tech Nomad 2024 Edition", image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500&h=600&fit=crop", price: 2250000 },
-  { id: 10, name: "Túi Laptop Sleeve Ultra Slim", image: "https://images.unsplash.com/photo-1601924582970-9238bcb495d9?w=500&h=600&fit=crop", price: 550000 },
-  { id: 11, name: "Balo Camera Pro - Bảo vệ thiết bị", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop", price: 3200000 },
-  { id: 12, name: "Túi Tote Canvas Premium", image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&h=600&fit=crop", price: 750000 }
-])
-
-const newsList = ref([
-  { id: 1, title: "BigBag ra mắt bộ sưu tập Xuân Hè 2024", excerpt: "Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.", image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop", category: "Sự kiện", date: "15/03/2024" },
-  { id: 2, title: "Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%", excerpt: "Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.", image: "https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop", category: "Khuyến mãi", date: "10/04/2024" },
-  { id: 3, title: "Bí quyết chọn balo phù hợp với vóc dáng", excerpt: "Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.", image: "https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop", category: "Mẹo hay", date: "05/04/2024" }
-])
 
 const countdown = ref({ hours: '23', minutes: '45', seconds: '12' })
 let countdownInterval = null

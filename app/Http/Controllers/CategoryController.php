@@ -13,18 +13,18 @@ class CategoryController extends Controller
 {
     public function show($slug)
     {
-
-        if (in_array($slug, ['danh-muc', 'tat-ca', 'thuong-hieu'])) {
+        // Các slug đặc biệt: hiển thị tất cả sản phẩm
+        if (in_array($slug, ['san-pham', 'danh-muc', 'tat-ca', 'thuong-hieu'])) {
             return $this->showAllProducts($slug);
         }
 
-
+        // Tìm danh mục theo slug
         $category = Category::where('slug', $slug)->first();
         if ($category) {
             return $this->showProductsByCategory($slug, $category);
         }
 
-
+        // Tìm kiếm danh mục theo từ khóa (fallback)
         $keywords = explode('-', $slug);
         $query = Category::query();
         foreach ($keywords as $kw) {
@@ -39,12 +39,11 @@ class CategoryController extends Controller
             return $this->showProductsByMultipleCategories($slug, $matchingCategories);
         }
 
-
+        // Tìm thương hiệu
         $brand = Brand::where('slug', $slug)->first();
         if ($brand) {
             return $this->showProductsByBrand($slug, $brand);
         }
-
 
         abort(404, 'Không tìm thấy danh mục hoặc thương hiệu phù hợp');
     }
@@ -54,7 +53,7 @@ class CategoryController extends Controller
      */
     private function showAllProducts($slug)
     {
-        $categoryName = 'Tất cả sản phẩm';
+        $categoryName = ($slug === 'san-pham') ? 'Sản phẩm' : 'Tất cả sản phẩm';
         $products = Product::with(['category', 'brand', 'variants.color'])
             ->where('status', 1)
             ->latest()
@@ -150,7 +149,6 @@ class CategoryController extends Controller
             ->latest()
             ->get()
             ->map(fn($product) => $this->mapProduct($product));
-
 
         $brands = Brand::where('id', $brand->id)->get(['id', 'name']);
 

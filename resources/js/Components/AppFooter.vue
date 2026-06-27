@@ -8,7 +8,7 @@
           <span class="text-primary">BigBag</span><span class="text-gray-800">.vn</span>
         </Link>
         <p class="font-body-sm text-sm leading-relaxed text-gray-600">Premium Utility Carry Gear - Đồng hành cùng bạn trên mọi nẻo đường.</p>
-        <p class="font-body-sm text-xs text-gray-500">© 2025 BigBag. All rights reserved.</p>
+        <p class="font-body-sm text-xs text-gray-500">© 2026 BigBag. All rights reserved.</p>
       </div>
 
       <!-- Cột 2: LIÊN KẾT NHANH -->

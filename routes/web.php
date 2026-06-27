@@ -15,6 +15,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
+use App\Http\Controllers\HomeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
@@ -35,14 +36,7 @@ Route::get('/image/{filename}', function ($filename) {
 
 // ==================== WEB ROUTES (Frontend - Cho người dùng) ====================
 
-Route::get('/', function () {
-    return Inertia::render('Web/Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-})->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/tim-kiem', function (Request $request) {
     return Inertia::render('Web/Category', ['search' => $request->get('q')]);
