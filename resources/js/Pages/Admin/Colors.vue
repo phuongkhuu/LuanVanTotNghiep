@@ -11,12 +11,9 @@ const props = defineProps({
     }
 })
 
-// Sắp xếp màu sắc theo ID giảm dần
-const sortedColors = computed(() => {
-    return [...colors.value].sort((a, b) => b.id - a.id)
-})
-
+// State
 const colors = ref(props.colors)
+const search = ref('') // Biến tìm kiếm
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -32,9 +29,24 @@ const form = ref({
     code: ''
 })
 
-const previewColor = ref('#CCCCCC')
-const previewColorCode = ref('#CCCCCC')
-const isGenerating = ref(false)
+// Mã hex hiển thị dưới picker
+const displayCode = ref('#CCCCCC')
+
+// Computed: lọc màu theo tên hoặc mã hex
+const filteredColors = computed(() => {
+    if (!colors.value || colors.value.length === 0) return []
+    if (!search.value) return colors.value
+    const keyword = search.value.toLowerCase().trim()
+    return colors.value.filter(color => 
+        color.name.toLowerCase().includes(keyword) || 
+        (color.code && color.code.toLowerCase().includes(keyword))
+    )
+})
+
+// Sắp xếp theo ID giảm dần
+const sortedColors = computed(() => {
+    return [...filteredColors.value].sort((a, b) => b.id - a.id)
+})
 
 // Hàm kiểm tra mã hex
 const isHexCode = (value) => {
@@ -44,8 +56,8 @@ const isHexCode = (value) => {
 
 // Chuyển đổi tên màu -> mã hex
 const getColorCodeFromName = (name) => {
-    if (!name) return '#CCCCCC' //Mặc định là xám
-    if (isHexCode(name)) return name.toUpperCase() //Nếu tên màu được viết dưới dạng mã màu, thì chỉ cần in hoa và trả về
+    if (!name) return '#CCCCCC'
+    if (isHexCode(name)) return name.toUpperCase()
 
     const colorMap = {
         'đen': '#000000', 'den': '#000000', 'black': '#000000',
@@ -68,7 +80,7 @@ const getColorCodeFromName = (name) => {
     return colorMap[key] || '#CCCCCC'
 }
 
-// Chuyển đổi mã hex -> tên màu (chỉ dùng để gợi ý)
+// Chuyển đổi mã hex -> tên màu (gợi ý)
 const suggestColorNameFromCode = (code) => {
     if (!code) return ''
     
@@ -105,39 +117,37 @@ const suggestColorNameFromCode = (code) => {
     return codeMap[upperCode] || ''
 }
 
-const updateColorPreview = () => {
-    if (isGenerating.value) return
-    
+// Cập nhật mã hiển thị và tự động điền mã vào ô input nếu tìm thấy
+const updateDisplayCode = () => {
     const inputName = form.value.name?.trim() || ''
     const inputCode = form.value.code?.trim() || ''
     
-    // Ưu tiên hiển thị theo code nếu có
     if (inputCode && isHexCode(inputCode)) {
-        const normalizedCode = inputCode.toUpperCase()
-        previewColor.value = normalizedCode
-        previewColorCode.value = normalizedCode
-        
-        // Gợi ý tên từ code (chỉ gợi ý, không tự động điền)
-        const suggestedName = suggestColorNameFromCode(normalizedCode)
-        if (suggestedName && !inputName) {
-            // Chỉ hiển thị gợi ý trong preview, không tự động điền vào input
-            // Người dùng có thể nhập tên tùy ý
-        }
-        return
-    }
-    
-    if (inputName) {
+        displayCode.value = inputCode.toUpperCase()
+    } else if (inputName) {
         const code = getColorCodeFromName(inputName)
-        previewColor.value = code
-        previewColorCode.value = code
-        // Gợi ý code từ tên
+        displayCode.value = code
+        // Tự động điền mã vào ô input nếu tìm thấy
         if (!form.value.code && code !== '#CCCCCC') {
             form.value.code = code
         }
     } else {
-        previewColor.value = '#CCCCCC'
-        previewColorCode.value = '#CCCCCC'
+        displayCode.value = '#CCCCCC'
     }
+}
+
+// Khi thay đổi picker
+const onColorPickerChange = (e) => {
+    const value = e.target.value
+    form.value.code = value
+    // Nếu tên trống, tự động gợi ý tên
+    if (!form.value.name?.trim()) {
+        const suggested = suggestColorNameFromCode(value)
+        if (suggested && suggested !== 'Màu khác') {
+            form.value.name = suggested
+        }
+    }
+    updateDisplayCode()
 }
 
 const formatDate = (date) => {
@@ -146,7 +156,7 @@ const formatDate = (date) => {
     return d.toLocaleDateString('vi-VN')
 }
 
-const fetchColors = async () => { //Không cần chờ theo thứ tự từ trên xuống trong code
+const fetchColors = async () => {
     if (isLoading.value) return
     isLoading.value = true
     try {
@@ -164,23 +174,21 @@ const fetchColors = async () => { //Không cần chờ theo thứ tự từ trê
 const openCreateModal = () => {
     isEdit.value = false
     form.value = { id: null, name: '', code: '' }
-    previewColor.value = '#CCCCCC'
-    previewColorCode.value = '#CCCCCC'
+    displayCode.value = '#CCCCCC'
     errorMessage.value = ''
     validationErrors.value = {}
     showModal.value = true
 }
 
 const openEditModal = (color) => {
-    isEdit.value = true //#######
+    isEdit.value = true
     form.value = { ...color }
     const code = color.code || getColorCodeFromName(color.name)
-    previewColor.value = code
-    previewColorCode.value = code
+    displayCode.value = code
     if (!form.value.code) form.value.code = code
     errorMessage.value = ''
     validationErrors.value = {}
-    showModal.value = true //Bật form
+    showModal.value = true
 }
 
 const saveColor = async () => {
@@ -212,8 +220,7 @@ const saveColor = async () => {
             await fetchColors()
             showModal.value = false
             form.value = { id: null, name: '', code: '' }
-            previewColor.value = '#CCCCCC'
-            previewColorCode.value = '#CCCCCC'
+            displayCode.value = '#CCCCCC'
             errorMessage.value = ''
         } else if (response.data?.message && typeof response.data.message === 'object') {
             validationErrors.value = response.data.message
@@ -286,17 +293,30 @@ onMounted(() => {
 <template>
     <Head title="Quản lý màu sắc" />
     <AdminLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold text-gray-800">Quản lý màu sắc</h1>
-            </div>
-
-            <div class="mb-6">
-                <button @click="openCreateModal" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition">
-                    + Thêm màu sắc mới
+        <div class="p-4 md:p-8">
+            <!-- Header + nút thêm -->
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý màu sắc</h1>
+                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">add</span>
+                    Thêm màu sắc
                 </button>
             </div>
 
+            <!-- Thanh tìm kiếm -->
+            <div class="mb-4">
+                <div class="relative max-w-md">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Tìm theo tên màu hoặc mã hex..." 
+                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-full w-full focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    >
+                </div>
+            </div>
+
+            <!-- Bảng -->
             <div v-if="isLoading && colors.length === 0" class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
                 <p class="mt-2 text-gray-500">Đang tải...</p>
@@ -314,11 +334,18 @@ onMounted(() => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(color, index) in sortedColors" :key="color.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <tr 
+                            v-for="(color, index) in sortedColors" 
+                            :key="color.id" 
+                            class="border-b border-gray-100 hover:bg-gray-50 transition"
+                        >
                             <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded border border-gray-300 shadow-sm" :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"></div>
+                                    <div 
+                                        class="w-8 h-8 rounded border border-gray-300 shadow-sm" 
+                                        :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"
+                                    ></div>
                                     <span class="font-medium text-gray-700">{{ color.name }}</span>
                                 </div>
                             </td>
@@ -326,8 +353,18 @@ onMounted(() => {
                             <td class="p-4 text-gray-500 text-sm">{{ formatDate(color.created_at) }}</td>
                             <td class="p-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button @click="openEditModal(color)" class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50">Sửa</button>
-                                    <button @click="confirmDelete(color)" class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50">Xóa</button>
+                                    <button 
+                                        @click="openEditModal(color)" 
+                                        class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
+                                    >
+                                        Sửa
+                                    </button>
+                                    <button 
+                                        @click="confirmDelete(color)" 
+                                        class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
+                                    >
+                                        Xóa
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -340,10 +377,15 @@ onMounted(() => {
         </div>
 
         <!-- Modal Thêm/Sửa -->
-        <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="handleOverlayClick">
+        <div 
+            v-if="showModal" 
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+            @click="handleOverlayClick"
+        >
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">{{ isEdit ? 'Sửa màu sắc' : 'Thêm màu sắc mới' }}</h3>
                 <div class="space-y-4">
+                    <!-- Tên màu -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tên màu <span v-if="!form.code" class="text-red-500">*</span></label>
                         <input 
@@ -352,29 +394,41 @@ onMounted(() => {
                             class="w-full border rounded-lg p-2 focus:ring-primary focus:border-primary" 
                             :class="{ 'border-red-500': validationErrors.name }"
                             placeholder="VD: Đỏ, Xanh Navy, Tím than..." 
-                            @input="updateColorPreview"
+                            @input="updateDisplayCode"
                         >
                         <p v-if="validationErrors.name" class="text-xs text-red-500 mt-1">{{ validationErrors.name[0] }}</p>
                     </div>
+
+                    <!-- Color Picker + Mã hex -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã hex</label>
-                        <input 
-                            v-model="form.code" 
-                            type="text" 
-                            class="w-full border rounded-lg p-2 font-mono focus:ring-primary focus:border-primary" 
-                            :class="{ 'border-red-500': validationErrors.code }"
-                            placeholder="#dc2626, #FFA500, #490C42..." 
-                            @input="updateColorPreview"
-                        >
-                        <p v-if="validationErrors.code" class="text-xs text-red-500 mt-1">{{ validationErrors.code[0] }}</p>
-                    </div>
-                    <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div class="w-12 h-12 rounded-lg border border-gray-300 shadow-md" :style="{ backgroundColor: previewColor }"></div>
-                        <div class="text-sm text-gray-600">
-                            Xem trước màu<br>
-                            <span class="text-xs text-gray-400 font-mono">{{ previewColorCode }}</span>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Chọn màu</label>
+                        <div class="flex items-center gap-4">
+                            <input 
+                                type="color" 
+                                :value="form.code || '#CCCCCC'"
+                                @input="onColorPickerChange"
+                                class="w-14 h-14 p-0 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition"
+                            >
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-600">Mã hex:</div>
+                                <div class="text-lg font-mono font-bold text-gray-800">{{ displayCode }}</div>
+                            </div>
+                        </div>
+                        <!-- Ô nhập mã hex thủ công -->
+                        <div class="mt-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Hoặc nhập mã hex</label>
+                            <input 
+                                v-model="form.code" 
+                                type="text" 
+                                class="w-full border rounded-lg p-2 font-mono focus:ring-primary focus:border-primary" 
+                                :class="{ 'border-red-500': validationErrors.code }"
+                                placeholder="#dc2626, #FFA500, #490C42..." 
+                                @input="updateDisplayCode"
+                            >
+                            <p v-if="validationErrors.code" class="text-xs text-red-500 mt-1">{{ validationErrors.code[0] }}</p>
                         </div>
                     </div>
+
                     <div v-if="errorMessage && !validationErrors.name && !validationErrors.code" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
@@ -390,7 +444,11 @@ onMounted(() => {
         </div>
 
         <!-- Modal Xóa -->
-        <div v-if="showDeleteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="handleOverlayClick">
+        <div 
+            v-if="showDeleteModal" 
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+            @click="handleOverlayClick"
+        >
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">Xác nhận xóa</h3>
                 <p class="text-gray-600">Bạn có chắc muốn xóa màu <strong>{{ selectedColor?.name }}</strong>?</p>

@@ -91,16 +91,32 @@ const quoteForm = ref({
     estimatedTime: ''
 });
 
-// Computed: filtered requests
+// Computed: filtered requests (có tìm kiếm)
 const filteredRequests = computed(() => {
     if (!requests.value || requests.value.length === 0) return [];
     
+    const keyword = search.value.toLowerCase().trim();
+    
     return requests.value.filter(request => {
+        // Kiểm tra trạng thái
         const matchStatus = statusFilter.value === 'all' || request.status === statusFilter.value;
-        const matchSearch = !search.value || 
-            request.customer.toLowerCase().includes(search.value.toLowerCase()) ||
-            request.email.toLowerCase().includes(search.value.toLowerCase()) ||
-            request.product.toLowerCase().includes(search.value.toLowerCase());
+        
+        // Kiểm tra tìm kiếm
+        let matchSearch = true;
+        if (keyword) {
+            const customer = (request.customer || '').toLowerCase();
+            const email = (request.email || '').toLowerCase();
+            const phone = (request.phone || '').toLowerCase();
+            const product = (request.product || '').toLowerCase();
+            const position = (request.position || '').toLowerCase();
+            
+            matchSearch = customer.includes(keyword) || 
+                         email.includes(keyword) ||
+                         phone.includes(keyword) ||
+                         product.includes(keyword) ||
+                         position.includes(keyword);
+        }
+        
         return matchStatus && matchSearch;
     });
 });
@@ -288,7 +304,7 @@ const formatPrice = (value) => {
                     <input 
                         v-model="search" 
                         type="text" 
-                        placeholder="Tìm theo tên khách hàng, email hoặc sản phẩm..." 
+                        placeholder="Tìm theo tên, email, SĐT, sản phẩm hoặc vị trí in..." 
                         class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
                     >
                 </div>
@@ -369,11 +385,18 @@ const formatPrice = (value) => {
                             </tr>
                             <tr v-if="filteredRequests.length === 0">
                                 <td colspan="7" class="text-center py-8 text-gray-500">
-                                    Không có yêu cầu tùy chỉnh nào
+                                    {{ search ? 'Không tìm thấy yêu cầu tùy chỉnh nào' : 'Không có yêu cầu tùy chỉnh nào' }}
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Footer -->
+                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
+                    <span class="text-sm text-gray-500">
+                        {{ search ? `Tìm thấy ${filteredRequests.length} yêu cầu` : `Hiển thị ${filteredRequests.length} yêu cầu` }}
+                    </span>
                 </div>
             </div>
         </div>
@@ -611,5 +634,4 @@ const formatPrice = (value) => {
 </template>
 
 <style scoped>
-
 </style>

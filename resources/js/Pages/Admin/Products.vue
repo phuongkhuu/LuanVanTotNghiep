@@ -93,14 +93,30 @@ const removeVariant = (index) => {
     form.value.variants.splice(index, 1);
 };
 
-// Lọc sản phẩm
+// Lọc sản phẩm (có tìm kiếm)
 const filteredProducts = computed(() => {
     if (!products.value.length) return [];
+    
+    const keyword = search.value.toLowerCase().trim();
+    
     return products.value.filter(product => {
+        // Kiểm tra loại sản phẩm
         const matchType = product.type === activeType.value;
-        const matchSearch = !search.value ||
-            product.name.toLowerCase().includes(search.value.toLowerCase()) ||
-            (product.category && product.category.toLowerCase().includes(search.value.toLowerCase()));
+        
+        // Kiểm tra tìm kiếm
+        let matchSearch = true;
+        if (keyword) {
+            const name = (product.name || '').toLowerCase();
+            const category = (product.category || '').toLowerCase();
+            const brand = (product.brand || '').toLowerCase();
+            const material = (product.material || '').toLowerCase();
+            
+            matchSearch = name.includes(keyword) || 
+                         category.includes(keyword) ||
+                         brand.includes(keyword) ||
+                         material.includes(keyword);
+        }
+        
         return matchType && matchSearch;
     });
 });
@@ -394,6 +410,8 @@ const closeModal = () => {
 
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
+    activeType.value = typeValue;
+    search.value = '';
     router.get(route('admin.products.index', { type: typeValue }), {}, {
         preserveState: true,
         preserveScroll: true,
@@ -453,7 +471,7 @@ watch(() => props.initialProducts, (val) => {
                     <input 
                         v-model="search" 
                         type="text" 
-                        placeholder="Tìm sản phẩm theo tên hoặc danh mục..." 
+                        placeholder="Tìm theo tên, danh mục, thương hiệu hoặc chất liệu..." 
                         class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
                     >
                 </div>
@@ -522,16 +540,23 @@ watch(() => props.initialProducts, (val) => {
                             </tr>
                             <tr v-if="filteredProducts.length === 0">
                                 <td colspan="7" class="text-center py-8 text-gray-500">
-                                    Không có sản phẩm nào
+                                    {{ search ? 'Không tìm thấy sản phẩm nào' : 'Không có sản phẩm nào' }}
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Footer -->
+                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
+                    <span class="text-sm text-gray-500">
+                        {{ search ? `Tìm thấy ${filteredProducts.length} sản phẩm` : `Hiển thị ${filteredProducts.length} sản phẩm` }}
+                    </span>
+                </div>
             </div>
         </div>
 
-        <!-- Modal Add/Edit -->
+        <!-- Modal Add/Edit (giữ nguyên) -->
         <div 
             v-if="showModal" 
             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 

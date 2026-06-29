@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -12,7 +11,6 @@ use Illuminate\Validation\Rule;
 
 class ColorController extends Controller
 {
-
     public function index()
     {
         $colors = Color::orderBy('id', 'desc')->get();
@@ -21,7 +19,6 @@ class ColorController extends Controller
         ]);
     }
 
-
     public function getColors()
     {
         try {
@@ -29,10 +26,11 @@ class ColorController extends Controller
             return response()->json($colors);
         } catch (\Exception $e) {
             Log::error('Lỗi getColors: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'Không thể tải danh sách màu sắc. Vui lòng thử lại sau.'
+            ], 500);
         }
     }
-
 
     public function store(Request $request)
     {
@@ -40,42 +38,52 @@ class ColorController extends Controller
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
                 'code' => ['nullable', 'string', 'max:20', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/']
+            ], [
+                'code.regex' => 'Mã màu phải là mã hex hợp lệ (ví dụ: #FF0000 hoặc #F00)',
+                'code.max'   => 'Mã màu không được vượt quá 20 ký tự.',
+                'name.max'   => 'Tên màu không được vượt quá 255 ký tự.'
             ]);
 
-
+            // Xử lý logic nhập liệu
             if (!empty($validated['name']) && !empty($validated['code'])) {
-
                 $validated['code'] = $this->normalizeHexCode($validated['code']);
             } elseif (!empty($validated['name']) && empty($validated['code'])) {
-
                 $validated['code'] = $this->getColorCodeFromName($validated['name']);
             } elseif (!empty($validated['code']) && empty($validated['name'])) {
-
                 $code = $this->normalizeHexCode($validated['code']);
                 $validated['code'] = $code;
                 $generatedName = $this->getColorNameFromCode($code);
                 if ($generatedName && $generatedName !== 'Màu khác') {
                     $validated['name'] = $generatedName;
                 } else {
-
                     return response()->json([
                         'success' => false,
                         'message' => 'Mã màu này chưa có tên. Vui lòng nhập tên màu!'
                     ], 422);
                 }
-               
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Vui lòng nhập tên màu và mã hex!'
+                    'message' => 'Vui lòng nhập tên màu hoặc mã hex!'
                 ], 422);
             }
 
+            // Chuẩn hóa tên (viết hoa chữ đầu)
+            $validated['name'] = $this->capitalizeName($validated['name']);
 
+            // Kiểm tra trùng tên
             if (Color::where('name', $validated['name'])->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Tên màu "' . $validated['name'] . '" đã tồn tại!'
+                ], 422);
+            }
+
+            // Kiểm tra trùng mã
+            if (Color::where('code', $validated['code'])->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã màu "' . $validated['code'] . '" đã tồn tại!'
                 ], 422);
             }
 
@@ -96,23 +104,26 @@ class ColorController extends Controller
             Log::error('Lỗi store color: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi: ' . $e->getMessage()
+                'message' => 'Đã xảy ra lỗi khi thêm màu. Vui lòng thử lại sau.'
             ], 500);
         }
     }
-
 
     public function update(Request $request, $id)
     {
         try {
             $color = Color::findOrFail($id);
             
-            $validated = $request->validate([  //required là không được null
+            $validated = $request->validate([
                 'name' => ['nullable', 'string', 'max:255'],
                 'code' => ['nullable', 'string', 'max:20', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/']
+            ], [
+                'code.regex' => 'Mã màu phải là mã hex hợp lệ (ví dụ: #FF0000 hoặc #F00)',
+                'code.max'   => 'Mã màu không được vượt quá 20 ký tự.',
+                'name.max'   => 'Tên màu không được vượt quá 255 ký tự.'
             ]);
 
-
+            // Xử lý logic nhập liệu
             if (!empty($validated['name']) && !empty($validated['code'])) {
                 $validated['code'] = $this->normalizeHexCode($validated['code']);
             } elseif (!empty($validated['name']) && empty($validated['code'])) {
@@ -133,11 +144,22 @@ class ColorController extends Controller
                 ], 422);
             }
 
+            // Chuẩn hóa tên (viết hoa chữ đầu)
+            $validated['name'] = $this->capitalizeName($validated['name']);
 
+            // Kiểm tra trùng tên (không tính chính nó)
             if ($validated['name'] !== $color->name && Color::where('name', $validated['name'])->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Tên màu "' . $validated['name'] . '" đã tồn tại!'
+                ], 422);
+            }
+
+            // Kiểm tra trùng mã (không tính chính nó)
+            if ($validated['code'] !== $color->code && Color::where('code', $validated['code'])->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã màu "' . $validated['code'] . '" đã tồn tại!'
                 ], 422);
             }
 
@@ -158,11 +180,10 @@ class ColorController extends Controller
             Log::error('Lỗi update color: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi: ' . $e->getMessage()
+                'message' => 'Đã xảy ra lỗi khi cập nhật màu. Vui lòng thử lại sau.'
             ], 500);
         }
     }
-
 
     public function destroy($id)
     {
@@ -189,39 +210,41 @@ class ColorController extends Controller
             Log::error('Lỗi delete color: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi: ' . $e->getMessage()
+                'message' => 'Đã xảy ra lỗi khi xóa màu. Vui lòng thử lại sau.'
             ], 500);
         }
     }
 
+    // Hàm chuẩn hóa tên: viết hoa chữ cái đầu mỗi từ
+    private function capitalizeName($name)
+    {
+        if (empty($name)) return '';
+        $words = explode(' ', trim($name));
+        $capitalized = array_map(function($word) {
+            return mb_convert_case($word, MB_CASE_TITLE, 'UTF-8');
+        }, $words);
+        return implode(' ', $capitalized);
+    }
 
     private function normalizeHexCode($code)
     {
         if (empty($code)) return '#CCCCCC';
-        
         $code = strtoupper(trim($code));
-        
-
         if (preg_match('/^#([A-F0-9]{3})$/', $code, $matches)) {
             $r = $matches[1][0];
             $g = $matches[1][1];
             $b = $matches[1][2];
             return '#' . $r . $r . $g . $g . $b . $b;
         }
-        
-
         if (preg_match('/^#([A-F0-9]{6})$/', $code)) {
             return $code;
         }
-        
         return '#CCCCCC';
     }
-
 
     private function getColorCodeFromName($name)
     {
         if (empty($name)) return '#CCCCCC';
-        
         $colorMap = [
             'đen' => '#000000', 'den' => '#000000', 'black' => '#000000',
             'trắng' => '#FFFFFF', 'trang' => '#FFFFFF', 'white' => '#FFFFFF',
@@ -238,18 +261,14 @@ class ColorController extends Controller
             'be' => '#F5F5DC', 'beige' => '#F5F5DC',
             'bạc' => '#C0C0C0', 'bac' => '#C0C0C0', 'silver' => '#C0C0C0'
         ];
-        
         $key = strtolower(trim($name));
         return $colorMap[$key] ?? '#CCCCCC';
     }
 
-
     private function getColorNameFromCode($code)
     {
         if (empty($code)) return 'Màu khác';
-        
         $code = strtoupper(trim($code));
-        
         $codeMap = [
             '#000000' => 'Đen',
             '#FFFFFF' => 'Trắng',
@@ -271,16 +290,11 @@ class ColorController extends Controller
             '#03DAC6' => 'Xanh ngọc',
             '#018786' => 'Xanh rêu',
             '#490C42' => 'Tím than',
-            '#490c42' => 'Tím than',
             '#FF5733' => 'Cam đỏ',
             '#33FF57' => 'Xanh lá sáng',
             '#3357FF' => 'Xanh dương đậm',
             '#F333FF' => 'Hồng tím',
-            '#FF33F3' => 'Hồng cánh sen'
-        ];
-        
-
-        $expandedMap = [
+            '#FF33F3' => 'Hồng cánh sen',
             '#E91E63' => 'Hồng đậm',
             '#9C27B0' => 'Tím',
             '#673AB7' => 'Tím đậm',
@@ -299,9 +313,6 @@ class ColorController extends Controller
             '#9E9E9E' => 'Xám',
             '#607D8B' => 'Xám xanh'
         ];
-        
-        $fullMap = array_merge($codeMap, $expandedMap);
-        
-        return $fullMap[$code] ?? 'Màu khác';
+        return $codeMap[$code] ?? 'Màu khác';
     }
 }

@@ -19,7 +19,6 @@ class CategoryController extends Controller
         return base_path('image');
     }
 
-
     protected function ensureImageDir(): void
     {
         $dir = $this->imageDir();
@@ -28,7 +27,6 @@ class CategoryController extends Controller
         }
     }
 
-  
     protected function saveContentToImage(string $contents, string $ext): string
     {
         $this->ensureImageDir();
@@ -39,7 +37,6 @@ class CategoryController extends Controller
 
         return '/image/' . $filename;
     }
-
 
     protected function deleteImageIfExists(?string $imageUrl): void
     {
@@ -59,7 +56,8 @@ class CategoryController extends Controller
 
     public function index()
     {
-        $categories = Category::orderBy('name')->get();
+        // Sắp xếp theo id giảm dần (mới nhất lên đầu)
+        $categories = Category::orderBy('id', 'desc')->get();
         return Inertia::render('Admin/Categories', [
             'categories' => $categories
         ]);

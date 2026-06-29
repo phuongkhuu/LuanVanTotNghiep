@@ -29,11 +29,25 @@ const customerOrders = ref([]);
 const detailLoading = ref(false);
 const errorMessage = ref('');
 
+// Lấy danh sách khách hàng từ props
 const customersList = computed(() => {
     if (!props.customers || !props.customers.data || !Array.isArray(props.customers.data)) {
         return [];
     }
     return props.customers.data;
+});
+
+// Lọc khách hàng theo tên hoặc số điện thoại (client-side)
+const filteredCustomers = computed(() => {
+    if (!customersList.value || customersList.value.length === 0) return [];
+    if (!search.value) return customersList.value;
+    
+    const keyword = search.value.toLowerCase().trim();
+    return customersList.value.filter(customer => {
+        const name = (customer.name || '').toLowerCase();
+        const phone = (customer.phone || '').toLowerCase();
+        return name.includes(keyword) || phone.includes(keyword);
+    });
 });
 
 const formatPrice = (value) => {
@@ -93,13 +107,16 @@ const exportExcel = () => {
 
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
-    router.get(route('admin.customers.index', { type: typeValue, search: search.value }), {}, {
+    activeType.value = typeValue;
+    search.value = '';
+    router.get(route('admin.customers.index', { type: typeValue }), {}, {
         preserveState: true,
         preserveScroll: true,
         replace: true
     });
 };
 
+// Khi props.type thay đổi, cập nhật activeType
 watch(() => props.type, (newType) => {
     if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
         activeType.value = newType;
@@ -107,13 +124,8 @@ watch(() => props.type, (newType) => {
     }
 });
 
-watch(search, (val) => {
-    router.get(route('admin.customers.index', { type: activeType.value, search: val }), {}, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true
-    });
-});
+// Đồng bộ search với URL (không cần watch search nữa vì đã lọc client-side)
+// Chỉ cần watch khi muốn reset khi đổi tab
 </script>
 
 <template>
@@ -168,7 +180,7 @@ watch(search, (val) => {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="cust in customersList" :key="cust.phone" class="border-b border-gray-200 hover:bg-orange-50 transition-colors">
+                            <tr v-for="cust in filteredCustomers" :key="cust.phone" class="border-b border-gray-200 hover:bg-orange-50 transition-colors">
                                 <td class="py-3 px-4">
                                     <div class="flex items-center gap-2">
                                         <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
@@ -191,9 +203,9 @@ watch(search, (val) => {
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="customersList.length === 0">
+                            <tr v-if="filteredCustomers.length === 0">
                                 <td colspan="6" class="text-center py-8 text-gray-500">
-                                    Không có khách hàng nào
+                                    {{ search ? 'Không tìm thấy khách hàng nào' : 'Không có khách hàng nào' }}
                                 </td>
                             </tr>
                         </tbody>
@@ -202,7 +214,9 @@ watch(search, (val) => {
                 
                 <!-- Footer -->
                 <div class="p-3 border-t border-gray-200 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Hiển thị {{ customersList.length }} khách hàng</span>
+                    <span class="text-sm text-gray-500">
+                        {{ search ? `Tìm thấy ${filteredCustomers.length} khách hàng` : `Hiển thị ${filteredCustomers.length} khách hàng` }}
+                    </span>
                     <button 
                         @click="exportExcel" 
                         class="bg-orange-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-orange-700 transition-colors"
