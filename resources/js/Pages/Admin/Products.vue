@@ -15,6 +15,10 @@ const props = defineProps({
 const search = ref('');
 const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type : 'normal');
 
+// Pagination
+const currentPage = ref(1);
+const perPage = ref(8);
+
 const productTypes = [
     { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },
     { value: 'preorder', label: 'Pre-order', icon: '⏳' }
@@ -103,6 +107,17 @@ const filteredProducts = computed(() => {
             (product.category && product.category.toLowerCase().includes(search.value.toLowerCase()));
         return matchType && matchSearch;
     });
+});
+
+// Pagination
+const paginatedProducts = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredProducts.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredProducts.value.length / perPage.value);
 });
 
 const typeCounts = computed(() => ({
@@ -401,15 +416,22 @@ const changeActiveType = (typeValue) => {
     });
 };
 
+// Reset trang khi search hoặc filter thay đổi
+watch([search, activeType], () => {
+    currentPage.value = 1;
+});
+
 watch(() => props.type, (newType) => {
     if (newType && ['normal', 'preorder'].includes(newType)) {
         activeType.value = newType;
         search.value = '';
+        currentPage.value = 1;
     }
 });
 
 watch(() => props.initialProducts, (val) => {
     products.value = val;
+    currentPage.value = 1;
 }, { immediate: true });
 </script>
 
@@ -476,7 +498,7 @@ watch(() => props.initialProducts, (val) => {
                         </thead>
                         <tbody>
                             <tr 
-                                v-for="product in filteredProducts" 
+                                v-for="product in paginatedProducts" 
                                 :key="product.id" 
                                 class="border-b border-gray-200 hover:bg-orange-50 transition-colors"
                             >
@@ -520,13 +542,53 @@ watch(() => props.initialProducts, (val) => {
                                     >Xóa</button>
                                 </td>
                             </tr>
-                            <tr v-if="filteredProducts.length === 0">
+                            <tr v-if="paginatedProducts.length === 0">
                                 <td colspan="7" class="text-center py-8 text-gray-500">
                                     Không có sản phẩm nào
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Pagination -->
+                <div v-if="filteredProducts.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
+                    <span class="text-sm text-gray-600">
+                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
+                        {{ Math.min(currentPage * perPage, filteredProducts.length) }} 
+                        / {{ filteredProducts.length }} sản phẩm
+                    </span>
+                    <div class="flex gap-2 items-center">
+                        <button 
+                            @click="currentPage--" 
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Trước
+                        </button>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
+                            {{ currentPage }} / {{ totalPages }}
+                        </span>
+                        <button 
+                            @click="currentPage++" 
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Sau
+                        </button>
+                        <!-- Số trang cụ thể (ẩn trên mobile) -->
+                        <div class="hidden md:flex gap-1 ml-2">
+                            <button 
+                                v-for="page in totalPages" 
+                                :key="page"
+                                @click="currentPage = page"
+                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
+                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
