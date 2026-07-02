@@ -38,7 +38,6 @@ class ProductController extends Controller
         if (!is_array($images)) {
             $images = [];
         }
-        // Nếu không có ảnh, fallback thumbnail
         if (empty($images) && $product->thumbnail) {
             $images = [$product->thumbnail];
         }
@@ -80,7 +79,7 @@ class ProductController extends Controller
                 'content' => 'Rất hài lòng, sẽ ủng hộ dài dài.'
             ],
         ];
-        $totalReviews = 128; // placeholder
+        $totalReviews = 128;
 
         $productData = [
             'id' => $product->id,
@@ -89,13 +88,22 @@ class ProductController extends Controller
             'oldPrice' => $originalPrice ? number_format($originalPrice) . '₫' : null,
             'discount' => $discount,
             'reviewCount' => $totalReviews,
-            'thumbnails' => $images,        // mảng ảnh
+            'thumbnails' => $images,
             'sizes' => $sizes,
             'colors' => $colors,
             'features' => $features,
             'description' => $product->description,
             'material' => $product->material,
-            // Thêm nếu cần: 'image_url' => $images (để tương thích)
+            // ⭐ THÊM DÒNG NÀY - truyền variants vào productData
+            'variants' => $product->variants->map(function($variant) {
+                return [
+                    'id' => $variant->id,
+                    'color_id' => $variant->color_id,
+                    'size_name' => $variant->size_name,
+                    'price' => $variant->price,
+                    'stock' => $variant->stock,
+                ];
+            })->toArray(),
         ];
 
         return Inertia::render('Web/ProductDetail', [

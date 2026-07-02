@@ -44,6 +44,19 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'name' => 'My',
+                'email' => 'admin@gmail.com',
+                'phone' => '0923456785',
+                'password' => Hash::make('12345678'),
+                'role' => 'admin',
+                'status' => 1,
+                'avatar' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+
         ];
 
         foreach ($users as $user) {

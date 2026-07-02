@@ -138,19 +138,6 @@ const viewDetail = (order) => {
     showDetail.value = true;
 };
 
-const exportExcel = async () => {
-    try {
-        await router.post('/admin/orders/export', {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                alert('Xuất file Excel thành công!');
-            }
-        });
-    } catch (error) {
-        alert('Có lỗi xảy ra khi xuất file');
-    }
-};
-
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
     activeType.value = typeValue;
@@ -174,6 +161,36 @@ watch(() => props.type, (newType) => {
 watch(() => props.initialOrders, (newOrders) => {
     orders.value = newOrders;
 }, { immediate: true, deep: true });
+
+const exportAllOrders = () => {
+    try {
+        // Xuất TẤT CẢ đơn hàng, không phụ thuộc vào bộ lọc
+        const url = '/admin/orders/export';
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error('Export all error:', error);
+        alert('Có lỗi xảy ra khi xuất file');
+    }
+};
+
+const exportFilteredOrders = () => {
+    try {
+        // Xuất theo bộ lọc hiện tại
+        const params = new URLSearchParams({
+            type: activeType.value,
+            status: statusFilter.value,
+        });
+        
+        const url = `/admin/orders/export/filtered?${params.toString()}`;
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error('Export filtered error:', error);
+        alert('Có lỗi xảy ra khi xuất file');
+    }
+};
+
+
+
 </script>
 
 <template>
@@ -306,17 +323,33 @@ watch(() => props.initialOrders, (newOrders) => {
                 </div>
 
                 <!-- Footer -->
-                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Hiển thị {{ filteredOrders.length }} đơn hàng</span>
+               <div class="p-3 border-t border-gray-200 flex flex-wrap justify-between items-center gap-2">
+                <span class="text-sm text-gray-500">
+                    Hiển thị {{ filteredOrders.length }} / {{ orders.length }} đơn hàng
+                </span>
+                <div class="flex gap-2">
+                    <!-- Nút xuất TẤT CẢ đơn hàng -->
                     <button
-                        @click="exportExcel"
-                        class="bg-orange-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-orange-700 transition-colors"
+                        @click="exportAllOrders"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center gap-2"
                     >
-                        Xuất Excel
+                        <span class="material-symbols-outlined text-lg">download</span>
+                        Xuất tất cả đơn hàng
+                    </button>
+                    
+                    <!-- Nút xuất theo bộ lọc -->
+                    <button
+                        v-if="filteredOrders.length > 0"
+                        @click="exportFilteredOrders"
+                        class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-700 transition-colors flex items-center gap-2"
+                    >
+                        <span class="material-symbols-outlined text-lg">filter_alt</span>
+                        Xuất theo bộ lọc ({{ filteredOrders.length }} đơn)
                     </button>
                 </div>
             </div>
         </div>
+    </div>
 
         <!-- Modal chi tiết đơn hàng -->
         <div

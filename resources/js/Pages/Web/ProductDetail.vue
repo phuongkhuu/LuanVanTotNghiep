@@ -56,6 +56,13 @@
 
         <!-- Right Info -->
         <div class="md:col-span-5 flex flex-col gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <!-- Thông báo -->
+          <div v-if="message" 
+               class="p-3 rounded-lg text-sm text-center"
+               :class="messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+            {{ message }}
+          </div>
+
           <div>
             <span class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full mb-2 uppercase font-bold">Sản Phẩm Mới</span>
             <h1 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-1">{{ product.name }}</h1>
@@ -67,11 +74,16 @@
 
           <div class="flex flex-col gap-2">
             <div class="flex items-baseline gap-3">
-              <span class="font-headline-md text-2xl text-primary font-bold">{{ product.price }}</span>
+              <span class="font-headline-md text-2xl text-primary font-bold">{{ formatPrice(variantPrice) }}</span>
               <span v-if="product.oldPrice" class="text-gray-400 line-through text-sm">{{ product.oldPrice }}</span>
               <span v-if="product.discount" class="text-red-500 font-bold text-sm">{{ product.discount }}</span>
             </div>
             <p class="text-gray-600 text-sm leading-relaxed">{{ product.description || 'Thiết kế tối giản, chất liệu cao cấp, bền bỉ.' }}</p>
+            <p v-if="selectedVariant" class="text-sm text-gray-500">
+              Tồn kho: <span class="font-semibold" :class="selectedVariant.stock > 0 ? 'text-green-600' : 'text-red-600'">
+                {{ selectedVariant.stock > 0 ? selectedVariant.stock + ' sản phẩm' : 'Hết hàng' }}
+              </span>
+            </p>
           </div>
 
           <!-- Size selection -->
@@ -83,7 +95,7 @@
                 :key="size" 
                 class="px-6 py-2 border-2 rounded-xl text-sm transition-all"
                 :class="selectedSize === size ? 'border-primary text-primary bg-amber-50' : 'border-gray-200 text-gray-600 hover:border-primary'"
-                @click="selectedSize = size"
+                @click="selectSize(size)"
               >{{ size }}</button>
             </div>
           </div>
@@ -97,9 +109,31 @@
                 :key="color.value" 
                 class="w-10 h-10 rounded-full border-2 p-1"
                 :class="selectedColor === color.value ? 'border-primary' : 'border-gray-200 hover:border-primary'"
-                @click="selectedColor = color.value; selectedColorName = color.label"
+                @click="selectColor(color.value, color.label)"
               >
                 <div class="w-full h-full rounded-full" :style="{ backgroundColor: color.value }"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quantity -->
+          <div class="py-4 border-t border-gray-200">
+            <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">Số lượng:</span>
+            <div class="flex items-center gap-4">
+              <button 
+                @click="decreaseQuantity" 
+                class="w-10 h-10 border-2 border-gray-200 rounded-xl flex items-center justify-center hover:border-primary transition-colors"
+                :disabled="quantity <= 1"
+              >
+                <span class="material-symbols-outlined">remove</span>
+              </button>
+              <span class="text-xl font-bold w-12 text-center">{{ quantity }}</span>
+              <button 
+                @click="increaseQuantity" 
+                class="w-10 h-10 border-2 border-gray-200 rounded-xl flex items-center justify-center hover:border-primary transition-colors"
+                :disabled="selectedVariant && quantity >= selectedVariant.stock"
+              >
+                <span class="material-symbols-outlined">add</span>
               </button>
             </div>
           </div>
@@ -107,8 +141,14 @@
           <!-- Action Buttons -->
           <div class="flex flex-col gap-3 py-6">
             <div class="grid grid-cols-2 gap-3">
-              <button @click="addToCart" class="flex-1 h-14 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
-                <span class="material-symbols-outlined">shopping_cart</span> Thêm vào giỏ hàng
+              <button 
+                @click="addToCart" 
+                :disabled="loading || !selectedVariant || selectedVariant.stock <= 0"
+                class="flex-1 h-14 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span class="material-symbols-outlined" v-if="!loading">shopping_cart</span>
+                <span v-if="loading" class="inline-block animate-spin">⟳</span>
+                {{ loading ? 'Đang xử lý...' : 'Thêm vào giỏ hàng' }}
               </button>
               <Link :href="route('checkout')" class="flex-1 h-14 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
                 <span class="material-symbols-outlined">event_repeat</span> Đặt hàng trước
@@ -219,8 +259,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
@@ -232,26 +273,269 @@ const props = defineProps({
   totalReviews: { type: Number, default: 0 }
 })
 
-// Hợp nhất danh sách ảnh: ưu tiên thumbnails, fallback image_url
+// Lấy page hiện tại
+const page = usePage()
+
+// State
+const activeThumb = ref(0)
+const selectedSize = ref('')
+const selectedColor = ref('')
+const selectedColorName = ref('')
+const selectedVariant = ref(null)
+const quantity = ref(1)
+const loading = ref(false)
+const message = ref('')
+const messageType = ref('success')
+
+// Kiểm tra đăng nhập
+const isAuthenticated = computed(() => {
+  return !!page.props.auth?.user
+})
+
+// Computed
 const thumbnails = computed(() => {
   return props.product.thumbnails?.length ? props.product.thumbnails : (props.product.image_url || [])
 })
 
-// Nếu không có ảnh, có thể thêm placeholder
-// const defaultThumbnails = computed(() => thumbnails.value.length ? thumbnails.value : ['/images/placeholder.jpg'])
+const variantPrice = computed(() => {
+  if (selectedVariant.value) {
+    return selectedVariant.value.price
+  }
+  if (props.product.price) {
+    const priceStr = props.product.price.replace(/[₫,.]/g, '').trim()
+    return parseInt(priceStr) || 0
+  }
+  return 0
+})
 
-const activeThumb = ref(0)
-const selectedSize = ref(props.product.sizes?.[0] || '')
-const selectedColor = ref(props.product.colors?.[0]?.value || '')
-const selectedColorName = ref(props.product.colors?.[0]?.label || '')
+// Methods
+const selectSize = (size) => {
+  selectedSize.value = size
+  findVariant()
+}
 
-const addToCart = () => {
-  router.get(route('cart'))
+const selectColor = (color, label) => {
+  selectedColor.value = color
+  selectedColorName.value = label
+  findVariant()
+}
+
+const findVariant = () => {
+  const variants = props.product.variants || []
+  
+  console.log('🔍 Tìm variant với:', {
+    selectedColor: selectedColor.value,
+    selectedSize: selectedSize.value,
+    variants: variants
+  })
+  
+  if (!variants.length) {
+    console.warn('⚠️ Không có variants cho sản phẩm này')
+    selectedVariant.value = null
+    return
+  }
+
+  let found = null
+
+  if (selectedColor.value && selectedSize.value) {
+    found = variants.find(v => 
+      String(v.color_id) === String(selectedColor.value) && 
+      v.size_name === selectedSize.value
+    )
+  }
+  
+  if (!found && selectedColor.value) {
+    found = variants.find(v => String(v.color_id) === String(selectedColor.value))
+  }
+  
+  if (!found && selectedSize.value) {
+    found = variants.find(v => v.size_name === selectedSize.value)
+  }
+  
+  if (!found && variants.length > 0) {
+    found = variants[0]
+    if (found.color_id) {
+      const color = props.product.colors?.find(c => c.value === found.color_id)
+      if (color) {
+        selectedColor.value = color.value
+        selectedColorName.value = color.label
+      }
+    }
+    if (found.size_name) {
+      selectedSize.value = found.size_name
+    }
+  }
+
+  selectedVariant.value = found
+  console.log('✅ Variant tìm được:', found)
+  
+  if (found) {
+    quantity.value = 1
+  }
+}
+
+const increaseQuantity = () => {
+  if (selectedVariant.value && quantity.value < selectedVariant.value.stock) {
+    quantity.value++
+  }
+}
+
+const decreaseQuantity = () => {
+  if (quantity.value > 1) {
+    quantity.value--
+  }
+}
+
+const formatPrice = (price) => {
+  if (!price) return '0₫'
+  if (typeof price === 'number') {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price)
+  }
+  return price
+}
+
+const showMessage = (msg, type = 'success') => {
+  message.value = msg
+  messageType.value = type
+  // Tự động ẩn sau 3 giây
+  setTimeout(() => { 
+    message.value = '' 
+  }, 3000)
+}
+
+const goToLogin = () => {
+  sessionStorage.setItem('redirectAfterLogin', window.location.href)
+  router.get(route('login'))
+}
+
+// ===== THÊM VÀO GIỎ HÀNG - KHÔNG CHUYỂN TRANG =====
+const addToCart = async () => {
+  console.log('🛒 addToCart called, selectedVariant:', selectedVariant.value)
+  console.log('🔐 Trạng thái đăng nhập:', isAuthenticated.value)
+  
+  // KIỂM TRA ĐĂNG NHẬP
+  if (!isAuthenticated.value) {
+    console.log('❌ Chưa đăng nhập')
+    showMessage('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng', 'error')
+    setTimeout(() => {
+      goToLogin()
+    }, 1500)
+    return
+  }
+  
+  // Validate
+  if (!selectedVariant.value) {
+    console.log('❌ Chưa chọn variant')
+    showMessage('Vui lòng chọn màu sắc và kích thước', 'error')
+    return
+  }
+
+  if (selectedVariant.value.stock <= 0) {
+    console.log('❌ Hết hàng')
+    showMessage('Sản phẩm đã hết hàng', 'error')
+    return
+  }
+
+  if (quantity.value > selectedVariant.value.stock) {
+    console.log('❌ Vượt quá tồn kho')
+    showMessage(`Sản phẩm chỉ còn ${selectedVariant.value.stock} sản phẩm`, 'error')
+    return
+  }
+
+  loading.value = true
+
+  const payload = {
+    variant_id: selectedVariant.value.id,
+    quantity: quantity.value
+  }
+  console.log('📦 Payload gửi lên server:', payload)
+
+  try {
+    const response = await axios.post('/api/cart/add', payload, {
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true
+    })
+    console.log('📦 Response từ server:', response.data)
+
+    if (response.data.success) {
+      // ✅ HIỂN THỊ THÔNG BÁO THÀNH CÔNG
+      showMessage('✅ Đã thêm vào giỏ hàng thành công!', 'success')
+      
+      // ✅ Cập nhật số lượng giỏ hàng ở header (nếu có)
+      window.dispatchEvent(new CustomEvent('cart-updated', {
+        detail: { count: response.data.cart_count || 0 }
+      }))
+      
+      // ✅ KHÔNG CHUYỂN TRANG - Ở LẠI TRANG HIỆN TẠI
+      // Đã xóa dòng router.get(route('cart'))
+      
+    } else {
+      showMessage(response.data.message || 'Thêm vào giỏ hàng thất bại', 'error')
+    }
+  } catch (error) {
+    console.error('❌ LỖI CHI TIẾT:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    })
+    
+    if (error.response && error.response.status === 401) {
+      showMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error')
+      setTimeout(() => {
+        goToLogin()
+      }, 1500)
+      return
+    }
+    
+    const msg = error.response?.data?.message || 'Không thể kết nối đến server. Vui lòng thử lại.'
+    showMessage(msg, 'error')
+  } finally {
+    loading.value = false
+  }
 }
 
 const addToCartSimple = (item) => {
   router.get(route('product.detail', { id: item.id }))
 }
+
+// Lifecycle
+onMounted(() => {
+  console.log('📦 Product data:', props.product)
+  console.log('🔐 Auth data:', page.props.auth)
+  console.log('🔐 isAuthenticated:', isAuthenticated.value)
+  
+  if (!isAuthenticated.value) {
+    showMessage('Vui lòng đăng nhập để mua hàng', 'error')
+  }
+  
+  // Khởi tạo màu và size mặc định
+  if (props.product.colors && props.product.colors.length > 0) {
+    const firstColor = props.product.colors[0]
+    selectedColor.value = firstColor.value
+    selectedColorName.value = firstColor.label
+  }
+
+  if (props.product.sizes && props.product.sizes.length > 0) {
+    selectedSize.value = props.product.sizes[0]
+  }
+
+  findVariant()
+})
+
+// Watch để debug
+watch([selectedColor, selectedSize], () => {
+  console.log('🔄 Selected changed:', { 
+    color: selectedColor.value, 
+    size: selectedSize.value 
+  })
+})
 </script>
 
 <style scoped>

@@ -27,6 +27,15 @@ const togglePasswordVisibility = () => {
 const submit = () => {
     loading.value = true;
     form.post(route('login'), {
+        onSuccess: () => {
+            loading.value = false;
+            // Kiểm tra xem có redirect URL không
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin')
+            if (redirectUrl) {
+                sessionStorage.removeItem('redirectAfterLogin')
+                window.location.href = redirectUrl
+            }
+        },
         onFinish: () => {
             form.reset('password');
             loading.value = false;
@@ -55,7 +64,7 @@ const submit = () => {
                 <p class="mt-2 text-sm text-gray-600">Vui lòng nhập thông tin đăng nhập</p>
             </div>
 
-            <!-- Status Message (VD: vừa đăng ký thành công) -->
+            <!-- Status Message -->
             <div v-if="status" class="rounded-lg bg-green-50 p-4 text-sm text-green-700 border border-green-200">
                 {{ status }}
             </div>

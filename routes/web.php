@@ -1,27 +1,30 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
 
-// ==================== ROUTE ĐỂ PHỤC VỤ ẢNH (THÊM MỚI) ====================
+// ==================== ROUTE ĐỂ PHỤC VỤ ẢNH ====================
 Route::get('/image/{filename}', function ($filename) {
     $path = base_path('image/' . $filename);
     if (!File::exists($path)) {
@@ -34,7 +37,7 @@ Route::get('/image/{filename}', function ($filename) {
     return response($file, 200)->header('Content-Type', $type);
 })->where('filename', '.*');
 
-// ==================== WEB ROUTES (Frontend - Cho người dùng) ====================
+// ==================== WEB ROUTES (Frontend - Public) ====================
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -42,11 +45,11 @@ Route::get('/tim-kiem', function (Request $request) {
     return Inertia::render('Web/Category', ['search' => $request->get('q')]);
 })->name('search');
 
-// Product routes - now using controllers
+// Product routes - PUBLIC
 Route::get('/san-pham/{id}', [WebProductController::class, 'show'])->name('product.detail');
 Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
-// Other frontend routes
+// Other public frontend routes
 Route::get('/mua-si', function () {
     return Inertia::render('Web/Wholesale');
 })->name('wholesale');
@@ -59,33 +62,40 @@ Route::get('/tuy-chinh', function () {
     return Inertia::render('Web/Customize');
 })->name('customize');
 
+// ==================== CART ROUTES (Yêu cầu đăng nhập) ====================
+
+// Cart page
 Route::get('/gio-hang', function () {
     return Inertia::render('Web/Cart');
-})->name('cart');
+})->name('cart')->middleware('auth');
 
+// ⭐ QUAN TRỌNG: Cart API routes - Thêm middleware 'auth' và 'web'
+Route::middleware(['auth'])->prefix('api')->group(function () {
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'add']);
+    Route::put('/cart/update', [CartController::class, 'update']);
+    Route::delete('/cart/remove/{variantId}', [CartController::class, 'remove']);
+    Route::delete('/cart/clear', [CartController::class, 'clear']);
+});
 
-
-// Thanh toán
-Route::get('/thanh-toan', [PaymentController::class, 'index'])->name('checkout');
-Route::post('/thanh-toan', [PaymentController::class, 'store'])->name('checkout.store');
-Route::get('/thanh-toan/thanh-cong', [PaymentController::class, 'success'])->name('checkout.success');
+// ==================== CHECKOUT ROUTES (Yêu cầu đăng nhập) ====================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/thanh-toan', [PaymentController::class, 'index'])->name('checkout');
+    Route::post('/thanh-toan', [PaymentController::class, 'store'])->name('checkout.store');
+    Route::get('/thanh-toan/thanh-cong', [PaymentController::class, 'success'])->name('checkout.success');
+});
 
 // ==================== AUTHENTICATED WEB ROUTES ====================
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/don-hang', [OrderController::class, 'history'])->name('orders.history');
+    Route::get('/don-hang/{id}', [OrderController::class, 'show'])->name('orders.show');
 });
 
-// ==================== ADMIN ROUTES (Backend - Cho quản trị viên) ====================
-
+// ==================== ADMIN ROUTES ====================
 Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(function () {
-    //guest: chưa đăng nhập, auth: đã đăng nhập, admin: đã đăng nhập và có role là admin
-    //Prefix là cái phía trước của URL, vd: admin/dashboard, admin/orders, admin/products. 
-    // Name phía trước name của route.
-    //localhost:8000/dashboard, vì có prefix nên sẽ phải nhập localhost:8000/admin/dashboard mới vào được
-    //Trước name của các route bên trong sẽ phải có admin.'...', VD: route('admin.dashboard')
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -99,7 +109,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
             ->where('id', '[0-9]+')
             ->name('orders.show');
         Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
-        Route::post('/export', [AdminOrderController::class, 'export'])->name('orders.export');
+        Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
+        Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
     });
     
     // Products Management
@@ -147,7 +158,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::post('/export', [AdminCustomerController::class, 'export'])->name('customers.export');
     });
     
-    // Customize Management (Admin)
+    // Customize Management
     Route::prefix('customize')->group(function () {
         Route::get('/', [AdminCustomizeController::class, 'index'])->name('customize.index');
         Route::put('/{id}/status', [AdminCustomizeController::class, 'updateStatus'])->name('customize.update-status');
@@ -187,19 +198,16 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     })->name('reports.index');
     
     // Settings
-Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
-Route::put('/settings/general', [SettingController::class, 'updateGeneral'])->name('settings.updateGeneral');
-Route::put('/settings/password', [SettingController::class, 'changePassword'])->name('settings.changePassword');
+    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+    Route::put('/settings/general', [SettingController::class, 'updateGeneral'])->name('settings.updateGeneral');
+    Route::put('/settings/password', [SettingController::class, 'changePassword'])->name('settings.changePassword');
 
-// User Management
-Route::get('/settings/users', [SettingController::class, 'getUsers'])->name('settings.users');
-Route::post('/settings/users', [SettingController::class, 'storeUser'])->name('settings.storeUser');
-Route::put('/settings/users/{id}', [SettingController::class, 'updateUser'])->name('settings.updateUser');
-Route::delete('/settings/users/{id}', [SettingController::class, 'destroyUser'])->name('settings.destroyUser');
-Route::patch('/settings/users/{id}/toggle', [SettingController::class, 'toggleUserStatus'])->name('settings.toggleUser');
-
-
-
+    // User Management
+    Route::get('/settings/users', [SettingController::class, 'getUsers'])->name('settings.users');
+    Route::post('/settings/users', [SettingController::class, 'storeUser'])->name('settings.storeUser');
+    Route::put('/settings/users/{id}', [SettingController::class, 'updateUser'])->name('settings.updateUser');
+    Route::delete('/settings/users/{id}', [SettingController::class, 'destroyUser'])->name('settings.destroyUser');
+    Route::patch('/settings/users/{id}/toggle', [SettingController::class, 'toggleUserStatus'])->name('settings.toggleUser');
 });
 
 require __DIR__.'/auth.php';
