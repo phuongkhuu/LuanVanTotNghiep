@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -8,6 +8,10 @@ const props = defineProps({
 });
 
 const search = ref('');
+
+// Pagination
+const currentPage = ref(1);
+const perPage = ref(5);
 
 // Modal state
 const showModal = ref(false);
@@ -55,6 +59,26 @@ const filteredCategories = computed(() => {
         c.name.toLowerCase().includes(kw) || 
         (c.description && c.description.toLowerCase().includes(kw))
     );
+});
+
+// Phân trang
+const paginatedCategories = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredCategories.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredCategories.value.length / perPage.value);
+});
+
+// Reset currentPage khi search thay đổi hoặc categories thay đổi
+watch(search, () => {
+    currentPage.value = 1;
+});
+
+watch(() => props.categories, () => {
+    currentPage.value = 1;
 });
 
 // Mở modal (thêm hoặc sửa)
@@ -150,6 +174,8 @@ const saveCategory = async () => {
                 alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm danh mục thành công!');
                 showModal.value = false;
                 clearFile();
+                // Reset page về 1 sau khi CRUD thành công
+                currentPage.value = 1;
             },
             onError: (errors) => {
                 console.error('Lỗi:', errors);
@@ -168,7 +194,12 @@ const saveCategory = async () => {
 // Xóa danh mục
 const confirmDelete = (id, name) => {
     if (confirm(`Xóa danh mục "${name}"? Các sản phẩm liên quan sẽ mất danh mục.`)) {
-        router.delete(route('admin.categories.destroy', id), { preserveScroll: true });
+        router.delete(route('admin.categories.destroy', id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                currentPage.value = 1;
+            }
+        });
     }
 };
 
@@ -215,9 +246,8 @@ const closeModal = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Sử dụng v-for với index để đánh STT 1,2,3,... -->
-                            <tr v-for="(cat, index) in filteredCategories" :key="cat.id" class="border-t hover:bg-orange-50">
-                                <td class="px-4 py-3 text-gray-500 text-sm">{{ index + 1 }}</td>
+                            <tr v-for="(cat, index) in paginatedCategories" :key="cat.id" class="border-t hover:bg-orange-50">
+                                <td class="px-4 py-3 text-gray-500 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                                 <td class="px-4 py-3">
                                     <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden">
                                         <img 
@@ -239,11 +269,50 @@ const closeModal = () => {
                                     <button @click="confirmDelete(cat.id, cat.name)" class="text-red-600 hover:bg-red-100 px-2 py-1 rounded ml-1">Xóa</button>
                                 </td>
                             </tr>
-                            <tr v-if="!filteredCategories.length">
+                            <tr v-if="!paginatedCategories.length">
                                 <td colspan="6" class="text-center py-8 text-gray-500">Không có danh mục nào</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Phân trang -->
+                <div v-if="filteredCategories.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
+                    <span class="text-sm text-gray-600">
+                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
+                        {{ Math.min(currentPage * perPage, filteredCategories.length) }} 
+                        / {{ filteredCategories.length }} danh mục
+                    </span>
+                    <div class="flex gap-2 items-center">
+                        <button 
+                            @click="currentPage--" 
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Trước
+                        </button>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
+                            {{ currentPage }} / {{ totalPages }}
+                        </span>
+                        <button 
+                            @click="currentPage++" 
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Sau
+                        </button>
+                        <div class="hidden md:flex gap-1 ml-2">
+                            <button 
+                                v-for="page in totalPages" 
+                                :key="page"
+                                @click="currentPage = page"
+                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
+                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

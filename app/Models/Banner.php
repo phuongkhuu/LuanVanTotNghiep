@@ -9,7 +9,7 @@ class Banner extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['campaign_id', 'image', 'link', 'status'];
+    protected $fillable = ['campaign_id', 'image', 'link', 'status', 'order'];
 
     protected $casts = [
         'status' => 'integer',

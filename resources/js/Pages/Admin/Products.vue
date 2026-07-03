@@ -22,7 +22,7 @@ const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type 
 
 // Pagination
 const currentPage = ref(1);
-const perPage = ref(8);
+const perPage = ref(5);
 
 const productTypes = [
     { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },

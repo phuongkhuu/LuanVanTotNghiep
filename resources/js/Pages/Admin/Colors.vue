@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Head } from '@inertiajs/vue3'
@@ -13,7 +13,7 @@ const props = defineProps({
 
 // State
 const colors = ref(props.colors)
-const search = ref('') // Biến tìm kiếm
+const search = ref('')
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -22,6 +22,10 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 const validationErrors = ref({})
+
+// Pagination
+const currentPage = ref(1)
+const perPage = ref(5)
 
 const form = ref({
     id: null,
@@ -43,9 +47,29 @@ const filteredColors = computed(() => {
     )
 })
 
-// Sắp xếp theo ID giảm dần
+// Sắp xếp theo ID giảm dần (toàn bộ danh sách đã lọc)
 const sortedColors = computed(() => {
     return [...filteredColors.value].sort((a, b) => b.id - a.id)
+})
+
+// Phân trang
+const paginatedColors = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value
+    const end = start + perPage.value
+    return sortedColors.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+    return Math.ceil(sortedColors.value.length / perPage.value)
+})
+
+// Reset currentPage khi search hoặc dữ liệu thay đổi
+watch(search, () => {
+    currentPage.value = 1
+})
+
+watch(() => props.colors, () => {
+    currentPage.value = 1
 })
 
 // Hàm kiểm tra mã hex
@@ -127,7 +151,6 @@ const updateDisplayCode = () => {
     } else if (inputName) {
         const code = getColorCodeFromName(inputName)
         displayCode.value = code
-        // Tự động điền mã vào ô input nếu tìm thấy
         if (!form.value.code && code !== '#CCCCCC') {
             form.value.code = code
         }
@@ -140,7 +163,6 @@ const updateDisplayCode = () => {
 const onColorPickerChange = (e) => {
     const value = e.target.value
     form.value.code = value
-    // Nếu tên trống, tự động gợi ý tên
     if (!form.value.name?.trim()) {
         const suggested = suggestColorNameFromCode(value)
         if (suggested && suggested !== 'Màu khác') {
@@ -192,7 +214,6 @@ const openEditModal = (color) => {
 }
 
 const saveColor = async () => {
-    // Kiểm tra ít nhất một trong hai trường có dữ liệu
     if (!form.value.name?.trim() && !form.value.code?.trim()) {
         errorMessage.value = 'Vui lòng nhập tên màu hoặc mã hex!'
         return
@@ -222,6 +243,7 @@ const saveColor = async () => {
             form.value = { id: null, name: '', code: '' }
             displayCode.value = '#CCCCCC'
             errorMessage.value = ''
+            currentPage.value = 1
         } else if (response.data?.message && typeof response.data.message === 'object') {
             validationErrors.value = response.data.message
             errorMessage.value = Object.values(response.data.message).flat()[0]
@@ -260,6 +282,7 @@ const deleteColor = async () => {
             await fetchColors()
             showDeleteModal.value = false
             selectedColor.value = null
+            currentPage.value = 1
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
@@ -335,11 +358,11 @@ onMounted(() => {
                     </thead>
                     <tbody>
                         <tr 
-                            v-for="(color, index) in sortedColors" 
+                            v-for="(color, index) in paginatedColors" 
                             :key="color.id" 
                             class="border-b border-gray-100 hover:bg-gray-50 transition"
                         >
-                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
+                            <td class="p-4 text-gray-500 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                             <td class="p-4">
                                 <div class="flex items-center gap-3">
                                     <div 
@@ -368,11 +391,50 @@ onMounted(() => {
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="sortedColors.length === 0 && !isLoading">
-                            <td colspan="5" class="p-8 text-center text-gray-400">Chưa có màu sắc nào</td>
+                        <tr v-if="paginatedColors.length === 0 && !isLoading">
+                            <td colspan="5" class="p-8 text-center text-gray-400">Không có màu sắc nào</td>
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- Phân trang -->
+                <div v-if="sortedColors.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
+                    <span class="text-sm text-gray-600">
+                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
+                        {{ Math.min(currentPage * perPage, sortedColors.length) }} 
+                        / {{ sortedColors.length }} màu
+                    </span>
+                    <div class="flex gap-2 items-center">
+                        <button 
+                            @click="currentPage--" 
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Trước
+                        </button>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
+                            {{ currentPage }} / {{ totalPages }}
+                        </span>
+                        <button 
+                            @click="currentPage++" 
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Sau
+                        </button>
+                        <div class="hidden md:flex gap-1 ml-2">
+                            <button 
+                                v-for="page in totalPages" 
+                                :key="page"
+                                @click="currentPage = page"
+                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
+                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -1,20 +1,34 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Head } from '@inertiajs/vue3'
 
-// Props nhận từ controller
 const props = defineProps({
-    brands: {
-        type: Array,
-        default: () => []
-    }
+    brands: { type: Array, default: () => [] }
 })
 
-// State
 const brands = ref(props.brands)
-const search = ref('') // Biến tìm kiếm
+
+// Sắp xếp brands theo ID giảm dần
+const sortedBrands = computed(() => {
+    return [...brands.value].sort((a, b) => b.id - a.id)
+})
+
+// Pagination
+const currentPage = ref(1);
+const perPage = ref(5);
+
+const paginatedBrands = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return sortedBrands.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(sortedBrands.value.length / perPage.value);
+});
+
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -23,8 +37,6 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 const fileError = ref('') 
-
-// Chọn phương thức nhập logo: 'url' hoặc 'file'
 const imageInputMode = ref('url')
 const selectedFile = ref(null)
 const imagePreviewUrl = ref('')
@@ -36,29 +48,12 @@ const form = ref({
     description: ''
 })
 
-// Computed: Lọc brands theo tên
-const filteredBrands = computed(() => {
-    if (!brands.value || brands.value.length === 0) return []
-    if (!search.value) return brands.value
-    const keyword = search.value.toLowerCase().trim()
-    return brands.value.filter(brand => 
-        brand.name.toLowerCase().includes(keyword)
-    )
-})
-
-// Sắp xếp brands theo ID giảm dần (mới nhất lên đầu)
-const sortedBrands = computed(() => {
-    return [...filteredBrands.value].sort((a, b) => b.id - a.id)
-})
-
-// Xem trước logo
 const imagePreview = computed(() => {
     if (imagePreviewUrl.value) return imagePreviewUrl.value
     if (form.value.logo) return form.value.logo
     return null
 })
 
-// Hàm tạo slug từ name
 const generateSlug = (name) => {
     if (!name) return ''
     return name
@@ -78,7 +73,6 @@ const formatDate = (date) => {
 
 const fetchBrands = async () => {
     if (isLoading.value) return
-    
     isLoading.value = true
     try {
         const response = await axios.get('/admin/brands/data')
@@ -104,6 +98,7 @@ const openCreateModal = () => {
     errorMessage.value = ''
     fileError.value = '' 
     showModal.value = true
+    currentPage.value = 1
 }
 
 const openEditModal = (brand) => {
@@ -117,33 +112,25 @@ const openEditModal = (brand) => {
     showModal.value = true
 }
 
-// Xử lý khi chọn file
 const handleFileChange = (event) => {
     const file = event.target.files[0]
-    fileError.value = '' // Reset lỗi file trước khi kiểm tra
+    fileError.value = ''
     if (!file) return
-    
-    // Kiểm tra định dạng ảnh
     if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg ,jpeg)'
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg, jpeg)'
         return
     }
-    // Kiểm tra kích thước
     if (file.size > 2 * 1024 * 1024) {
         fileError.value = 'Kích thước ảnh không quá 2MB'
         return
     }
-    // Hợp lệ
     selectedFile.value = file
-    // Tạo preview
     const reader = new FileReader()
     reader.onload = (e) => { imagePreviewUrl.value = e.target.result }
     reader.readAsDataURL(file)
-    // Xóa logo cũ nếu có
     form.value.logo = ''
 }
 
-// Reset chọn file
 const clearFile = () => {
     selectedFile.value = null
     imagePreviewUrl.value = ''
@@ -155,50 +142,39 @@ const clearFile = () => {
 }
 
 const saveBrand = async () => {
-    
     if (!form.value.name.trim()) {
         errorMessage.value = 'Vui lòng nhập tên thương hiệu'
         return
     }
-
     if (fileError.value) {
         errorMessage.value = fileError.value
         return
     }
-
     if (isSaving.value) return
     isSaving.value = true
     errorMessage.value = ''
 
     try {
         let response
-        
         if (isEdit.value) {
-            // Cập nhật
             if (selectedFile.value) {
-                
                 const formData = new FormData()
                 formData.append('_method', 'PUT')
                 formData.append('name', form.value.name)
                 formData.append('description', form.value.description || '')
                 formData.append('logo_file', selectedFile.value)
-                
                 response = await axios.post(`/admin/brands/${form.value.id}`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                
-                const dataToSave = {
+                response = await axios.put(`/admin/brands/${form.value.id}`, {
                     name: form.value.name,
                     logo: form.value.logo || null,
                     description: form.value.description || null,
                     slug: generateSlug(form.value.name)
-                }
-                response = await axios.put(`/admin/brands/${form.value.id}`, dataToSave)
+                })
             }
-            
             if (response.data && response.data.success) {
-                // Cập nhật brand trong danh sách
                 const index = brands.value.findIndex(b => b.id === form.value.id)
                 if (index !== -1 && response.data.data) {
                     brands.value[index] = response.data.data
@@ -206,42 +182,38 @@ const saveBrand = async () => {
                 showModal.value = false
                 form.value = { id: null, name: '', logo: '', description: '' }
                 clearFile()
+                currentPage.value = 1
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         } else {
-            // Thêm mới
             if (selectedFile.value) {
-                
                 const formData = new FormData()
                 formData.append('name', form.value.name)
                 formData.append('description', form.value.description || '')
                 formData.append('logo_file', selectedFile.value)
                 formData.append('slug', generateSlug(form.value.name))
-                
                 response = await axios.post('/admin/brands', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                const dataToSave = {
+                response = await axios.post('/admin/brands', {
                     name: form.value.name,
                     logo: form.value.logo || null,
                     description: form.value.description || null,
                     slug: generateSlug(form.value.name)
-                }
-                response = await axios.post('/admin/brands', dataToSave)
+                })
             }
-            
             if (response.data && response.data.data) {
                 brands.value.unshift(response.data.data)
                 showModal.value = false
                 form.value = { id: null, name: '', logo: '', description: '' }
                 clearFile()
+                currentPage.value = 1
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
         }
-        
     } catch (error) {
         console.error('Lỗi lưu thương hiệu:', error)
         errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
@@ -259,13 +231,10 @@ const confirmDelete = (brand) => {
 const deleteBrand = async () => {
     if (!selectedBrand.value) return
     if (isSaving.value) return
-    
     isSaving.value = true
     errorMessage.value = ''
-    
     try {
         const response = await axios.delete(`/admin/brands/${selectedBrand.value.id}`)
-        
         if (response.data && response.data.success) {
             showDeleteModal.value = false
             const index = brands.value.findIndex(b => b.id === selectedBrand.value.id)
@@ -273,10 +242,10 @@ const deleteBrand = async () => {
                 brands.value.splice(index, 1)
             }
             selectedBrand.value = null
+            currentPage.value = 1
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
-        
     } catch (error) {
         console.error('Lỗi xóa thương hiệu:', error)
         errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra khi xóa'
@@ -302,6 +271,11 @@ const handleOverlayClick = (e) => {
     }
 }
 
+// Reset currentPage khi brands thay đổi
+watch(brands, () => {
+    currentPage.value = 1;
+});
+
 onMounted(() => {
     if (brands.value.length === 0) {
         fetchBrands()
@@ -313,27 +287,19 @@ onMounted(() => {
     <Head title="Quản lý thương hiệu" />
     
     <AdminLayout>
-        <div class="p-4 md:p-8">
-            <!-- Header + nút thêm -->
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý thương hiệu</h1>
-                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
-                    <span class="material-symbols-outlined text-lg">add</span>
-                    Thêm thương hiệu
-                </button>
+        <div class="p-6">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Quản lý thương hiệu</h1>
             </div>
 
-            <!-- Thanh tìm kiếm -->
-            <div class="mb-4">
-                <div class="relative max-w-md">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                    <input 
-                        v-model="search" 
-                        type="text" 
-                        placeholder="Tìm theo tên thương hiệu..." 
-                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-full w-full focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
-                    >
-                </div>
+            <div class="mb-6">
+                <button 
+                    @click="openCreateModal" 
+                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition"
+                    :disabled="isSaving"
+                >
+                    + Thêm thương hiệu mới
+                </button>
             </div>
 
             <div v-if="isLoading && brands.length === 0" class="text-center py-8">
@@ -356,11 +322,11 @@ onMounted(() => {
                     </thead>
                     <tbody>
                         <tr 
-                            v-for="(brand, index) in sortedBrands" 
+                            v-for="(brand, index) in paginatedBrands" 
                             :key="brand.id" 
                             class="border-b border-gray-100 hover:bg-gray-50 transition"
                         >
-                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
+                            <td class="p-4 text-gray-500 text-sm">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                             <td class="p-4 font-medium text-gray-700">{{ brand.name }}</td>
                             <td class="p-4 text-gray-500 text-sm">{{ brand.slug }}</td>
                             <td class="p-4 text-gray-500">
@@ -388,13 +354,52 @@ onMounted(() => {
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="sortedBrands.length === 0 && !isLoading">
+                        <tr v-if="paginatedBrands.length === 0 && !isLoading">
                             <td colspan="7" class="p-8 text-center text-gray-400">
-                                {{ search ? 'Không tìm thấy thương hiệu nào' : 'Chưa có thương hiệu nào' }}
+                                Chưa có thương hiệu nào
                             </td>
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- Phân trang -->
+                <div v-if="sortedBrands.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
+                    <span class="text-sm text-gray-600">
+                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
+                        {{ Math.min(currentPage * perPage, sortedBrands.length) }} 
+                        / {{ sortedBrands.length }} thương hiệu
+                    </span>
+                    <div class="flex gap-2 items-center">
+                        <button 
+                            @click="currentPage--" 
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Trước
+                        </button>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
+                            {{ currentPage }} / {{ totalPages }}
+                        </span>
+                        <button 
+                            @click="currentPage++" 
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Sau
+                        </button>
+                        <div class="hidden md:flex gap-1 ml-2">
+                            <button 
+                                v-for="page in totalPages" 
+                                :key="page"
+                                @click="currentPage = page"
+                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
+                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -422,8 +427,6 @@ onMounted(() => {
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
-                        
-                        <!-- Tab chọn phương thức nhập -->
                         <div class="flex gap-2 border-b pb-2 mb-2">
                             <button 
                                 type="button" 
@@ -440,8 +443,6 @@ onMounted(() => {
                                 📁 Tải ảnh lên
                             </button>
                         </div>
-                        
-                        <!-- Nhập URL -->
                         <div v-if="imageInputMode === 'url'">
                             <input 
                                 v-model="form.logo" 
@@ -452,8 +453,6 @@ onMounted(() => {
                             >
                             <p class="text-xs text-gray-400 mt-1">Nhập đường dẫn ảnh logo</p>
                         </div>
-                        
-                        <!-- Upload file -->
                         <div v-else>
                             <input 
                                 id="fileInput" 
@@ -463,7 +462,6 @@ onMounted(() => {
                                 class="w-full"
                                 :disabled="isSaving"
                             >
-                            <!-- Hiển thị lỗi file -->
                             <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                             <button 
                                 v-if="selectedFile" 
@@ -475,8 +473,6 @@ onMounted(() => {
                             </button>
                             <p class="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG, GIF, SVG. Kích thước tối đa 2MB</p>
                         </div>
-                        
-                        <!-- Xem trước ảnh -->
                         <div v-if="imagePreview" class="mt-2">
                             <p class="text-sm text-gray-600 mb-1">Xem trước:</p>
                             <div class="w-24 h-24 border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -564,14 +560,9 @@ onMounted(() => {
 
 <style scoped>
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
-
 .animate-spin {
     animation: spin 1s linear infinite;
 }
