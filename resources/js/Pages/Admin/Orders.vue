@@ -65,15 +65,35 @@ const showDetail = ref(false);
 const selectedOrder = ref(null);
 const isUpdating = ref(false);
 
+// Lọc đơn hàng (có tìm kiếm)
 const filteredOrders = computed(() => {
     if (!orders.value || orders.value.length === 0) return [];
+    
+    const keyword = search.value.toLowerCase().trim();
+    
     return orders.value.filter(order => {
+        // Kiểm tra loại đơn hàng
         const matchType = order.type === activeType.value;
+        
+        // Kiểm tra trạng thái
         const matchStatus = statusFilter.value === 'all' || order.status === statusFilter.value;
-        const matchSearch = !search.value ||
-            order.code.toLowerCase().includes(search.value.toLowerCase()) ||
-            (order.customer && order.customer.toLowerCase().includes(search.value.toLowerCase())) ||
-            (order.receiver && order.receiver.toLowerCase().includes(search.value.toLowerCase()));
+        
+        // Kiểm tra tìm kiếm
+        let matchSearch = true;
+        if (keyword) {
+            const code = (order.code || '').toLowerCase();
+            const customer = (order.customer || '').toLowerCase();
+            const receiver = (order.receiver || '').toLowerCase();
+            const customerPhone = (order.customer_phone || '').toLowerCase();
+            const receiverPhone = (order.receiver_phone || '').toLowerCase();
+            
+            matchSearch = code.includes(keyword) || 
+                         customer.includes(keyword) || 
+                         receiver.includes(keyword) ||
+                         customerPhone.includes(keyword) ||
+                         receiverPhone.includes(keyword);
+        }
+        
         return matchType && matchStatus && matchSearch;
     });
 });
@@ -85,7 +105,7 @@ const getTypeCount = (type) => {
 
 const formatPrice = (value) => {
     if (!value && value !== 0) return '0₫';
-    return value.toLocaleString('vi-VN') + '₫';
+    return Number(value).toLocaleString('vi-VN') + '₫';
 };
 
 const getStatusClass = (status) => {
@@ -223,7 +243,7 @@ const exportFilteredOrders = () => {
                     <input
                         v-model="search"
                         type="text"
-                        placeholder="Tìm theo mã đơn, tên người đặt hoặc người nhận..."
+                        placeholder="Tìm theo mã đơn, tên hoặc SĐT người đặt/nhận..."
                         class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
                     >
                 </div>
@@ -315,7 +335,7 @@ const exportFilteredOrders = () => {
                             </tr>
                             <tr v-if="filteredOrders.length === 0">
                                 <td colspan="8" class="text-center py-8 text-gray-500">
-                                    Không có đơn hàng nào
+                                    {{ search ? 'Không tìm thấy đơn hàng nào' : 'Không có đơn hàng nào' }}
                                 </td>
                             </tr>
                         </tbody>
@@ -323,6 +343,10 @@ const exportFilteredOrders = () => {
                 </div>
 
                 <!-- Footer -->
+                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
+                    <span class="text-sm text-gray-500">
+                        {{ search ? `Tìm thấy ${filteredOrders.length} đơn hàng` : `Hiển thị ${filteredOrders.length} đơn hàng` }}
+                    </span>
                <div class="p-3 border-t border-gray-200 flex flex-wrap justify-between items-center gap-2">
                 <span class="text-sm text-gray-500">
                     Hiển thị {{ filteredOrders.length }} / {{ orders.length }} đơn hàng
@@ -395,7 +419,7 @@ const exportFilteredOrders = () => {
                         </div>
                     </div>
 
-                    <!-- Danh sách sản phẩm - hiển thị rõ thành tiền từng dòng -->
+                    <!-- Danh sách sản phẩm -->
                     <div class="border-t border-gray-200 pt-3">
                         <p class="font-medium text-gray-800 mb-2">Sản phẩm</p>
                         <div class="space-y-2 text-sm">
@@ -414,7 +438,7 @@ const exportFilteredOrders = () => {
                         </div>
                     </div>
 
-                    <!-- Bảng tổng hợp chi phí (tính từ dữ liệu thực tế) -->
+                    <!-- Tổng hợp chi phí -->
                     <div class="border-t border-gray-200 pt-3 space-y-1 text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Tạm tính</span>
@@ -467,5 +491,9 @@ const exportFilteredOrders = () => {
 </template>
 
 <style scoped>
-
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.animate-spin { animation: spin 1s linear infinite; }
 </style>

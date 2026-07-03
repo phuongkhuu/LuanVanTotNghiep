@@ -12,12 +12,9 @@ const props = defineProps({
     }
 })
 
-// Sắp xếp brands theo ID giảm dần (mới nhất lên đầu)
-const sortedBrands = computed(() => {
-    return [...brands.value].sort((a, b) => b.id - a.id)
-})
-
+// State
 const brands = ref(props.brands)
+const search = ref('') // Biến tìm kiếm
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -37,6 +34,21 @@ const form = ref({
     name: '',
     logo: '',
     description: ''
+})
+
+// Computed: Lọc brands theo tên
+const filteredBrands = computed(() => {
+    if (!brands.value || brands.value.length === 0) return []
+    if (!search.value) return brands.value
+    const keyword = search.value.toLowerCase().trim()
+    return brands.value.filter(brand => 
+        brand.name.toLowerCase().includes(keyword)
+    )
+})
+
+// Sắp xếp brands theo ID giảm dần (mới nhất lên đầu)
+const sortedBrands = computed(() => {
+    return [...filteredBrands.value].sort((a, b) => b.id - a.id)
 })
 
 // Xem trước logo
@@ -149,13 +161,10 @@ const saveBrand = async () => {
         return
     }
 
-   
     if (fileError.value) {
         errorMessage.value = fileError.value
         return
     }
-
-    
 
     if (isSaving.value) return
     isSaving.value = true
@@ -194,8 +203,8 @@ const saveBrand = async () => {
                 if (index !== -1 && response.data.data) {
                     brands.value[index] = response.data.data
                 }
-                showModal.value = false // tat form sua
-                form.value = { id: null, name: '', logo: '', description: '' }// clear form
+                showModal.value = false
+                form.value = { id: null, name: '', logo: '', description: '' }
                 clearFile()
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
@@ -304,19 +313,27 @@ onMounted(() => {
     <Head title="Quản lý thương hiệu" />
     
     <AdminLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold text-gray-800">Quản lý thương hiệu</h1>
+        <div class="p-4 md:p-8">
+            <!-- Header + nút thêm -->
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý thương hiệu</h1>
+                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">add</span>
+                    Thêm thương hiệu
+                </button>
             </div>
 
-            <div class="mb-6">
-                <button 
-                    @click="openCreateModal" 
-                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition"
-                    :disabled="isSaving"
-                >
-                    + Thêm thương hiệu mới
-                </button>
+            <!-- Thanh tìm kiếm -->
+            <div class="mb-4">
+                <div class="relative max-w-md">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Tìm theo tên thương hiệu..." 
+                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-full w-full focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    >
+                </div>
             </div>
 
             <div v-if="isLoading && brands.length === 0" class="text-center py-8">
@@ -373,7 +390,7 @@ onMounted(() => {
                         </tr>
                         <tr v-if="sortedBrands.length === 0 && !isLoading">
                             <td colspan="7" class="p-8 text-center text-gray-400">
-                                Chưa có thương hiệu nào
+                                {{ search ? 'Không tìm thấy thương hiệu nào' : 'Chưa có thương hiệu nào' }}
                             </td>
                         </tr>
                     </tbody>

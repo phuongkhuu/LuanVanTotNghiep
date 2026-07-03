@@ -46,7 +46,7 @@ const imagePreview = computed(() => {
     return null;
 });
 
-// Lọc danh mục
+// Lọc danh mục (giữ nguyên thứ tự từ props - đã được sắp xếp từ controller)
 const filteredCategories = computed(() => {
     if (!props.categories.length) return [];
     if (!search.value) return props.categories;
@@ -206,17 +206,18 @@ const closeModal = () => {
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left">ID</th>
-                                <th class="px-4 py-3 text-left">HÌNH ẢNH</th>
-                                <th class="px-4 py-3 text-left">TÊN</th>
-                                <th class="px-4 py-3 text-left">SLUG</th>
-                                <th class="px-4 py-3 text-left">MÔ TẢ</th>
-                                <th class="px-4 py-3 text-center">THAO TÁC</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 w-16">STT</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">HÌNH ẢNH</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">TÊN</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">SLUG</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">MÔ TẢ</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-700">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="cat in filteredCategories" :key="cat.id" class="border-t hover:bg-orange-50">
-                                <td class="px-4 py-3">{{ cat.id }}</td>
+                            <!-- Sử dụng v-for với index để đánh STT 1,2,3,... -->
+                            <tr v-for="(cat, index) in filteredCategories" :key="cat.id" class="border-t hover:bg-orange-50">
+                                <td class="px-4 py-3 text-gray-500 text-sm">{{ index + 1 }}</td>
                                 <td class="px-4 py-3">
                                     <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden">
                                         <img 
@@ -230,7 +231,7 @@ const closeModal = () => {
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 font-medium">{{ cat.name }}</td>
+                                <td class="px-4 py-3 font-medium text-gray-700">{{ cat.name }}</td>
                                 <td class="px-4 py-3 text-gray-500 text-xs">{{ cat.slug }}</td>
                                 <td class="px-4 py-3 text-gray-600 max-w-xs truncate">{{ cat.description || '—' }}</td>
                                 <td class="px-4 py-3 text-center">
