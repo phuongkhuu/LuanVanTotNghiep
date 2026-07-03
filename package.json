@@ -20,7 +20,11 @@
         "vue": "^3.5.35"
     },
     "dependencies": {
+        "@ckeditor/ckeditor5-build-classic": "^41.4.2",
+        "@ckeditor/ckeditor5-vue": "^8.1.1",
+        "@floating-ui/vue": "^2.0.0",
         "axios": "^1.17.0",
-        "chart.js": "^4.5.1"
+        "chart.js": "^4.5.1",
+        "ckeditor5-custom-project": "file:ckeditor5-builder-48.3.0"
     }
 }

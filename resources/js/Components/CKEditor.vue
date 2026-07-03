@@ -4,8 +4,16 @@
         :editor="editor"
         v-model="content"
         :config="editorConfig"
+        class="ck-editor-custom"
     />
 </template>
+
+<style scoped>
+.ck-editor-custom :deep(.ck-editor__editable) {
+    min-height: 200px;
+    max-height: 400px;
+}
+</style>
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
@@ -37,10 +45,16 @@ watch(content, (newVal) => {
 const editorConfig = {
     toolbar: [
         'heading', '|',
-        'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|',
-        'outdent', 'indent', '|',
-        'imageUpload', 'blockQuote', 'insertTable', 'mediaEmbed', '|',
+        'bold', 'italic', 'underline', 'strikethrough', 'link', 'bulletedList', 'numberedList', '|',
+        'blockQuote', '|',
         'undo', 'redo'
     ],
 };
 </script>
+
+<style scoped>
+.ck-editor-custom :deep(.ck-editor__editable) {
+    min-height: 200px;
+    max-height: 400px;
+}
+</style>
