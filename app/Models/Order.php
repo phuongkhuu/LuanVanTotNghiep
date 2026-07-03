@@ -71,11 +71,6 @@ class Order extends Model
         return $this->hasOne(Payment::class);
     }
 
-
-
-
-
-
     public function getStatusTextAttribute()
     {
         return $this->getStatusText();

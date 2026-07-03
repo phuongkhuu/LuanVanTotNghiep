@@ -6,7 +6,23 @@
     <main class="max-w-[1440px] mx-auto px-4 md:px-8 py-12">
       <h1 class="font-headline-lg text-2xl md:text-3xl mb-6 border-l-4 pl-4 border-primary text-gray-900">Giỏ hàng của bạn</h1>
       
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Hiển thị khi giỏ hàng trống -->
+      <div v-if="cartItems.length === 0 && !loading" class="text-center py-12">
+        <div class="text-6xl mb-4">🛒</div>
+        <p class="text-xl text-gray-600">Giỏ hàng trống</p>
+        <Link :href="route('home')" class="inline-block mt-4 text-primary hover:underline">
+          Tiếp tục mua sắm
+        </Link>
+      </div>
+
+      <!-- Hiển thị khi đang tải -->
+      <div v-else-if="loading" class="text-center py-12">
+        <div class="inline-block animate-spin text-4xl">⟳</div>
+        <p class="text-gray-600 mt-4">Đang tải giỏ hàng...</p>
+      </div>
+
+      <!-- Hiển thị giỏ hàng có sản phẩm -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <!-- Cart Items -->
         <div class="lg:col-span-8 space-y-4">
           <div class="hidden md:grid grid-cols-12 gap-4 pb-4 border-b border-gray-200 text-gray-500 font-semibold text-xs uppercase tracking-wider">
@@ -19,13 +35,13 @@
           <div v-for="(item, idx) in cartItems" :key="item.id" class="grid grid-cols-1 md:grid-cols-12 gap-4 py-6 items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div class="col-span-12 md:col-span-6 flex gap-4">
               <div class="w-24 h-32 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                <img class="w-full h-full object-cover" :src="item.image" :alt="item.name">
+                <img class="w-full h-full object-cover" :src="item.image || '/images/default-product.jpg'" :alt="item.name">
               </div>
               <div>
                 <Link :href="route('product.detail', { id: item.id })" class="font-semibold text-gray-800 hover:text-primary">
                   {{ item.name }}
                 </Link>
-                <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color }} | Size: {{ item.size }}</p>
+                <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color || 'Đen' }} | Size: {{ item.size || 'M' }}</p>
                 <button @click="removeItem(idx)" class="text-primary text-sm flex items-center mt-2 hover:text-primary-dark">
                   <span class="material-symbols-outlined text-[18px] mr-1">delete</span> Xóa
                 </button>
@@ -73,7 +89,9 @@
               </div>
               <div class="flex justify-between text-gray-600">
                 <span>Phí vận chuyển</span>
-                <span class="font-semibold text-green-600">Miễn phí</span>
+                <!-- ✅ SỬA: Hiển thị đúng phí vận chuyển -->
+                <span v-if="displayShippingFee > 0" class="font-semibold text-gray-800">{{ formatPrice(displayShippingFee) }}</span>
+                <span v-else class="font-semibold text-green-600">Miễn phí</span>
               </div>
               <div v-if="discountAmount > 0" class="flex justify-between text-gray-600">
                 <span>Mã giảm giá</span>
@@ -104,7 +122,7 @@
       </div>
 
       <!-- Suggested Products -->
-      <section class="mt-16">
+      <section v-if="cartItems.length > 0" class="mt-16">
         <div class="flex justify-between items-end mb-6">
           <div>
             <span class="text-primary font-semibold text-xs uppercase tracking-widest">Phối hợp hoàn hảo</span>
@@ -143,41 +161,119 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
+import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
-const cartItems = ref([
-  { id: 1, name: "Balo Công Sở BigBag Pro v2", color: "Xám Than", size: "L", price: 1450000, quantity: 1, image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAD6L9OcEUTVWCJgZLA27C1yucsUoMiG4JGAl6IwgTUvjQyMj9AKQh2W8VicuT_uDzKJw3PZXo0Y3Ej4mQib4HwdRnY0LAWt3KEmjUzXKZ_c7IdWXpRd07xN9HDQuIw49fPe_3DxamU26Em0QaXLhYXssey5TKc_EkPC5KoCS8GREZTb6AfvlciZwjEG02UZubecIY-h3l9LqK2n4-Rk1GN74fOlm3fB9B8R5krVUxMvyXDqWERB5A79__Ktq98waxauoM5G7xd3Eub" },
-  { id: 2, name: "Túi Messenger Da Thật Elite", color: "Nâu Chocolate", size: "M", price: 2200000, quantity: 1, image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAMDbCZL7hrYPadl_jDsmyQjwUWuf84hu8upz_vP1SyN0rxjf8UlS_nJGEhXGW8yAH87Sfu5bfKZiyv7QMZEFW4CBLCOSj8PwiAIclS9CGuMPP2y2BEEtM-0i5ySZ6sZ9R9EmvyIdoXD54Oa8hb_skbIf7FqUVzy1FGY7zJvb0GK3_zqgoglhu09ylrIx5FL-eqvM0KKA6NY4UM8rea8od2PtWRwefZvE4NwRcK-ZwHJdPN0QSLzUajutM1uLOq3UQil-NwstVrg6El" }
-])
-
+// State
+const cartItems = ref([])
+const loading = ref(false)
 const couponCode = ref('')
 const discountAmount = ref(0)
+const shippingFee = 30000 // Phí vận chuyển cố định
 
-const subtotal = computed(() => cartItems.value.reduce((s, i) => s + i.price * i.quantity, 0))
-const total = computed(() => subtotal.value - discountAmount.value)
+// Computed
+const subtotal = computed(() => {
+  return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+})
 
-const updateQuantity = (idx, delta) => {
-  const newQty = cartItems.value[idx].quantity + delta
-  if (newQty >= 1) cartItems.value[idx].quantity = newQty
+// ✅ SỬA: Chỉ tính phí vận chuyển khi có sản phẩm
+const total = computed(() => {
+  const subtotalValue = subtotal.value
+  // Nếu giỏ hàng trống hoặc subtotal = 0, không tính phí vận chuyển
+  const shipping = (cartItems.value.length > 0 && subtotalValue > 0) ? shippingFee : 0
+  return subtotalValue + shipping - discountAmount.value
+})
+
+// ✅ THÊM: Tính phí vận chuyển hiển thị
+const displayShippingFee = computed(() => {
+  return (cartItems.value.length > 0 && subtotal.value > 0) ? shippingFee : 0
+})
+
+const cartCount = computed(() => {
+  return cartItems.value.reduce((sum, item) => sum + item.quantity, 0)
+})
+
+// Methods
+const loadCart = async () => {
+  loading.value = true
+  try {
+    const response = await axios.get('/api/cart')
+    console.log('📦 Cart data:', response.data)
+    if (response.data.success) {
+      cartItems.value = response.data.items || []
+    }
+  } catch (error) {
+    console.error('❌ Lỗi tải giỏ hàng:', error)
+    // Nếu lỗi 401 (chưa đăng nhập)
+    if (error.response && error.response.status === 401) {
+      router.get(route('login'))
+    }
+  } finally {
+    loading.value = false
+  }
 }
-const removeItem = (idx) => cartItems.value.splice(idx, 1)
+
+const updateQuantity = async (index, delta) => {
+  const item = cartItems.value[index]
+  if (!item) return
+  
+  const newQuantity = item.quantity + delta
+  if (newQuantity < 1) {
+    await removeItem(index)
+    return
+  }
+
+  try {
+    await axios.put('/api/cart/update', {
+      variant_id: item.id,
+      quantity: newQuantity
+    })
+    await loadCart()
+  } catch (error) {
+    alert(error.response?.data?.message || 'Cập nhật thất bại')
+  }
+}
+
+const removeItem = async (index) => {
+  const item = cartItems.value[index]
+  if (!item) return
+  
+  if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
+
+  try {
+    await axios.delete(`/api/cart/remove/${item.id}`)
+    await loadCart()
+  } catch (error) {
+    alert('Xóa sản phẩm thất bại')
+  }
+}
+
 const applyCoupon = () => {
-  if (couponCode.value === 'SALE10') discountAmount.value = subtotal.value * 0.1
-  else discountAmount.value = 0
+  if (couponCode.value === 'SALE10') {
+    discountAmount.value = subtotal.value * 0.1
+  } else {
+    discountAmount.value = 0
+    alert('Mã giảm giá không hợp lệ')
+  }
 }
-const formatPrice = (val) => val.toLocaleString('vi-VN') + '₫'
 
-const suggestedProducts = ref([
-  { id: 3, name: "Túi Tote Canvas Modern", category: "Phụ kiện công sở", price: 850000, badge: "-10%", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuB9nuQnQvGBE7sY3P0hoxV7XX9aEeWWlXeLxZXHaO200msr2mNJAMFhVgdQrBRxbCs4h8XLGhofTI6iR3rsOx0WzYYKX3GWPqKBwMSt1GTVW_9pdYM_o9z-4WvRDy8ucUHgBnYXx07ihkJPtoqB5j3suWiXTvp1jqNcHXrbedVcQ4g8KNkbDOoHo8QuDqi2g7WFQlTH_RxyjBdWjuc_4RS85X9GeKHS-OdqHMYGk4vr1Y5g8GjgHnUl4rg3_va_LOU48mDVZ05jYz-F" },
-  { id: 4, name: "Balo Commuter X-Shield", category: "Chống nước tuyệt đối", price: 1950000, badge: "New", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuApv4oUo-7Jbdz4aTiDcyN2XaEh1-g-bSJlqGDxMHnup3OxqE_gl-mCYLV8Wa8PLdRf1AfOMRQ5gwGCdN4OtWaqcYuI0iV5Yyw11nd4n9t-0Ww_U3mbLCnD8ShDTxHX7CNj1zAVPIyqy6aJxUxEajVOqBGLONC8VuV6obJzvo1fBzgRUq8DiSbrkmgThldHB8rmz4_keWqZiGS-JJHD1hUghpUo_g_1Qn_xg-38YT8-ywdQUH1FBsD4lEqV0keOOB9UDkoBfzD4z6iC" },
-  { id: 5, name: "Ví Da Mini Slim Fit", category: "Da bò thật 100%", price: 420000, badge: null, image: "https://lh3.googleusercontent.com/aida-public/AB6AXuADaTT9wHiB4RkN8NP_Oq4u3j5gpAW167KPKTVl5AKSsVyKyZgxy-aGOAaDDHugAYPzs3N0pZqI9n_N_WNsaTYHN7wzyGrxVsHvl9bRTEsOa64RN8Kf70DgevQ5o4pZe1_0R8FebpLajvuKs4GwTtKh5JOBKz_8pWTtuvmWrQZ5Aht1cVqbBbyQNYvsM5gmD6Te8zkQfHW8djCsopztkw6Vp2fI_Tf5sH0Z3gEuR1o_KfuoB-PkfWUiKQke7RDDfZ6teX5beUQmYlhi" },
-  { id: 6, name: "Túi Phụ Kiện Travel Pro", category: "Tiện ích du lịch", price: 350000, badge: null, image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDVFTuGwrRVt-bcWXV7oDBhXAOoG5mKZbgzkMCreWded8E9ZvnD3nP8PCSIl4-bBe8Hx54K7MjZeXhEVo9bEtHXwnWtiBSfb33QO8W1WBJE-5-tv047NQzZf7kH6hN1fRol5A9gwh2DO5Mcy64mK8_8cJWrsABtI2JZdQkz9m3a0eBmebOR8VIJsHFrOiRnUQH1oHqf0FUFP2S4_EZgXMXbmArZLiPCP9Y7QSMrT6FSp-mmQMWjYg37iiwSSuVjU-ih_AqF8DWdrOkx" }
-])
+const formatPrice = (val) => {
+  return (val || 0).toLocaleString('vi-VN') + '₫'
+}
 
+// Lifecycle
+onMounted(() => {
+  loadCart()
+})
+
+// Suggested products
+const suggestedProducts = ref([])
+
+// Thêm sản phẩm từ suggested
 const addToCartProduct = (product) => {
   router.get(route('product.detail', { id: product.id }))
 }

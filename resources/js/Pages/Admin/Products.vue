@@ -2,6 +2,8 @@
 import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
+import ColorSelect from '@/Components/ColorSelect.vue';
+import CKEditor from '@/Components/CKEditor.vue';
 
 const props = defineProps({
     initialProducts: { type: Array, default: () => [] },
@@ -13,7 +15,14 @@ const props = defineProps({
 
 // Search and filter
 const search = ref('');
+const selectedCategory = ref(null);
+const selectedBrand = ref(null);
+const selectedColor = ref(null);
 const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type : 'normal');
+
+// Pagination
+const currentPage = ref(1);
+const perPage = ref(8);
 
 const productTypes = [
     { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },
@@ -47,12 +56,19 @@ const form = ref({
 
 // Computed: hợp nhất URL và file để hiển thị preview
 const allImagePreviews = computed(() => {
-    const urls = form.value.imageUrls.map(url => ({ url, type: 'url' }));
-    const files = form.value.imageFiles.map(file => ({
-        url: URL.createObjectURL(file),
-        type: 'file',
-        file
-    }));
+    const urls = form.value.imageUrls.map(url => {
+        const isVideo = /\.(mp4|mov|avi|wmv|flv|mkv|webm|ogg)$/i.test(url);
+        return { url, type: 'url', mediaType: isVideo ? 'video' : 'image' };
+    });
+    const files = form.value.imageFiles.map(file => {
+        const isVideo = file.type.startsWith('video/');
+        return {
+            url: URL.createObjectURL(file),
+            type: 'file',
+            file,
+            mediaType: isVideo ? 'video' : 'image'
+        };
+    });
     return [...urls, ...files];
 });
 
@@ -118,7 +134,39 @@ const filteredProducts = computed(() => {
         }
         
         return matchType && matchSearch;
+        // Lọc theo loại sản phẩm
+        const matchType = product.type === activeType.value;
+        
+        // Lọc theo từ khóa (tên hoặc danh mục)
+        const matchSearch = !search.value ||
+            product.name.toLowerCase().includes(search.value.toLowerCase()) ||
+            (product.category && product.category.toLowerCase().includes(search.value.toLowerCase()));
+        
+        // Lọc theo danh mục
+        const matchCategory = !selectedCategory.value || product.category_id === selectedCategory.value;
+        
+        // Lọc theo thương hiệu
+        const matchBrand = !selectedBrand.value || product.brand_id === selectedBrand.value;
+        
+        // Lọc theo màu sắc (kiểm tra có variant nào có màu đó không)
+        let matchColor = true;
+        if (selectedColor.value) {
+            matchColor = product.variants?.some(v => v.color_id === selectedColor.value) || false;
+        }
+        
+        return matchType && matchSearch && matchCategory && matchBrand && matchColor;
     });
+});
+
+// Pagination
+const paginatedProducts = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredProducts.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredProducts.value.length / perPage.value);
 });
 
 const typeCounts = computed(() => ({
@@ -170,18 +218,21 @@ const handleFileChange = (event) => {
 
     const total = form.value.imageFiles.length + files.length;
     if (total > 10) {
-        fileError.value = `Chỉ được tối đa 10 ảnh (hiện có ${form.value.imageFiles.length})`;
+        fileError.value = `Chỉ được tối đa 10 file (ảnh + video), hiện có ${form.value.imageFiles.length}`;
         event.target.value = '';
         return;
     }
 
     for (let file of files) {
-        if (!file.type.startsWith('image/')) {
-            fileError.value = `File ${file.name} không phải ảnh`;
+        // Cho phép cả ảnh và video
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+            fileError.value = `File ${file.name} không phải ảnh hoặc video`;
             continue;
         }
-        if (file.size > 2 * 1024 * 1024) {
-            fileError.value = `File ${file.name} vượt quá 2MB`;
+        // Tăng giới hạn lên 20MB cho video, 2MB cho ảnh (hoặc để chung 20MB)
+        const maxSize = file.type.startsWith('video/') ? 20 * 1024 * 1024 : 2 * 1024 * 1024;
+        if (file.size > maxSize) {
+            fileError.value = `File ${file.name} vượt quá ${maxSize / (1024 * 1024)}MB`;
             continue;
         }
         form.value.imageFiles.push(file);
@@ -380,6 +431,22 @@ const saveProduct = async () => {
     }
 };
 
+//Đổi vị trí ảnh
+const moveImage = (index, type, direction) => {
+    if (type === 'url') {
+        const arr = form.value.imageUrls;
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= arr.length) return;
+        [arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
+    } else if (type === 'file') {
+        const arr = form.value.imageFiles;
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= arr.length) return;
+        [arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
+    }
+};
+
+
 // Xóa sản phẩm
 const deleteProduct = async (id) => {
     const product = products.value.find(p => p.id === id);
@@ -419,15 +486,22 @@ const changeActiveType = (typeValue) => {
     });
 };
 
+// Reset trang khi search hoặc filter thay đổi
+watch([search, activeType, selectedCategory, selectedBrand, selectedColor], () => {
+    currentPage.value = 1;
+});
+
 watch(() => props.type, (newType) => {
     if (newType && ['normal', 'preorder'].includes(newType)) {
         activeType.value = newType;
         search.value = '';
+        currentPage.value = 1;
     }
 });
 
 watch(() => props.initialProducts, (val) => {
     products.value = val;
+    currentPage.value = 1;
 }, { immediate: true });
 </script>
 
@@ -476,6 +550,29 @@ watch(() => props.initialProducts, (val) => {
                     >
                 </div>
             </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap gap-3 mb-4">
+                <div class="w-full sm:w-auto">
+                    <select v-model="selectedCategory" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option :value="null">Tất cả danh mục</option>
+                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-auto">
+                    <select v-model="selectedBrand" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option :value="null">Tất cả thương hiệu</option>
+                        <option v-for="brand in brands" :key="brand.id" :value="brand.id">{{ brand.name }}</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-auto">
+                    <select v-model="selectedColor" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                        <option :value="null">Tất cả màu sắc</option>
+                        <option v-for="color in colors" :key="color.id" :value="color.id">{{ color.name }}</option>
+                    </select>
+                </div>
+                <button @click="selectedCategory=null; selectedBrand=null; selectedColor=null; search=''" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1">Xóa lọc</button>
+            </div>
 
             <!-- Products Table -->
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -494,7 +591,7 @@ watch(() => props.initialProducts, (val) => {
                         </thead>
                         <tbody>
                             <tr 
-                                v-for="product in filteredProducts" 
+                                v-for="product in paginatedProducts" 
                                 :key="product.id" 
                                 class="border-b border-gray-200 hover:bg-orange-50 transition-colors"
                             >
@@ -538,7 +635,7 @@ watch(() => props.initialProducts, (val) => {
                                     >Xóa</button>
                                 </td>
                             </tr>
-                            <tr v-if="filteredProducts.length === 0">
+                            <tr v-if="paginatedProducts.length === 0">
                                 <td colspan="7" class="text-center py-8 text-gray-500">
                                     {{ search ? 'Không tìm thấy sản phẩm nào' : 'Không có sản phẩm nào' }}
                                 </td>
@@ -552,6 +649,44 @@ watch(() => props.initialProducts, (val) => {
                     <span class="text-sm text-gray-500">
                         {{ search ? `Tìm thấy ${filteredProducts.length} sản phẩm` : `Hiển thị ${filteredProducts.length} sản phẩm` }}
                     </span>
+                <!-- Pagination -->
+                <div v-if="filteredProducts.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
+                    <span class="text-sm text-gray-600">
+                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
+                        {{ Math.min(currentPage * perPage, filteredProducts.length) }} 
+                        / {{ filteredProducts.length }} sản phẩm
+                    </span>
+                    <div class="flex gap-2 items-center">
+                        <button 
+                            @click="currentPage--" 
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Trước
+                        </button>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
+                            {{ currentPage }} / {{ totalPages }}
+                        </span>
+                        <button 
+                            @click="currentPage++" 
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            Sau
+                        </button>
+                        <!-- Số trang cụ thể (ẩn trên mobile) -->
+                        <div class="hidden md:flex gap-1 ml-2">
+                            <button 
+                                v-for="page in totalPages" 
+                                :key="page"
+                                @click="currentPage = page"
+                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
+                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -608,17 +743,45 @@ watch(() => props.initialProducts, (val) => {
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Hình ảnh sản phẩm (tối đa 10 ảnh)</label>
 
                             <!-- Danh sách ảnh hiện có -->
-                            <div v-if="allImagePreviews.length" class="flex flex-wrap gap-2 mb-3">
-                                <div v-for="(img, idx) in allImagePreviews" :key="idx" class="relative w-20 h-20 border rounded overflow-hidden bg-gray-100 group">
-                                    <img :src="img.url" class="w-full h-full object-cover" />
-                                    <button 
-                                        @click="removeImage(idx, img.type)"
-                                        class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
-                                        title="Xóa ảnh"
-                                    >✕</button>
+                            <div v-if="allImagePreviews.length" class="flex flex-wrap gap-3 mb-3">
+                                <div 
+                                    v-for="(img, idx) in allImagePreviews" 
+                                    :key="idx" 
+                                    class="relative w-24 h-24 border rounded overflow-hidden bg-gray-100 group shadow-sm"
+                                >
+                                    <!-- Nếu là ảnh -->
+                                    <img v-if="img.mediaType === 'image'" :src="img.url" class="w-full h-full object-cover" />
+                                    <!-- Nếu là video -->
+                                    <video v-else :src="img.url" class="w-full h-full object-cover" muted></video>
+                                    
+                                    <!-- Số thứ tự -->
+                                    <div class="absolute top-0 left-0 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-br">
+                                        {{ idx + 1 }}
+                                    </div>
+
+                                    <!-- Nút điều khiển -->
+                                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs flex justify-around items-center py-1 opacity-0 group-hover:opacity-100 transition">
+                                        <button 
+                                            @click="moveImage(idx, img.type, -1)" 
+                                            :disabled="(img.type === 'url' ? idx === 0 : idx === 0)" 
+                                            class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                            title="Di chuyển lên"
+                                        >▲</button>
+                                        <button 
+                                            @click="moveImage(idx, img.type, 1)" 
+                                            :disabled="(img.type === 'url' ? idx === form.imageUrls.length - 1 : idx === form.imageFiles.length - 1)" 
+                                            class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                            title="Di chuyển xuống"
+                                        >▼</button>
+                                        <button 
+                                            @click="removeImage(idx, img.type)" 
+                                            class="px-1.5 py-0.5 hover:bg-red-500/30 rounded text-red-300 hover:text-white"
+                                            title="Xóa"
+                                        >✕</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div v-else class="text-sm text-gray-400 mb-2">Chưa có ảnh</div>
+                            <div v-else class="text-sm text-gray-400 mb-2">Chưa có ảnh hoặc video</div>
 
                             <!-- Chọn chế độ nhập URL hoặc file -->
                             <div class="flex gap-2 border-b pb-2 mb-2">
@@ -634,16 +797,16 @@ watch(() => props.initialProducts, (val) => {
 
                             <!-- Upload file (multiple) -->
                             <div v-else>
-                                <input id="productImageInput" type="file" accept="image/*" multiple @change="handleFileChange" class="w-full text-sm" />
-                                <p class="text-xs text-gray-400 mt-1">Chọn nhiều ảnh (tối đa 2MB mỗi ảnh)</p>
-                                <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
+                                <input id="productImageInput" type="file" accept="image/*,video/*" multiple @change="handleFileChange" class="w-full text-sm" />
+                                <p class="text-xs text-gray-400 mt-1">Chọn nhiều ảnh/video (ảnh tối đa 2MB, video tối đa 20MB mỗi file)</p>
+                            <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                             </div>
                         </div>
                     </div>
 
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
-                        <textarea v-model="form.description" rows="3" class="w-full border rounded-lg px-3 py-2" placeholder="Mô tả chi tiết sản phẩm"></textarea>
+                        <CKEditor v-model="form.description" />
                     </div>
 
                     <!-- Biến thể (variants) -->
@@ -666,10 +829,12 @@ watch(() => props.initialProducts, (val) => {
                                 <tbody>
                                     <tr v-for="(variant, idx) in form.variants" :key="idx">
                                         <td class="px-2 py-1">
-                                            <select v-model="variant.color_id" class="w-full border rounded px-2 py-1">
-                                                <option :value="null">-- Chọn màu --</option>
-                                                <option v-for="color in colors" :key="color.id" :value="color.id">{{ color.name }}</option>
-                                            </select>
+                                            <ColorSelect
+                                                v-model="variant.color_id"
+                                                :colors="colors"
+                                                placeholder="-- Chọn màu --"
+                                                :error="false"
+                                            />
                                         </td>
                                         <td class="px-2 py-1">
                                             <input type="text" v-model="variant.size_name" class="w-full border rounded px-2 py-1" placeholder="VD: S, M, L, XL, Free...">
