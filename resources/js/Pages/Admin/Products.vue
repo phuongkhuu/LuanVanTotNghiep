@@ -112,28 +112,7 @@ const removeVariant = (index) => {
 // Lọc sản phẩm (có tìm kiếm)
 const filteredProducts = computed(() => {
     if (!products.value.length) return [];
-    
-    const keyword = search.value.toLowerCase().trim();
-    
     return products.value.filter(product => {
-        // Kiểm tra loại sản phẩm
-        const matchType = product.type === activeType.value;
-        
-        // Kiểm tra tìm kiếm
-        let matchSearch = true;
-        if (keyword) {
-            const name = (product.name || '').toLowerCase();
-            const category = (product.category || '').toLowerCase();
-            const brand = (product.brand || '').toLowerCase();
-            const material = (product.material || '').toLowerCase();
-            
-            matchSearch = name.includes(keyword) || 
-                         category.includes(keyword) ||
-                         brand.includes(keyword) ||
-                         material.includes(keyword);
-        }
-        
-        return matchType && matchSearch;
         // Lọc theo loại sản phẩm
         const matchType = product.type === activeType.value;
         
@@ -884,6 +863,7 @@ watch(() => props.initialProducts, (val) => {
                 </div>
             </div>
         </div>
+    </div>
     </AdminLayout>
 </template>
 
