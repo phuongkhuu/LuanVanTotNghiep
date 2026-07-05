@@ -13,6 +13,7 @@ class Banner extends Model
 
     protected $casts = [
         'status' => 'integer',
+        'order' => 'integer',
     ];
 
     public function campaign()

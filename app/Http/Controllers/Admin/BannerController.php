@@ -14,14 +14,14 @@ class BannerController extends Controller
     public function index()
     {
         return Inertia::render('Admin/Banners', [
-            'banners' => Banner::with('campaign')->orderBy('order')->get(),
+            'banners' => Banner::with('campaign')->orderBy('order', 'asc')->get(),
             'campaigns' => Campaign::all()
         ]);
     }
 
     public function getBanners()
     {
-        return response()->json(Banner::with('campaign')->orderBy('order')->get());
+        return response()->json(Banner::with('campaign')->orderBy('order', 'asc')->get());
     }
 
     public function store(Request $request)

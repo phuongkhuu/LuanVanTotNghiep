@@ -35,4 +35,16 @@ class Campaign extends Model
     {
         return $this->hasMany(Banner::class);
     }
+
+    public function getNameAttribute()
+    {
+        if ($this->start_time && $this->end_time) {
+            $start = $this->start_time->format('d/m/Y');
+            $end = $this->end_time->format('d/m/Y');
+
+            return "Chiến dịch {$start} - {$end}";
+        }
+
+        return 'Chiến dịch';
+    }
 }

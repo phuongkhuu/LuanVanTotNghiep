@@ -5,30 +5,15 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Head } from '@inertiajs/vue3'
 
 const props = defineProps({
-    brands: { type: Array, default: () => [] }
+    brands: {
+        type: Array,
+        default: () => []
+    }
 })
 
+// State
 const brands = ref(props.brands)
-
-// Sắp xếp brands theo ID giảm dần
-const sortedBrands = computed(() => {
-    return [...brands.value].sort((a, b) => b.id - a.id)
-})
-
-// Pagination
-const currentPage = ref(1);
-const perPage = ref(5);
-
-const paginatedBrands = computed(() => {
-    const start = (currentPage.value - 1) * perPage.value;
-    const end = start + perPage.value;
-    return sortedBrands.value.slice(start, end);
-});
-
-const totalPages = computed(() => {
-    return Math.ceil(sortedBrands.value.length / perPage.value);
-});
-
+const search = ref('')
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -36,7 +21,11 @@ const selectedBrand = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
-const fileError = ref('') 
+const fileError = ref('')
+
+// Pagination - 5 items per page
+const currentPage = ref(1)
+const perPage = ref(5)
 
 // Chọn phương thức nhập logo: 'url' hoặc 'file'
 const imageInputMode = ref('url')
@@ -60,9 +49,43 @@ const filteredBrands = computed(() => {
     )
 })
 
-// Sắp xếp brands theo ID giảm dần (mới nhất lên đầu)
+// Sắp xếp brands theo ID giảm dần
 const sortedBrands = computed(() => {
     return [...filteredBrands.value].sort((a, b) => b.id - a.id)
+})
+
+// Pagination
+const paginatedBrands = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value
+    const end = start + perPage.value
+    return sortedBrands.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+    return Math.ceil(sortedBrands.value.length / perPage.value)
+})
+
+const displayedPages = computed(() => {
+    const total = totalPages.value
+    const current = currentPage.value
+    const maxDisplay = 5
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1)
+    }
+    
+    let start = Math.max(1, current - 2)
+    let end = Math.min(total, start + maxDisplay - 1)
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1)
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+watch(search, () => {
+    currentPage.value = 1
 })
 
 // Xem trước logo
@@ -72,6 +95,7 @@ const imagePreview = computed(() => {
     return null
 })
 
+// Hàm tạo slug từ name
 const generateSlug = (name) => {
     if (!name) return ''
     return name
@@ -116,7 +140,6 @@ const openCreateModal = () => {
     errorMessage.value = ''
     fileError.value = '' 
     showModal.value = true
-    currentPage.value = 1
 }
 
 const openEditModal = (brand) => {
@@ -130,12 +153,13 @@ const openEditModal = (brand) => {
     showModal.value = true
 }
 
+// Xử lý khi chọn file
 const handleFileChange = (event) => {
     const file = event.target.files[0]
     fileError.value = ''
     if (!file) return
     if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg, jpeg)'
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, svg ,jpeg)'
         return
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -174,6 +198,7 @@ const saveBrand = async () => {
 
     try {
         let response
+        
         if (isEdit.value) {
             if (selectedFile.value) {
                 const formData = new FormData()
@@ -185,12 +210,13 @@ const saveBrand = async () => {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                response = await axios.put(`/admin/brands/${form.value.id}`, {
+                const dataToSave = {
                     name: form.value.name,
                     logo: form.value.logo || null,
                     description: form.value.description || null,
                     slug: generateSlug(form.value.name)
-                })
+                }
+                response = await axios.put(`/admin/brands/${form.value.id}`, dataToSave)
             }
             if (response.data && response.data.success) {
                 const index = brands.value.findIndex(b => b.id === form.value.id)
@@ -200,7 +226,6 @@ const saveBrand = async () => {
                 showModal.value = false
                 form.value = { id: null, name: '', logo: '', description: '' }
                 clearFile()
-                currentPage.value = 1
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
@@ -215,19 +240,19 @@ const saveBrand = async () => {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 })
             } else {
-                response = await axios.post('/admin/brands', {
+                const dataToSave = {
                     name: form.value.name,
                     logo: form.value.logo || null,
                     description: form.value.description || null,
                     slug: generateSlug(form.value.name)
-                })
+                }
+                response = await axios.post('/admin/brands', dataToSave)
             }
             if (response.data && response.data.data) {
                 brands.value.unshift(response.data.data)
                 showModal.value = false
                 form.value = { id: null, name: '', logo: '', description: '' }
                 clearFile()
-                currentPage.value = 1
             } else {
                 errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
             }
@@ -260,7 +285,6 @@ const deleteBrand = async () => {
                 brands.value.splice(index, 1)
             }
             selectedBrand.value = null
-            currentPage.value = 1
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
@@ -289,11 +313,6 @@ const handleOverlayClick = (e) => {
     }
 }
 
-// Reset currentPage khi brands thay đổi
-watch(brands, () => {
-    currentPage.value = 1;
-});
-
 onMounted(() => {
     if (brands.value.length === 0) {
         fetchBrands()
@@ -303,16 +322,28 @@ onMounted(() => {
 
 <template>
     <Head title="Quản lý thương hiệu" />
-    
     <AdminLayout>
         <div class="p-4 md:p-8">
             <!-- Header + nút thêm -->
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý thương hiệu</h1>
-                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
+                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">add</span>
                     Thêm thương hiệu
                 </button>
+            </div>
+
+            <!-- Thanh tìm kiếm -->
+            <div class="mb-4">
+                <div class="relative max-w-md">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Tìm theo tên thương hiệu..." 
+                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-full w-full focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    >
+                </div>
             </div>
 
             <div v-if="isLoading && brands.length === 0" class="text-center py-8">
@@ -320,60 +351,99 @@ onMounted(() => {
                 <p class="mt-2 text-gray-500">Đang tải...</p>
             </div>
 
-            <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-                <table class="w-full min-w-[800px]">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="text-left p-4 font-semibold text-gray-700 w-16">STT</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Tên thương hiệu</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Slug</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Logo</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Mô tả</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Ngày tạo</th>
-                            <th class="text-center p-4 font-semibold text-gray-700 w-32">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr 
-                            v-for="(brand, index) in sortedBrands" 
-                            :key="brand.id" 
-                            class="border-b border-gray-100 hover:bg-gray-50 transition"
+            <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[800px]">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="text-left p-4 font-semibold text-gray-700 w-16 whitespace-nowrap">STT</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Tên thương hiệu</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Slug</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Logo</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Mô tả</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Ngày tạo</th>
+                                <th class="text-center p-4 font-semibold text-gray-700 w-32 whitespace-nowrap">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr 
+                                v-for="(brand, index) in paginatedBrands" 
+                                :key="brand.id" 
+                                class="border-b border-gray-100 hover:bg-gray-50 transition"
+                            >
+                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
+                                <td class="p-4 font-medium text-gray-700 whitespace-nowrap">{{ brand.name }}</td>
+                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ brand.slug }}</td>
+                                <td class="p-4 text-gray-500">
+                                    <img v-if="brand.logo" :src="brand.logo" class="h-8 w-auto object-contain" alt="logo">
+                                    <span v-else class="text-gray-400">---</span>
+                                </td>
+                                <td class="p-4 text-gray-500 max-w-xs truncate">{{ brand.description || '---' }}</td>
+                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ formatDate(brand.created_at) }}</td>
+                                <td class="p-4 text-center whitespace-nowrap">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button 
+                                            @click="openEditModal(brand)" 
+                                            class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium"
+                                            :disabled="isSaving"
+                                        >
+                                            Sửa
+                                        </button>
+                                        <button 
+                                            @click="confirmDelete(brand)" 
+                                            class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+                                            :disabled="isSaving"
+                                        >
+                                            Xóa
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="paginatedBrands.length === 0 && !isLoading">
+                                <td colspan="7" class="p-8 text-center text-gray-400">
+                                    {{ search ? 'Không tìm thấy thương hiệu nào' : 'Chưa có thương hiệu nào' }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedBrands.length }} / {{ sortedBrands.length }} thương hiệu
+                    </div>
+                    
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
-                            <td class="p-4 font-medium text-gray-700">{{ brand.name }}</td>
-                            <td class="p-4 text-gray-500 text-sm">{{ brand.slug }}</td>
-                            <td class="p-4 text-gray-500">
-                                <img v-if="brand.logo" :src="brand.logo" class="h-8 w-auto object-contain" alt="logo">
-                                <span v-else class="text-gray-400">---</span>
-                            </td>
-                            <td class="p-4 text-gray-500 max-w-xs truncate">{{ brand.description || '---' }}</td>
-                            <td class="p-4 text-gray-500 text-sm">{{ formatDate(brand.created_at) }}</td>
-                            <td class="p-4 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button 
-                                        @click="openEditModal(brand)" 
-                                        class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
-                                        :disabled="isSaving"
-                                    >
-                                        Sửa
-                                    </button>
-                                    <button 
-                                        @click="confirmDelete(brand)" 
-                                        class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
-                                        :disabled="isSaving"
-                                    >
-                                        Xóa
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="sortedBrands.length === 0 && !isLoading">
-                            <td colspan="7" class="p-8 text-center text-gray-400">
-                                {{ search ? 'Không tìm thấy thương hiệu nào' : 'Chưa có thương hiệu nào' }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -385,7 +455,6 @@ onMounted(() => {
         >
             <div class="bg-white rounded-lg w-full max-w-lg p-6">
                 <h3 class="text-xl font-bold mb-4">{{ isEdit ? 'Sửa thương hiệu' : 'Thêm thương hiệu mới' }}</h3>
-                
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tên thương hiệu *</label>
@@ -425,7 +494,6 @@ onMounted(() => {
                                 placeholder="https://example.com/logo.png"
                                 :disabled="isSaving"
                             >
-                            <p class="text-xs text-gray-400 mt-1">Nhập đường dẫn ảnh logo</p>
                         </div>
                         <div v-else>
                             <input 
@@ -475,7 +543,6 @@ onMounted(() => {
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
                 </div>
-                
                 <div class="flex justify-end gap-3 mt-6">
                     <button 
                         @click="closeModal" 
@@ -505,11 +572,9 @@ onMounted(() => {
             <div class="bg-white rounded-lg w-full max-w-md p-6">
                 <h3 class="text-xl font-bold mb-4">Xác nhận xóa</h3>
                 <p class="text-gray-600">Bạn có chắc muốn xóa thương hiệu <strong>{{ selectedBrand?.name }}</strong>?</p>
-                
                 <div v-if="errorMessage" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p class="text-sm text-red-600">{{ errorMessage }}</p>
                 </div>
-                
                 <div class="flex justify-end gap-3 mt-6">
                     <button 
                         @click="closeModal" 

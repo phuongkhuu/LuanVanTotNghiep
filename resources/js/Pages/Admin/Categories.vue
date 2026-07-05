@@ -9,6 +9,10 @@ const props = defineProps({
 
 const search = ref('');
 
+// Pagination - 5 items per page
+const currentPage = ref(1);
+const perPage = ref(5);
+
 // Modal state
 const showModal = ref(false);
 const editingId = ref(null);
@@ -27,26 +31,23 @@ const form = ref({
 
 const modalTitle = computed(() => editingId.value ? 'Sửa danh mục' : 'Thêm danh mục mới');
 
-// Xử lý đường dẫn ảnh hiển thị (cho đường dẫn từ DB, đã được lưu dạng /image/...)
+// Xử lý đường dẫn ảnh hiển thị
 const getImageUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
-    // Nếu đã bắt đầu bằng /image thì giữ nguyên
     if (path.startsWith('/image')) return path;
-    // Nếu bắt đầu bằng image/ (không có slash đầu) thì thêm slash
     if (path.startsWith('image/')) return '/' + path;
-    // Fallback: coi như đường dẫn tương đối từ gốc
     return '/' + path;
 };
 
-// Xem trước ảnh trong modal (ưu tiên preview từ file mới chọn, nếu không thì dùng form.image)
+// Xem trước ảnh trong modal
 const imagePreview = computed(() => {
     if (imagePreviewUrl.value) return imagePreviewUrl.value;
     if (form.value.image) return getImageUrl(form.value.image);
     return null;
 });
 
-// Lọc danh mục (giữ nguyên thứ tự từ props - đã được sắp xếp từ controller)
+// Lọc danh mục
 const filteredCategories = computed(() => {
     if (!props.categories.length) return [];
     if (!search.value) return props.categories;
@@ -57,7 +58,41 @@ const filteredCategories = computed(() => {
     );
 });
 
-// Mở modal (thêm hoặc sửa)
+// Pagination
+const paginatedCategories = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredCategories.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredCategories.value.length / perPage.value);
+});
+
+const displayedPages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const maxDisplay = 5;
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxDisplay - 1);
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1);
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
+
+watch(search, () => {
+    currentPage.value = 1;
+});
+
+// Mở modal
 const openModal = (category = null) => {
     editingId.value = category?.id || null;
     selectedFile.value = null;
@@ -91,15 +126,12 @@ const handleFileChange = (event) => {
         return;
     }
     selectedFile.value = file;
-    // Tạo preview
     const reader = new FileReader();
     reader.onload = (e) => { imagePreviewUrl.value = e.target.result; };
     reader.readAsDataURL(file);
-    // Xóa image cũ nếu có
     form.value.image = '';
 };
 
-// Reset chọn file
 const clearFile = () => {
     selectedFile.value = null;
     imagePreviewUrl.value = '';
@@ -109,7 +141,7 @@ const clearFile = () => {
     }
 };
 
-// Lưu danh mục (hỗ trợ upload file)
+// Lưu danh mục
 const saveCategory = async () => {
     if (!form.value.name.trim()) {
         alert('Vui lòng nhập tên danh mục');
@@ -130,14 +162,12 @@ const saveCategory = async () => {
         submitData = { ...form.value };
     }
     
-    // Nếu có file upload thì chuyển sang FormData
     if (selectedFile.value) {
         const formData = new FormData();
         formData.append('_method', editingId.value ? 'PUT' : 'POST');
         formData.append('name', form.value.name);
         formData.append('description', form.value.description);
         formData.append('image_file', selectedFile.value);
-        // Không gửi trường image vì sẽ được xử lý từ file
         submitData = formData;
         headers = { 'Content-Type': 'multipart/form-data' };
     }
@@ -150,8 +180,6 @@ const saveCategory = async () => {
                 alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm danh mục thành công!');
                 showModal.value = false;
                 clearFile();
-                // Reset page về 1 sau khi CRUD thành công
-                currentPage.value = 1;
             },
             onError: (errors) => {
                 console.error('Lỗi:', errors);
@@ -170,12 +198,7 @@ const saveCategory = async () => {
 // Xóa danh mục
 const confirmDelete = (id, name) => {
     if (confirm(`Xóa danh mục "${name}"? Các sản phẩm liên quan sẽ mất danh mục.`)) {
-        router.delete(route('admin.categories.destroy', id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                currentPage.value = 1;
-            }
-        });
+        router.delete(route('admin.categories.destroy', id), { preserveScroll: true });
     }
 };
 
@@ -190,9 +213,7 @@ const closeModal = () => {
     <AdminLayout>
         <div class="p-4 md:p-8">
             <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý danh mục</h1>
-                </div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý danh mục</h1>
                 <button @click="openModal()" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">add</span>
                     Thêm danh mục
@@ -218,13 +239,12 @@ const closeModal = () => {
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">TÊN</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">SLUG</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">MÔ TẢ</th>
-                                <th class="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">THAO TÁC</th>
+                                <th class="text-center px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Sử dụng v-for với index để đánh STT 1,2,3,... -->
-                            <tr v-for="(cat, index) in filteredCategories" :key="cat.id" class="border-t hover:bg-orange-50">
-                                <td class="px-4 py-3 text-gray-500 text-sm">{{ index + 1 }}</td>
+                            <tr v-for="(cat, index) in paginatedCategories" :key="cat.id" class="border-t hover:bg-orange-50 transition-colors">
+                                <td class="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                                 <td class="px-4 py-3">
                                     <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                                         <img 
@@ -251,6 +271,43 @@ const closeModal = () => {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedCategories.length }} / {{ filteredCategories.length }} danh mục
+                    </div>
+                    
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
