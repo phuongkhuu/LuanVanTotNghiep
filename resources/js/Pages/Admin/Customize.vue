@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -14,6 +14,10 @@ const props = defineProps({
 // Search and filters
 const search = ref('');
 const statusFilter = ref('all');
+
+// Pagination - 5 items per page
+const currentPage = ref(1);
+const perPage = ref(5);
 
 // Filter options
 const filters = [
@@ -119,6 +123,42 @@ const filteredRequests = computed(() => {
         
         return matchStatus && matchSearch;
     });
+});
+
+// Pagination
+const paginatedRequests = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredRequests.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredRequests.value.length / perPage.value);
+});
+
+// Hiển thị số trang (tối đa 5 trang)
+const displayedPages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const maxDisplay = 5;
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxDisplay - 1);
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1);
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
+
+// Reset về trang 1 khi tìm kiếm hoặc filter thay đổi
+watch([search, statusFilter], () => {
+    currentPage.value = 1;
 });
 
 // Get count by status
@@ -273,27 +313,28 @@ const formatPrice = (value) => {
     <AdminLayout>
         <div class="p-4 md:p-8">
             <!-- Header -->
-            <div class="mb-6">
+            <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Yêu cầu tùy chỉnh</h1>
+                <button 
+                    @click="openQuoteModal" 
+                    class="bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-green-800 transition-colors"
+                >
+                    <span class="material-symbols-outlined text-lg">request_quote</span>
+                    Tạo báo giá
+                </button>
             </div>
 
-            <!-- Filter Buttons and Action -->
-            <div class="flex flex-wrap items-center gap-2 mb-6">
+            <!-- Filter Buttons -->
+            <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
                 <button 
                     v-for="filter in filters" 
                     :key="filter.val" 
                     @click="statusFilter = filter.val" 
-                    class="px-4 py-2 rounded-lg text-sm transition-all"
-                    :class="statusFilter === filter.val ? 'bg-orange-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'"
+                    class="px-5 py-2.5 text-sm font-medium transition-all"
+                    :class="statusFilter === filter.val ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'"
                 >
-                    {{ filter.label }} ({{ getCount(filter.val) }})
-                </button>
-                <button 
-                    @click="openQuoteModal" 
-                    class="ml-auto bg-green-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1 hover:bg-green-800 transition-colors"
-                >
-                    <span class="material-symbols-outlined text-sm">request_quote</span>
-                    Tạo báo giá
+                    {{ filter.label }} 
+                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ getCount(filter.val) }}</span>
                 </button>
             </div>
 
@@ -316,18 +357,18 @@ const formatPrice = (value) => {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50">
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">KHÁCH HÀNG</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">LOẠI KH</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">SẢN PHẨM</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">VỊ TRÍ IN</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">NGÀY</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">TRẠNG THÁI</th>
-                                <th class="text-center py-3 px-4 text-gray-600 font-semibold">THAO TÁC</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">KHÁCH HÀNG</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">LOẠI KH</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">SẢN PHẨM</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">VỊ TRÍ IN</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">NGÀY</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TRẠNG THÁI</th>
+                                <th class="text-center py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr 
-                                v-for="request in filteredRequests" 
+                                v-for="request in paginatedRequests" 
                                 :key="request.id" 
                                 class="border-b border-gray-200 hover:bg-orange-50 transition-colors"
                             >
@@ -339,18 +380,18 @@ const formatPrice = (value) => {
                                 </td>
                                 <td class="py-3 px-4">
                                     <span 
-                                        class="text-xs px-2 py-1 rounded-full"
+                                        class="text-xs px-2 py-1 rounded-full whitespace-nowrap"
                                         :class="request.customerType === 'business' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'"
                                     >
                                         {{ request.customerType === 'business' ? 'Doanh nghiệp' : 'Khách lẻ' }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600">{{ request.product }}</td>
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ request.product }}</td>
                                 <td class="py-3 px-4 text-gray-600">
                                     {{ request.position }} - {{ request.size }}
                                     <span v-if="request.quantity > 1" class="text-xs text-gray-400 ml-1">(x{{ request.quantity }})</span>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600">{{ request.date }}</td>
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ request.date }}</td>
                                 <td class="py-3 px-4">
                                     <select 
                                         v-model="request.status" 
@@ -365,25 +406,25 @@ const formatPrice = (value) => {
                                         <option value="completed">Hoàn thành</option>
                                     </select>
                                 </td>
-                                <td class="py-3 px-4 text-center">
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
                                     <button 
                                         @click="viewDetail(request)" 
-                                        class="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
+                                        class="px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium"
                                         title="Xem chi tiết"
                                     >
-                                        <span class="material-symbols-outlined text-lg">visibility</span>
+                                        Xem chi tiết
                                     </button>
                                     <button 
                                         v-if="request.designFile"
                                         @click="downloadFile(request.designFile)" 
-                                        class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors"
+                                        class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors font-medium"
                                         title="Tải file thiết kế"
                                     >
-                                        <span class="material-symbols-outlined text-lg">download</span>
+                                        Tải file
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="filteredRequests.length === 0">
+                            <tr v-if="paginatedRequests.length === 0">
                                 <td colspan="7" class="text-center py-8 text-gray-500">
                                     {{ search ? 'Không tìm thấy yêu cầu tùy chỉnh nào' : 'Không có yêu cầu tùy chỉnh nào' }}
                                 </td>
@@ -392,11 +433,43 @@ const formatPrice = (value) => {
                     </table>
                 </div>
 
-                <!-- Footer -->
-                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">
-                        {{ search ? `Tìm thấy ${filteredRequests.length} yêu cầu` : `Hiển thị ${filteredRequests.length} yêu cầu` }}
-                    </span>
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <!-- Thông tin số lượng -->
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedRequests.length }} / {{ filteredRequests.length }} yêu cầu
+                    </div>
+                    
+                    <!-- Phân trang căn giữa -->
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -579,6 +652,7 @@ const formatPrice = (value) => {
                             type="number" 
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                             placeholder="Số lượng"
+                            min="1"
                         >
                     </div>
                     
@@ -599,6 +673,7 @@ const formatPrice = (value) => {
                             type="number" 
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                             placeholder="Giá dự kiến"
+                            min="0"
                         >
                     </div>
                     

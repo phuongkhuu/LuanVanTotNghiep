@@ -162,8 +162,8 @@ class OrderController extends Controller
             $export = new OrdersExport('all', $formattedOrders);
             
             // Tạo filename
-            $date = now()->format('Ymd_His');
-            $filename = "tat_ca_don_hang_{$date}.xlsx";
+            $date = now()->format('Ymd');
+            $filename = "{$date}_tat_ca_don_hang.xlsx";
             
             return Excel::download($export, $filename);
             
@@ -239,8 +239,8 @@ class OrderController extends Controller
             ];
             $typeLabel = $typeLabels[$type] ?? 'don_hang';
             $statusLabel = $status !== 'all' ? "_" . $status : "";
-            $date = now()->format('Ymd_His');
-            $filename = "don_hang_{$typeLabel}{$statusLabel}_{$date}.xlsx";
+            $date = now()->format('Ymd');
+            $filename = "{$date}_don_hang_{$typeLabel}{$statusLabel}.xlsx";
             
             return Excel::download($export, $filename);
             

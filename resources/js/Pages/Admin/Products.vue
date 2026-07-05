@@ -20,9 +20,9 @@ const selectedBrand = ref(null);
 const selectedColor = ref(null);
 const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type : 'normal');
 
-// Pagination
+// Pagination - 5 items per page
 const currentPage = ref(1);
-const perPage = ref(8);
+const perPage = ref(5);
 
 const productTypes = [
     { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },
@@ -146,6 +146,26 @@ const paginatedProducts = computed(() => {
 
 const totalPages = computed(() => {
     return Math.ceil(filteredProducts.value.length / perPage.value);
+});
+
+// Hiển thị số trang (tối đa 5 trang)
+const displayedPages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const maxDisplay = 5;
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxDisplay - 1);
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1);
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
 const typeCounts = computed(() => ({
@@ -458,6 +478,7 @@ const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
     activeType.value = typeValue;
     search.value = '';
+    currentPage.value = 1;
     router.get(route('admin.products.index', { type: typeValue }), {}, {
         preserveState: true,
         preserveScroll: true,
@@ -559,13 +580,13 @@ watch(() => props.initialProducts, (val) => {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50">
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">SẢN PHẨM</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">DANH MỤC</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">GIÁ</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">GIÁ SỈ</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">TỒN KHO</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">TRẠNG THÁI</th>
-                                <th class="text-center py-3 px-4 text-gray-600 font-semibold">THAO TÁC</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">SẢN PHẨM</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">DANH MỤC</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">GIÁ</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">GIÁ SỈ</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TỒN KHO</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TRẠNG THÁI</th>
+                                <th class="text-center py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -576,7 +597,7 @@ watch(() => props.initialProducts, (val) => {
                             >
                                 <td class="py-3 px-4">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-10 h-10 bg-gray-100 rounded overflow-hidden">
+                                        <div class="w-10 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                                             <img 
                                                 :src="product.thumbnail || ''" 
                                                 class="w-full h-full object-cover" 
@@ -587,31 +608,35 @@ watch(() => props.initialProducts, (val) => {
                                         <span class="text-xs text-gray-400 ml-1">({{ product.image_url?.length || 0 }})</span>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600">{{ product.category || '—' }}</td>
-                                <td class="py-3 px-4 font-semibold text-orange-600">{{ formatPrice(product.price) }}</td>
-                                <td class="py-3 px-4 text-gray-500">{{ formatPrice(product.wholesalePrice) }}</td>
-                                <td class="py-3 px-4" :class="product.stock < 10 ? 'text-yellow-600 font-semibold' : 'text-gray-600'">
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ product.category || '—' }}</td>
+                                <td class="py-3 px-4 font-semibold text-orange-600 whitespace-nowrap">{{ formatPrice(product.price) }}</td>
+                                <td class="py-3 px-4 text-gray-500 whitespace-nowrap">{{ formatPrice(product.wholesalePrice) }}</td>
+                                <td class="py-3 px-4 whitespace-nowrap" :class="product.stock < 10 ? 'text-yellow-600 font-semibold' : 'text-gray-600'">
                                     {{ product.stock }}
                                 </td>
                                 <td class="py-3 px-4">
                                     <span 
-                                        class="text-xs px-2 py-1 rounded-full"
+                                        class="text-xs px-2 py-1 rounded-full whitespace-nowrap"
                                         :class="product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                                     >
                                         {{ product.stock > 0 ? 'Còn hàng' : 'Hết hàng' }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-4 text-center">
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
                                     <button 
                                         @click="editProduct(product)" 
-                                        class="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                                        class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium"
                                         title="Sửa sản phẩm"
-                                    >Sửa</button>
+                                    >
+                                        Sửa
+                                    </button>
                                     <button 
                                         @click="deleteProduct(product.id)" 
-                                        class="p-1.5 text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors"
+                                        class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors font-medium"
                                         title="Xóa sản phẩm"
-                                    >Xóa</button>
+                                    >
+                                        Xóa
+                                    </button>
                                 </td>
                             </tr>
                             <tr v-if="paginatedProducts.length === 0">
@@ -623,54 +648,48 @@ watch(() => props.initialProducts, (val) => {
                     </table>
                 </div>
 
-                <!-- Footer -->
-                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">
-                        {{ search ? `Tìm thấy ${filteredProducts.length} sản phẩm` : `Hiển thị ${filteredProducts.length} sản phẩm` }}
-                    </span>
-                <!-- Pagination -->
-                <div v-if="filteredProducts.length > 0" class="flex flex-wrap justify-between items-center p-4 border-t border-gray-200 gap-2">
-                    <span class="text-sm text-gray-600">
-                        Hiển thị {{ (currentPage - 1) * perPage + 1 }} – 
-                        {{ Math.min(currentPage * perPage, filteredProducts.length) }} 
-                        / {{ filteredProducts.length }} sản phẩm
-                    </span>
-                    <div class="flex gap-2 items-center">
-                        <button 
-                            @click="currentPage--" 
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <!-- Thông tin số lượng -->
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedProducts.length }} / {{ filteredProducts.length }} sản phẩm
+                    </div>
+                    
+                    <!-- Phân trang căn giữa -->
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
                             :disabled="currentPage === 1"
-                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Trước
+                            ◄
                         </button>
-                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded text-sm font-medium">
-                            {{ currentPage }} / {{ totalPages }}
-                        </span>
-                        <button 
-                            @click="currentPage++" 
-                            :disabled="currentPage === totalPages"
-                            class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            Sau
-                        </button>
-                        <!-- Số trang cụ thể (ẩn trên mobile) -->
-                        <div class="hidden md:flex gap-1 ml-2">
-                            <button 
-                                v-for="page in totalPages" 
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
                                 :key="page"
                                 @click="currentPage = page"
-                                class="w-8 h-8 rounded border text-sm hover:bg-gray-50"
-                                :class="page === currentPage ? 'bg-orange-600 text-white border-orange-600' : ''"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
                             >
                                 {{ page }}
                             </button>
                         </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Modal Add/Edit (giữ nguyên) -->
+        <!-- Modal Add/Edit -->
         <div 
             v-if="showModal" 
             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
@@ -717,7 +736,7 @@ watch(() => props.initialProducts, (val) => {
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Chất liệu</label>
                             <input v-model="form.material" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="VD: Canvas, Da, ...">
                         </div>
-                        <!-- PHẦN HÌNH ẢNH MỚI -->
+                        <!-- PHẦN HÌNH ẢNH -->
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Hình ảnh sản phẩm (tối đa 10 ảnh)</label>
 
@@ -778,7 +797,7 @@ watch(() => props.initialProducts, (val) => {
                             <div v-else>
                                 <input id="productImageInput" type="file" accept="image/*,video/*" multiple @change="handleFileChange" class="w-full text-sm" />
                                 <p class="text-xs text-gray-400 mt-1">Chọn nhiều ảnh/video (ảnh tối đa 2MB, video tối đa 20MB mỗi file)</p>
-                            <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
+                                <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                             </div>
                         </div>
                     </div>
@@ -863,7 +882,6 @@ watch(() => props.initialProducts, (val) => {
                 </div>
             </div>
         </div>
-    </div>
     </AdminLayout>
 </template>
 

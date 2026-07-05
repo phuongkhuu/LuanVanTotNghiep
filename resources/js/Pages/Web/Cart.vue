@@ -89,7 +89,6 @@
               </div>
               <div class="flex justify-between text-gray-600">
                 <span>Phí vận chuyển</span>
-                <!-- ✅ SỬA: Hiển thị đúng phí vận chuyển -->
                 <span v-if="displayShippingFee > 0" class="font-semibold text-gray-800">{{ formatPrice(displayShippingFee) }}</span>
                 <span v-else class="font-semibold text-green-600">Miễn phí</span>
               </div>

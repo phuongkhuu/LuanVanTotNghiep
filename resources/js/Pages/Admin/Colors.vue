@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Head } from '@inertiajs/vue3'
@@ -22,6 +22,10 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 const validationErrors = ref({})
+
+// Pagination - 5 items per page
+const currentPage = ref(1)
+const perPage = ref(5)
 
 const form = ref({
     id: null,
@@ -46,6 +50,42 @@ const filteredColors = computed(() => {
 // Sắp xếp theo ID giảm dần
 const sortedColors = computed(() => {
     return [...filteredColors.value].sort((a, b) => b.id - a.id)
+})
+
+// Pagination
+const paginatedColors = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value
+    const end = start + perPage.value
+    return sortedColors.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+    return Math.ceil(sortedColors.value.length / perPage.value)
+})
+
+// Hiển thị số trang (tối đa 5 trang)
+const displayedPages = computed(() => {
+    const total = totalPages.value
+    const current = currentPage.value
+    const maxDisplay = 5
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1)
+    }
+    
+    let start = Math.max(1, current - 2)
+    let end = Math.min(total, start + maxDisplay - 1)
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1)
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+// Reset về trang 1 khi tìm kiếm
+watch(search, () => {
+    currentPage.value = 1
 })
 
 // Hàm kiểm tra mã hex
@@ -297,7 +337,7 @@ onMounted(() => {
             <!-- Header + nút thêm -->
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý màu sắc</h1>
-                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
+                <button @click="openCreateModal" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">add</span>
                     Thêm màu sắc
                 </button>
@@ -322,57 +362,98 @@ onMounted(() => {
                 <p class="mt-2 text-gray-500">Đang tải...</p>
             </div>
 
-            <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-                <table class="w-full min-w-[600px]">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="text-left p-4 font-semibold text-gray-700 w-16">STT</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Màu sắc</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Mã hex</th>
-                            <th class="text-left p-4 font-semibold text-gray-700">Ngày tạo</th>
-                            <th class="text-center p-4 font-semibold text-gray-700 w-32">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr 
-                            v-for="(color, index) in sortedColors" 
-                            :key="color.id" 
-                            class="border-b border-gray-100 hover:bg-gray-50 transition"
+            <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[600px]">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="text-left p-4 font-semibold text-gray-700 w-16 whitespace-nowrap">STT</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Màu sắc</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Mã hex</th>
+                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Ngày tạo</th>
+                                <th class="text-center p-4 font-semibold text-gray-700 w-32 whitespace-nowrap">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr 
+                                v-for="(color, index) in paginatedColors" 
+                                :key="color.id" 
+                                class="border-b border-gray-100 hover:bg-gray-50 transition"
+                            >
+                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div 
+                                            class="w-8 h-8 rounded border border-gray-300 shadow-sm flex-shrink-0" 
+                                            :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"
+                                        ></div>
+                                        <span class="font-medium text-gray-700">{{ color.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-gray-500 text-sm font-mono whitespace-nowrap">{{ color.code || '—' }}</td>
+                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ formatDate(color.created_at) }}</td>
+                                <td class="p-4 text-center whitespace-nowrap">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button 
+                                            @click="openEditModal(color)" 
+                                            class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium"
+                                        >
+                                            Sửa
+                                        </button>
+                                        <button 
+                                            @click="confirmDelete(color)" 
+                                            class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+                                        >
+                                            Xóa
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="paginatedColors.length === 0 && !isLoading">
+                                <td colspan="5" class="p-8 text-center text-gray-400">Chưa có màu sắc nào</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <!-- Thông tin số lượng -->
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedColors.length }} / {{ sortedColors.length }} màu sắc
+                    </div>
+                    
+                    <!-- Phân trang căn giữa -->
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <td class="p-4 text-gray-500 text-sm">{{ index + 1 }}</td>
-                            <td class="p-4">
-                                <div class="flex items-center gap-3">
-                                    <div 
-                                        class="w-8 h-8 rounded border border-gray-300 shadow-sm" 
-                                        :style="{ backgroundColor: color.code || getColorCodeFromName(color.name) }"
-                                    ></div>
-                                    <span class="font-medium text-gray-700">{{ color.name }}</span>
-                                </div>
-                            </td>
-                            <td class="p-4 text-gray-500 text-sm font-mono">{{ color.code || '—' }}</td>
-                            <td class="p-4 text-gray-500 text-sm">{{ formatDate(color.created_at) }}</td>
-                            <td class="p-4 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button 
-                                        @click="openEditModal(color)" 
-                                        class="text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
-                                    >
-                                        Sửa
-                                    </button>
-                                    <button 
-                                        @click="confirmDelete(color)" 
-                                        class="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
-                                    >
-                                        Xóa
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="sortedColors.length === 0 && !isLoading">
-                            <td colspan="5" class="p-8 text-center text-gray-400">Chưa có màu sắc nào</td>
-                        </tr>
-                    </tbody>
-                </table>
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -434,8 +515,8 @@ onMounted(() => {
                     </div>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Hủy</button>
-                    <button @click="saveColor" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center gap-2" :disabled="isSaving">
+                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Hủy</button>
+                    <button @click="saveColor" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isSaving">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xử lý...' : 'Lưu' }}
                     </button>
@@ -456,8 +537,8 @@ onMounted(() => {
                     <p class="text-sm text-red-600">{{ errorMessage }}</p>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Hủy</button>
-                    <button @click="deleteColor" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2" :disabled="isSaving">
+                    <button @click="closeModal" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Hủy</button>
+                    <button @click="deleteColor" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isSaving">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xóa...' : 'Xóa' }}
                     </button>

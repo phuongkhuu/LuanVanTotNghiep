@@ -98,9 +98,9 @@ class OrdersExport implements FromCollection, WithHeadings, WithMapping, WithSty
     public function headings(): array
     {
         $typeLabels = [
-            'retail' => 'Bán lẻ',
-            'wholesale' => 'Bán sỉ',
-            'preorder' => 'Pre-order',
+            'retail' => 'BÁN LẺ',
+            'wholesale' => 'BÁN SỈ',
+            'preorder' => 'PRE-ORDER',
             'all' => 'TẤT CẢ'
         ];
 

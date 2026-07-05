@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
@@ -8,6 +8,10 @@ const props = defineProps({
 });
 
 const search = ref('');
+
+// Pagination - 5 items per page
+const currentPage = ref(1);
+const perPage = ref(5);
 
 // Modal state
 const showModal = ref(false);
@@ -55,6 +59,42 @@ const filteredCategories = computed(() => {
         c.name.toLowerCase().includes(kw) || 
         (c.description && c.description.toLowerCase().includes(kw))
     );
+});
+
+// Pagination
+const paginatedCategories = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredCategories.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredCategories.value.length / perPage.value);
+});
+
+// Hiển thị số trang (tối đa 5 trang)
+const displayedPages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const maxDisplay = 5;
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxDisplay - 1);
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1);
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
+
+// Reset về trang 1 khi tìm kiếm
+watch(search, () => {
+    currentPage.value = 1;
 });
 
 // Mở modal (thêm hoặc sửa)
@@ -186,7 +226,7 @@ const closeModal = () => {
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý danh mục</h1>
                 </div>
-                <button @click="openModal()" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2">
+                <button @click="openModal()" class="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">add</span>
                     Thêm danh mục
                 </button>
@@ -206,20 +246,20 @@ const closeModal = () => {
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-700 w-16">STT</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-700">HÌNH ẢNH</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-700">TÊN</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-700">SLUG</th>
-                                <th class="px-4 py-3 text-left font-semibold text-gray-700">MÔ TẢ</th>
-                                <th class="px-4 py-3 text-center font-semibold text-gray-700">THAO TÁC</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 w-16 whitespace-nowrap">STT</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">HÌNH ẢNH</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">TÊN</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">SLUG</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">MÔ TẢ</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
                             <!-- Sử dụng v-for với index để đánh STT 1,2,3,... -->
-                            <tr v-for="(cat, index) in filteredCategories" :key="cat.id" class="border-t hover:bg-orange-50">
-                                <td class="px-4 py-3 text-gray-500 text-sm">{{ index + 1 }}</td>
+                            <tr v-for="(cat, index) in paginatedCategories" :key="cat.id" class="border-t hover:bg-orange-50 transition-colors">
+                                <td class="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                                 <td class="px-4 py-3">
-                                    <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden">
+                                    <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                                         <img 
                                             v-if="cat.image" 
                                             :src="getImageUrl(cat.image)" 
@@ -231,19 +271,58 @@ const closeModal = () => {
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 font-medium text-gray-700">{{ cat.name }}</td>
-                                <td class="px-4 py-3 text-gray-500 text-xs">{{ cat.slug }}</td>
+                                <td class="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">{{ cat.name }}</td>
+                                <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{{ cat.slug }}</td>
                                 <td class="px-4 py-3 text-gray-600 max-w-xs truncate">{{ cat.description || '—' }}</td>
-                                <td class="px-4 py-3 text-center">
-                                    <button @click="editCategory(cat)" class="text-green-600 hover:bg-green-100 px-2 py-1 rounded">Sửa</button>
-                                    <button @click="confirmDelete(cat.id, cat.name)" class="text-red-600 hover:bg-red-100 px-2 py-1 rounded ml-1">Xóa</button>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <button @click="editCategory(cat)" class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium">Sửa</button>
+                                    <button @click="confirmDelete(cat.id, cat.name)" class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors font-medium">Xóa</button>
                                 </td>
                             </tr>
-                            <tr v-if="!filteredCategories.length">
+                            <tr v-if="!paginatedCategories.length">
                                 <td colspan="6" class="text-center py-8 text-gray-500">Không có danh mục nào</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <!-- Thông tin số lượng -->
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedCategories.length }} / {{ filteredCategories.length }} danh mục
+                    </div>
+                    
+                    <!-- Phân trang căn giữa -->
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -253,7 +332,7 @@ const closeModal = () => {
             <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-bold">{{ modalTitle }}</h3>
-                    <button @click="closeModal" class="text-gray-400 hover:text-gray-600">✕</button>
+                    <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">✕</button>
                 </div>
                 <div class="space-y-4">
                     <div>
@@ -263,20 +342,20 @@ const closeModal = () => {
                     </div>
                     <div>
                         <label class="text-sm font-medium block mb-1">Mô tả</label>
-                        <textarea v-model="form.description" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="Mô tả ngắn (không bắt buộc)"></textarea>
+                        <textarea v-model="form.description" rows="2" class="w-full border rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="Mô tả ngắn (không bắt buộc)"></textarea>
                     </div>
                     <div>
                         <label class="text-sm font-medium block mb-2">Hình ảnh</label>
                         <div class="flex gap-2 border-b pb-2 mb-2">
-                            <button type="button" @click="imageInputMode = 'url'" :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100']">🔗 Nhập URL</button>
-                            <button type="button" @click="imageInputMode = 'file'" :class="['px-3 py-1 text-sm rounded-full', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100']">📁 Tải ảnh lên</button>
+                            <button type="button" @click="imageInputMode = 'url'" :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">🔗 Nhập URL</button>
+                            <button type="button" @click="imageInputMode = 'file'" :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">📁 Tải ảnh lên</button>
                         </div>
                         <div v-if="imageInputMode === 'url'">
-                            <input v-model="form.image" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="https://example.com/image.jpg">
+                            <input v-model="form.image" type="text" class="w-full border rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20" placeholder="https://example.com/image.jpg">
                         </div>
                         <div v-else>
                             <input id="fileInput" type="file" accept="image/*" @change="handleFileChange" class="w-full">
-                            <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1">Xóa file đã chọn</button>
+                            <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1 hover:text-red-700 transition-colors">Xóa file đã chọn</button>
                         </div>
                         <div v-if="imagePreview" class="mt-2">
                             <p class="text-sm text-gray-600">Xem trước:</p>
@@ -287,8 +366,8 @@ const closeModal = () => {
                     </div>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                    <button @click="closeModal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Hủy</button>
-                    <button @click="saveCategory" :disabled="isSubmitting" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                    <button @click="closeModal" class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
+                    <button @click="saveCategory" :disabled="isSubmitting" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         {{ isSubmitting ? 'Đang xử lý...' : 'Lưu' }}
                     </button>
                 </div>

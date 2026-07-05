@@ -22,12 +22,12 @@ class CartController extends Controller
             $variant = ProductVariant::with('product', 'color')->find($variantId);
             if ($variant) {
                 $items[] = [
-                    'id' => $variantId,
+                    'id' => $variant->product->id,
                     'product_variant_id' => $variantId,
-                    'name' => $variant->product->name ?? 'Sản phẩm',
-                    'price' => $item['price'] ?? $variant->price,
+                    'name' => $variant->product->name ?? 'Sản phẩm', 
+                    'price' => $item['price'] ?? $variant->price, //
                     'quantity' => $item['quantity'],
-                    'image' => $variant->product->image ?? '/images/default-product.jpg',
+                    'image' => $variant->product->image_url[0] ?? '/images/default-product.jpg',
                     'color' => $variant->color->name ?? 'Đen',
                     'size' => $variant->size_name ?? 'M',
                 ];

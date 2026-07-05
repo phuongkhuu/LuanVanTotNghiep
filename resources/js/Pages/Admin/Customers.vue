@@ -17,6 +17,10 @@ const props = defineProps({
 const search = ref('');
 const activeType = ref(['retail', 'wholesale', 'preorder'].includes(props.type) ? props.type : 'retail');
 
+// Pagination - 5 items per page
+const currentPage = ref(1);
+const perPage = ref(5);
+
 const customerTypes = [
     { value: 'retail', label: 'Khách lẻ', icon: '👤' },
     { value: 'wholesale', label: 'Khách doanh nghiệp', icon: '🏢' },
@@ -48,6 +52,42 @@ const filteredCustomers = computed(() => {
         const phone = (customer.phone || '').toLowerCase();
         return name.includes(keyword) || phone.includes(keyword);
     });
+});
+
+// Pagination
+const paginatedCustomers = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    const end = start + perPage.value;
+    return filteredCustomers.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+    return Math.ceil(filteredCustomers.value.length / perPage.value);
+});
+
+// Hiển thị số trang (tối đa 5 trang)
+const displayedPages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const maxDisplay = 5;
+    
+    if (total <= maxDisplay) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxDisplay - 1);
+    
+    if (end - start < maxDisplay - 1) {
+        start = Math.max(1, end - maxDisplay + 1);
+    }
+    
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
+
+// Reset về trang 1 khi tìm kiếm
+watch(search, () => {
+    currentPage.value = 1;
 });
 
 const formatPrice = (value) => {
@@ -109,6 +149,7 @@ const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
     activeType.value = typeValue;
     search.value = '';
+    currentPage.value = 1;
     router.get(route('admin.customers.index', { type: typeValue }), {}, {
         preserveState: true,
         preserveScroll: true,
@@ -121,11 +162,9 @@ watch(() => props.type, (newType) => {
     if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
         activeType.value = newType;
         search.value = '';
+        currentPage.value = 1;
     }
 });
-
-// Đồng bộ search với URL (không cần watch search nữa vì đã lọc client-side)
-// Chỉ cần watch khi muốn reset khi đổi tab
 </script>
 
 <template>
@@ -134,8 +173,15 @@ watch(() => props.type, (newType) => {
     <AdminLayout>
         <div class="p-4 md:p-8">
             <!-- Header -->
-            <div class="mb-6">
+            <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý khách hàng</h1>
+                <button 
+                    @click="exportExcel" 
+                    class="bg-orange-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-700 transition-colors"
+                >
+                    <span class="material-symbols-outlined text-lg">download</span>
+                    Xuất Excel
+                </button>
             </div>
 
             <!-- Tab loại khách hàng -->
@@ -171,39 +217,39 @@ watch(() => props.type, (newType) => {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50">
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">KHÁCH HÀNG</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">SĐT</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">ĐƠN HÀNG</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">TỔNG CHI</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold">LẦN CUỐI</th>
-                                <th class="text-center py-3 px-4 text-gray-600 font-semibold">THAO TÁC</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">KHÁCH HÀNG</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">SĐT</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">ĐƠN HÀNG</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TỔNG CHI</th>
+                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">LẦN CUỐI</th>
+                                <th class="text-center py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="cust in filteredCustomers" :key="cust.phone" class="border-b border-gray-200 hover:bg-orange-50 transition-colors">
+                            <tr v-for="cust in paginatedCustomers" :key="cust.phone" class="border-b border-gray-200 hover:bg-orange-50 transition-colors">
                                 <td class="py-3 px-4">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
+                                        <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm flex-shrink-0">
                                             {{ cust.name ? cust.name.charAt(0).toUpperCase() : '?' }}
                                         </div>
                                         <span class="font-medium text-gray-800">{{ cust.name || 'Khách hàng' }}</span>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600">{{ cust.phone || '---' }}</td>
-                                <td class="py-3 px-4 text-gray-600">{{ cust.orders_count || 0 }}</td>
-                                <td class="py-3 px-4 font-semibold text-orange-600">{{ formatPrice(cust.total_spent) }}</td>
-                                <td class="py-3 px-4 text-gray-600">{{ formatDate(cust.last_order_date) }}</td>
-                                <td class="py-3 px-4 text-center">
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ cust.phone || '---' }}</td>
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ cust.orders_count || 0 }}</td>
+                                <td class="py-3 px-4 font-semibold text-orange-600 whitespace-nowrap">{{ formatPrice(cust.total_spent) }}</td>
+                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ formatDate(cust.last_order_date) }}</td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
                                     <button 
                                         @click="viewDetail(cust)" 
-                                        class="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
+                                        class="px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium"
                                         title="Xem chi tiết"
                                     >
                                         Xem chi tiết
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="filteredCustomers.length === 0">
+                            <tr v-if="paginatedCustomers.length === 0">
                                 <td colspan="6" class="text-center py-8 text-gray-500">
                                     {{ search ? 'Không tìm thấy khách hàng nào' : 'Không có khách hàng nào' }}
                                 </td>
@@ -212,17 +258,43 @@ watch(() => props.type, (newType) => {
                     </table>
                 </div>
                 
-                <!-- Footer -->
-                <div class="p-3 border-t border-gray-200 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">
-                        {{ search ? `Tìm thấy ${filteredCustomers.length} khách hàng` : `Hiển thị ${filteredCustomers.length} khách hàng` }}
-                    </span>
-                    <button 
-                        @click="exportExcel" 
-                        class="bg-orange-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-orange-700 transition-colors"
-                    >
-                        Xuất Excel
-                    </button>
+                <!-- Footer với phân trang căn giữa -->
+                <div class="p-4 border-t border-gray-200">
+                    <!-- Thông tin số lượng -->
+                    <div class="text-center text-sm text-gray-500 mb-3">
+                        Hiển thị {{ paginatedCustomers.length }} / {{ filteredCustomers.length }} khách hàng
+                    </div>
+                    
+                    <!-- Phân trang căn giữa -->
+                    <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
+                        <button
+                            @click="currentPage--"
+                            :disabled="currentPage === 1"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ◄
+                        </button>
+                        
+                        <div class="flex gap-1">
+                            <button
+                                v-for="page in displayedPages"
+                                :key="page"
+                                @click="currentPage = page"
+                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+                        
+                        <button
+                            @click="currentPage++"
+                            :disabled="currentPage === totalPages"
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            ►
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -256,7 +328,7 @@ watch(() => props.type, (newType) => {
                 <div v-else-if="selectedCustomer" class="space-y-4">
                     <!-- Avatar & tên -->
                     <div class="flex items-center gap-4 pb-4 border-b">
-                        <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-600">
+                        <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-600 flex-shrink-0">
                             {{ selectedCustomer.name ? selectedCustomer.name.charAt(0).toUpperCase() : '?' }}
                         </div>
                         <div>

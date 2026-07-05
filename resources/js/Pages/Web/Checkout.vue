@@ -179,7 +179,7 @@
                   </div>
                 </div>
               </label>
-              <label 
+              <!-- <label 
                 class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
                 :class="paymentMethod === 'ewallet' 
                   ? 'border-2 border-primary bg-amber-50 shadow-sm' 
@@ -222,7 +222,7 @@
                     </div>
                   </div>
                 </div>
-              </label>
+              </label> -->
             </div>
           </div>
         </section>

@@ -42,7 +42,7 @@ class PaymentController extends Controller
                     'price'       => $price,
                     'quantity'    => $quantity,
                     'total'       => $total,
-                    'image'       => $variant->product->image ?? '/images/default-product.jpg',
+                    'image'       => $variant->product->image_url[0] ?? '/images/default-product.jpg',
                     'color'       => $variant->color->name ?? 'Đen',
                     'size'        => $variant->size_name ?? 'M',
                 ];
