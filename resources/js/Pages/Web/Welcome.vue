@@ -3,39 +3,52 @@
     <Head title="Trang chủ - BigBag Premium Utility Carry Gear" />
     <AppHeader />
 
-    <!-- Hero Carousel -->
-    <section class="relative group overflow-hidden">
+    <!-- Hero Carousel - Hiển thị banner từ database -->
+    <section v-if="banners.length" class="relative group overflow-hidden">
+      <div class="overflow-x-auto snap-x snap-mandatory flex hide-scrollbar" id="hero-carousel">
+        <div 
+          v-for="(banner, index) in banners" 
+          :key="banner.id" 
+          class="flex-none w-full snap-center relative"
+        >
+          <div class="h-[585px] w-full relative overflow-hidden">
+            <a v-if="banner.link" :href="banner.link" target="_blank">
+              <img :src="banner.image" :alt="'Banner ' + (index + 1)" class="w-full h-full object-cover" />
+            </a>
+            <img v-else :src="banner.image" :alt="'Banner ' + (index + 1)" class="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Nút điều hướng -->
+      <button 
+        class="absolute left-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" 
+        id="prev-hero"
+      >
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button 
+        class="absolute right-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" 
+        id="next-hero"
+      >
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+
+      <!-- Indicators -->
+      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2" id="carousel-indicators"></div>
+    </section>
+
+    <!-- Fallback nếu không có banner (hiển thị ảnh mặc định) -->
+    <section v-else class="relative group overflow-hidden">
       <div class="overflow-x-auto snap-x snap-mandatory flex hide-scrollbar" id="hero-carousel">
         <div class="flex-none w-full snap-center relative">
           <div class="h-[585px] w-full relative overflow-hidden">
-            <img alt="Sale Banner 1" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxx0m6cgeB_wFfg7s6Gg9fUlG74LJAjQX52e76-kLKbboHcvdGuP8wLvolaZ2nn44uSU4mSzGcMnWRrxegCgrBQPS_CJCrqTw_lR9qipVD13hl9T_DV9Vwt4PmieoYHWvSuOgDjr4TLs2YpCS6eO_P1Ya4-_gUurI8xgCqtWZq3EvAe9WrB0_PXR8pDs-UdKo5u7vHbg-s3eYwYc1YpaZsyCDVrp1oAxlY5NkvxU8DCvx9sj5PwWBzawIL86tZy9He4cl9TZdngHc">
+            <img alt="Default Banner" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxx0m6cgeB_wFfg7s6Gg9fUlG74LJAjQX52e76-kLKbboHcvdGuP8wLvolaZ2nn44uSU4mSzGcMnWRrxegCgrBQPS_CJCrqTw_lR9qipVD13hl9T_DV9Vwt4PmieoYHWvSuOgDjr4TLs2YpCS6eO_P1Ya4-_gUurI8xgCqtWZq3EvAe9WrB0_PXR8pDs-UdKo5u7vHbg-s3eYwYc1YpaZsyCDVrp1oAxlY5NkvxU8DCvx9sj5PwWBzawIL86tZy9He4cl9TZdngHc">
           </div>
         </div>
         <div class="flex-none w-full snap-center relative">
           <div class="h-[585px] w-full relative overflow-hidden">
-            <img alt="Sale Banner 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c">
-          </div>
-        </div>
-        <div class="flex-none w-full snap-center relative">
-          <div class="h-[585px] w-full bg-gray-50 flex items-center">
-            <div class="max-w-[1440px] mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div class="z-10">
-                <div class="inline-flex items-center px-4 py-2 bg-amber-50 rounded-full text-primary mb-6">
-                  <span class="material-symbols-outlined text-[18px] mr-2" style="font-variation-settings: 'FILL' 1;">eco</span>
-                  <span class="font-label-sm text-xs uppercase tracking-wider text-primary">BỀN BỈ & THÂN THIỆN MÔI TRƯỜNG</span>
-                </div>
-                <h1 class="font-display-lg text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">Tự Do <span class='text-primary italic'>Khám Phá</span>,<br>Trải Nghiệm Đỉnh Cao</h1>
-                <p class="text-gray-600 text-lg mb-10 max-w-lg">Đồng hành cùng bạn trên mọi nẻo đường. BigBag mang đến bộ sưu tập Balo dã ngoại cao cấp, tối ưu cho mọi chuyến đi.</p>
-                <div class="flex flex-wrap gap-4">
-                  <Link :href="route('category', { slug: 'sale' })" class="bg-primary text-white px-8 py-4 rounded-xl font-semibold hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20">
-                    Săn Ngay Deal Mới
-                  </Link>
-                </div>
-              </div>
-              <div class="relative">
-                <img alt="Adventure" class="rounded-xl shadow-2xl h-[450px] w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2oIX2ZXuMRF61KyS0HPGQ4C1jpXMcV244LQH5GGO8TuK6Wg_bXXEqchbz9CShLLk4HDYcJP5IUTiqVvFBtnI-IyrZPGtlmb663en8YlXThpEIWlBcMnF3fl4RpfRjFiesjVp2C5MNplsVssGWIw0A5bVIirI3zrVH0chvYxvqS9H7XzCPs3wmS8um8qoctJiWPWOPnxNkv86moCcvFY5htC21WfmAqMrgHrW19sO51qVt3MsgjyXq7DJCMC7XvmMxqQalDsfYru8">
-              </div>
-            </div>
+            <img alt="Default Banner 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c">
           </div>
         </div>
       </div>
@@ -198,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
@@ -206,6 +219,7 @@ import Chatbot from '@/Components/Chatbot.vue'
 
 // Nhận dữ liệu từ HomeController
 const props = defineProps({
+  banners: { type: Array, default: () => [] },
   hotSales: { type: Array, default: () => [] },
   trending: { type: Array, default: () => [] },
   newProducts: { type: Array, default: () => [] },
@@ -213,6 +227,7 @@ const props = defineProps({
 })
 
 // Gán dữ liệu vào ref
+const banners = ref(props.banners)
 const hotSales = ref(props.hotSales)
 const trending = ref(props.trending)
 const newProducts = ref(props.newProducts)
@@ -248,16 +263,21 @@ const startCountdown = () => {
   }, 1000)
 }
 
-onMounted(() => {
-  startCountdown()
+// Carousel logic với dynamic banners
+let carouselInitialized = false
+
+const initCarousel = () => {
   const carouselEl = document.getElementById('hero-carousel')
+  if (!carouselEl || carouselInitialized) return
+  carouselInitialized = true
+
   const prevBtn = document.getElementById('prev-hero')
   const nextBtn = document.getElementById('next-hero')
   const indicatorsContainer = document.getElementById('carousel-indicators')
-  if (!carouselEl) return
 
+  // Nếu không có banner, lấy số slide từ DOM
   const totalSlides = carouselEl.children.length
-  let currentIndex = 2
+  let currentIndex = 0
 
   function renderIndicators() {
     if (!indicatorsContainer) return
@@ -312,9 +332,26 @@ onMounted(() => {
   })
 
   renderIndicators()
-  window.addEventListener('resize', () => updateCarousel())
   updateCarousel()
   resetTimer()
+}
+
+// Khởi tạo carousel khi component mount
+onMounted(() => {
+  startCountdown()
+  nextTick(() => {
+    initCarousel()
+  })
+})
+
+// Nếu banners thay đổi, cập nhật carousel
+watch(() => props.banners, (newVal) => {
+  // Reset flag để khởi tạo lại
+  carouselInitialized = false
+  // Đợi DOM cập nhật
+  nextTick(() => {
+    initCarousel()
+  })
 })
 
 onUnmounted(() => {

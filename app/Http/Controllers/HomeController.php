@@ -4,12 +4,46 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\News;
+use App\Models\Banner;
 use Inertia\Inertia;
 
 class HomeController extends Controller
 {
     public function index()
     {
+        // Lấy banner active, sắp xếp theo thứ tự
+        $banners = Banner::where('status', 1)
+            ->with('campaign')
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($banner) {
+                return [
+                    'id' => $banner->id,
+                    'image' => $banner->image,
+                    'link' => $banner->link,
+                    'campaign' => $banner->campaign?->name,
+                ];
+            });
+
+        // Nếu không có banner, dùng mặc định
+        if ($banners->isEmpty()) {
+            $banners = collect([
+                [
+                    'id' => 1,
+                    'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxx0m6cgeB_wFfg7s6Gg9fUlG74LJAjQX52e76-kLKbboHcvdGuP8wLvolaZ2nn44uSU4mSzGcMnWRrxegCgrBQPS_CJCrqTw_lR9qipVD13hl9T_DV9Vwt4PmieoYHWvSuOgDjr4TLs2YpCS6eO_P1Ya4-_gUurI8xgCqtWZq3EvAe9WrB0_PXR8pDs-UdKo5u7vHbg-s3eYwYc1YpaZsyCDVrp1oAxlY5NkvxU8DCvx9sj5PwWBzawIL86tZy9He4cl9TZdngHc',
+                    'link' => null,
+                    'campaign' => null,
+                ],
+                [
+                    'id' => 2,
+                    'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c',
+                    'link' => null,
+                    'campaign' => null,
+                ],
+            ]);
+        }
+
+        // Lấy sản phẩm hot sale
         $hotSales = Product::where('is_featured', 1)
             ->with(['variants' => function($q) {
                 $q->select('product_id', 'price');
@@ -32,6 +66,7 @@ class HomeController extends Controller
                 ];
             });
 
+        // Lấy sản phẩm trending
         $trending = Product::where('is_preorder', 0)
             ->with(['variants' => function($q) {
                 $q->select('product_id', 'price');
@@ -50,6 +85,7 @@ class HomeController extends Controller
                 ];
             });
 
+        // Lấy sản phẩm mới
         $newProducts = Product::where('is_preorder', 0)
             ->with(['variants' => function($q) {
                 $q->select('product_id', 'price');
@@ -67,7 +103,7 @@ class HomeController extends Controller
                 ];
             });
 
-        // Lấy tin tức (giữ nguyên là Collection)
+        // Lấy tin tức
         $news = News::orderBy('created_at', 'desc')->take(3)->get()->map(function($item) {
             return [
                 'id' => $item->id,
@@ -79,7 +115,6 @@ class HomeController extends Controller
             ];
         });
 
-        // Nếu không có tin tức, dùng dữ liệu mẫu (dưới dạng Collection)
         if ($news->isEmpty()) {
             $news = collect([
                 [
@@ -93,8 +128,8 @@ class HomeController extends Controller
             ]);
         }
 
-        // Chuyển thành array để truyền vào Inertia
         return Inertia::render('Web/Welcome', [
+            'banners' => $banners,
             'hotSales' => $hotSales,
             'trending' => $trending,
             'newProducts' => $newProducts,
