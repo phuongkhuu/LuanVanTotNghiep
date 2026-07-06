@@ -553,25 +553,63 @@ watch(() => props.initialProducts, (val) => {
             
             <!-- Filters -->
             <div class="flex flex-wrap gap-3 mb-4">
-                <div class="w-full sm:w-auto">
-                    <select v-model="selectedCategory" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                <div class="w-full sm:w-auto relative">
+                    <select 
+                        v-model="selectedCategory" 
+                        class="border rounded-lg px-3 py-2 text-sm bg-white w-48 appearance-none pr-8"
+                        style="min-width: 160px;"
+                    >
                         <option :value="null">Tất cả danh mục</option>
-                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                        <option v-for="cat in categories" :key="cat.id" :value="cat.id" 
+                            :title="cat.name"
+                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;"
+                        >
+                            {{ cat.name }}
+                        </option>
                     </select>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">▼</span>
                 </div>
-                <div class="w-full sm:w-auto">
-                    <select v-model="selectedBrand" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                
+                <div class="w-full sm:w-auto relative">
+                    <select 
+                        v-model="selectedBrand" 
+                        class="border rounded-lg px-3 py-2 text-sm bg-white w-48 appearance-none pr-8"
+                        style="min-width: 160px;"
+                    >
                         <option :value="null">Tất cả thương hiệu</option>
-                        <option v-for="brand in brands" :key="brand.id" :value="brand.id">{{ brand.name }}</option>
+                        <option v-for="brand in brands" :key="brand.id" :value="brand.id"
+                            :title="brand.name"
+                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;"
+                        >
+                            {{ brand.name }}
+                        </option>
                     </select>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">▼</span>
                 </div>
-                <div class="w-full sm:w-auto">
-                    <select v-model="selectedColor" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                
+                <div class="w-full sm:w-auto relative">
+                    <select 
+                        v-model="selectedColor" 
+                        class="border rounded-lg px-3 py-2 text-sm bg-white w-48 appearance-none pr-8"
+                        style="min-width: 160px;"
+                    >
                         <option :value="null">Tất cả màu sắc</option>
-                        <option v-for="color in colors" :key="color.id" :value="color.id">{{ color.name }}</option>
+                        <option v-for="color in colors" :key="color.id" :value="color.id"
+                            :title="color.name"
+                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;"
+                        >
+                            {{ color.name }}
+                        </option>
                     </select>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">▼</span>
                 </div>
-                <button @click="selectedCategory=null; selectedBrand=null; selectedColor=null; search=''" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1">Xóa lọc</button>
+                
+                <button 
+                    @click="selectedCategory=null; selectedBrand=null; selectedColor=null; search=''" 
+                    class="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+                >
+                    Xóa lọc
+                </button>
             </div>
 
             <!-- Products Table -->

@@ -334,32 +334,44 @@ const exportFilteredOrders = () => {
             </div>
 
             <!-- Thanh tìm kiếm -->
-            <div class="mb-4">
-                <div class="relative max-w-md">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                    <input
-                        v-model="search"
-                        type="text"
-                        placeholder="Tìm theo mã đơn, tên hoặc SĐT người đặt/nhận..."
-                        class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
-                    >
-                </div>
-            </div>
+<div class="mb-4">
+    <div class="relative max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+        <input
+            v-model="search"
+            type="text"
+            placeholder="Tìm theo mã đơn, tên hoặc SĐT người đặt/nhận..."
+            class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
+        >
+    </div>
+</div>
 
-            <!-- Bộ lọc trạng thái -->
-            <div class="flex flex-wrap justify-between gap-4 mb-4">
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="status in statusFilters"
-                        :key="status"
-                        @click="statusFilter = status"
-                        class="px-3 py-1 text-xs rounded-full transition-all"
-                        :class="statusFilter === status ? 'bg-orange-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'"
-                    >
-                        {{ status === 'all' ? 'Tất cả' : getStatusLabel(status, activeType) }}
-                    </button>
-                </div>
-            </div>
+<!-- Bộ lọc trạng thái -->
+<div class="flex flex-wrap gap-3 mb-4">
+    <div class="w-full sm:w-auto">
+        <select 
+            v-model="statusFilter" 
+            class="border rounded-lg px-3 py-2 text-sm bg-white"
+            style="width: auto; min-width: 160px; max-width: 220px;"
+        >
+            <option value="all">Tất cả trạng thái</option>
+            <option 
+                v-for="status in statusOptions[activeType]" 
+                :key="status.value" 
+                :value="status.value"
+                style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+            >
+                {{ status.label }}
+            </option>
+        </select>
+    </div>
+    <button 
+        @click="statusFilter = 'all'; search = ''" 
+        class="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+    >
+        Xóa lọc
+    </button>
+</div>
 
             <!-- Danh sách đơn hàng -->
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
