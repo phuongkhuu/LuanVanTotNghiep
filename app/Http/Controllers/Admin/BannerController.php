@@ -4,197 +4,281 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Banner;
-use App\Models\Campaign;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class BannerController extends Controller
 {
     public function index()
     {
         return Inertia::render('Admin/Banners', [
-            'banners' => Banner::with('campaign')->orderBy('order', 'asc')->get(),
-            'campaigns' => Campaign::all()
+            'banners' => Banner::orderBy('order', 'asc')->get()
         ]);
     }
 
     public function getBanners()
     {
-        return response()->json(Banner::with('campaign')->orderBy('order', 'asc')->get());
+        return response()->json(Banner::orderBy('order', 'asc')->get());
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'campaign_id' => 'required|exists:campaigns,id',
-            'image' => 'nullable|url',
-            'image_file' => 'nullable|image|max:2048',
-            'link' => 'nullable|string|max:255',
-            'status' => 'boolean',
-            'order' => 'nullable|integer|min:0'
-        ]);
+        try {
+            Log::info('Banner store request:', $request->all());
 
-        $data = $request->only(['campaign_id', 'link', 'status']);
-        
-        // Xử lý ảnh
-        if ($request->filled('image')) {
-            $data['image'] = $request->image;
+            $rules = [
+                'title' => 'nullable|string|max:255',
+                'campaign_id' => 'nullable|exists:campaigns,id',
+                'image' => 'nullable|url',
+                'link' => 'nullable|string|max:255',
+                'description' => 'nullable|string',
+                'status' => 'boolean',
+                'order' => 'nullable|integer|min:0'
+            ];
+
+            if ($request->hasFile('image_file')) {
+                $rules['image_file'] = 'image|max:2048';
+            }
+
+            $validated = $request->validate($rules);
+
+            $data = [
+                'title' => $validated['title'] ?? 'Banner ' . now()->format('d/m/Y'),
+                'campaign_id' => $validated['campaign_id'] ?? null,
+                'link' => $validated['link'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'status' => $validated['status'] ?? true,
+            ];
+            
+            // Xử lý ảnh
+            if ($request->hasFile('image_file')) {
+                try {
+                    $path = $request->file('image_file')->store('banners', 'public');
+                    $data['image'] = '/storage/' . $path;
+                } catch (\Exception $e) {
+                    Log::error('Lỗi upload ảnh: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lỗi upload ảnh: ' . $e->getMessage()
+                    ], 500);
+                }
+            } elseif ($request->filled('image')) {
+                $data['image'] = $request->image;
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn ảnh hoặc nhập URL'
+                ], 422);
+            }
+
+            // Xác định order mới
+            $totalBanners = Banner::count();
+            $newOrder = $request->input('order', $totalBanners);
+            
+            if ($newOrder < 0) $newOrder = 0;
+            if ($newOrder > $totalBanners) $newOrder = $totalBanners;
+
+            if ($newOrder < $totalBanners) {
+                Banner::where('order', '>=', $newOrder)->increment('order');
+            }
+
+            $data['order'] = $newOrder;
+            $banner = Banner::create($data);
+
+            Log::info('Banner created successfully:', ['id' => $banner->id]);
+
+            return response()->json([
+                'success' => true, 
+                'data' => $banner->load('campaign')
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error:', $e->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Lỗi tạo banner: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
         }
-        if ($request->hasFile('image_file')) {
-            $path = $request->file('image_file')->store('banners', 'public');
-            $data['image'] = '/storage/' . $path;
-        }
-
-        // Xác định order mới
-        $newOrder = $request->input('order');
-        $totalBanners = Banner::count();
-
-        // Nếu không có order, thêm vào cuối
-        if (is_null($newOrder) || $newOrder > $totalBanners) {
-            $newOrder = $totalBanners;
-        }
-
-        // Nếu order < 0 thì set về 0
-        if ($newOrder < 0) {
-            $newOrder = 0;
-        }
-
-        // Dịch chuyển các banner có order >= newOrder lên 1
-        Banner::where('order', '>=', $newOrder)->increment('order');
-
-        // Tạo banner mới với order đã chọn
-        $data['order'] = $newOrder;
-        $banner = Banner::create($data);
-
-        return response()->json(['success' => true, 'data' => $banner->load('campaign')]);
     }
 
     public function update(Request $request, $id)
     {
-        $banner = Banner::findOrFail($id);
-        
-        $request->validate([
-            'campaign_id' => 'required|exists:campaigns,id',
-            'image' => 'nullable|url',
-            'image_file' => 'nullable|image|max:2048',
-            'link' => 'nullable|string|max:255',
-            'status' => 'boolean',
-            'order' => 'nullable|integer|min:0'
-        ]);
+        try {
+            Log::info('Banner update request:', ['id' => $id, 'data' => $request->all()]);
 
-        $data = $request->only(['campaign_id', 'link', 'status']);
-        
-        // Xử lý ảnh
-        if ($request->filled('image')) {
-            $data['image'] = $request->image;
+            $banner = Banner::findOrFail($id);
+            
+            $rules = [
+                'title' => 'nullable|string|max:255',
+                'campaign_id' => 'nullable|exists:campaigns,id',
+                'image' => 'nullable|url',
+                'link' => 'nullable|string|max:255',
+                'description' => 'nullable|string',
+                'status' => 'boolean',
+                'order' => 'nullable|integer|min:0'
+            ];
+
+            if ($request->hasFile('image_file')) {
+                $rules['image_file'] = 'image|max:2048';
+            }
+
+            $validated = $request->validate($rules);
+
+            $data = [
+                'title' => $validated['title'] ?? $banner->title,
+                'campaign_id' => $validated['campaign_id'] ?? $banner->campaign_id,
+                'link' => $validated['link'] ?? $banner->link,
+                'description' => $validated['description'] ?? $banner->description,
+                'status' => $validated['status'] ?? $banner->status,
+            ];
+            
+            // Xử lý ảnh
+            if ($request->hasFile('image_file')) {
+                try {
+                    if ($banner->image && Storage::disk('public')->exists(str_replace('/storage/', '', $banner->image))) {
+                        Storage::disk('public')->delete(str_replace('/storage/', '', $banner->image));
+                    }
+                    
+                    $path = $request->file('image_file')->store('banners', 'public');
+                    $data['image'] = '/storage/' . $path;
+                } catch (\Exception $e) {
+                    Log::error('Lỗi upload ảnh: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lỗi upload ảnh: ' . $e->getMessage()
+                    ], 500);
+                }
+            } elseif ($request->filled('image')) {
+                $data['image'] = $request->image;
+            }
+
+            // Xử lý thay đổi order
+            $newOrder = $request->input('order');
+            if (!is_null($newOrder) && $newOrder != $banner->order) {
+                $oldOrder = $banner->order;
+                $totalBanners = Banner::count();
+
+                if ($newOrder < 0) $newOrder = 0;
+                if ($newOrder >= $totalBanners) $newOrder = $totalBanners - 1;
+
+                if ($oldOrder < $newOrder) {
+                    Banner::where('id', '!=', $id)
+                        ->where('order', '>', $oldOrder)
+                        ->where('order', '<=', $newOrder)
+                        ->decrement('order');
+                } else {
+                    Banner::where('id', '!=', $id)
+                        ->where('order', '>=', $newOrder)
+                        ->where('order', '<', $oldOrder)
+                        ->increment('order');
+                }
+
+                $data['order'] = $newOrder;
+            }
+
+            $banner->update($data);
+
+            Log::info('Banner updated successfully:', ['id' => $banner->id]);
+
+            return response()->json([
+                'success' => true, 
+                'data' => $banner->load('campaign')
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error:', $e->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Lỗi cập nhật banner: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
         }
-        if ($request->hasFile('image_file')) {
-            // Xóa ảnh cũ
+    }
+    public function destroy($id)
+    {
+        try {
+            $banner = Banner::findOrFail($id);
+            
             if ($banner->image && Storage::disk('public')->exists(str_replace('/storage/', '', $banner->image))) {
                 Storage::disk('public')->delete(str_replace('/storage/', '', $banner->image));
             }
-            $path = $request->file('image_file')->store('banners', 'public');
-            $data['image'] = '/storage/' . $path;
+            
+            $deletedOrder = $banner->order;
+            $banner->delete();
+
+            Banner::where('order', '>', $deletedOrder)->decrement('order');
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi xóa banner: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        // Xử lý thay đổi order (nếu có)
-        $newOrder = $request->input('order');
-        if (!is_null($newOrder) && $newOrder != $banner->order) {
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $banner = Banner::findOrFail($id);
+            $request->validate(['status' => 'required|boolean']);
+            $banner->update(['status' => $request->status]);
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateOrder(Request $request, $id)
+    {
+        try {
+            $banner = Banner::findOrFail($id);
+            $request->validate(['order' => 'required|integer|min:0']);
+
+            $newOrder = $request->order;
             $oldOrder = $banner->order;
-            $totalBanners = Banner::count() - 1; // không tính banner hiện tại
 
-            // Giới hạn order trong khoảng hợp lệ
+            if ($oldOrder == $newOrder) {
+                return response()->json(['success' => true]);
+            }
+
+            $totalBanners = Banner::count();
             if ($newOrder < 0) $newOrder = 0;
-            if ($newOrder > $totalBanners) $newOrder = $totalBanners;
+            if ($newOrder >= $totalBanners) $newOrder = $totalBanners - 1;
 
-            // Dịch chuyển các banner khác
             if ($oldOrder < $newOrder) {
-                // Di chuyển xuống: các banner có order > oldOrder và <= newOrder giảm 1
                 Banner::where('id', '!=', $id)
                     ->where('order', '>', $oldOrder)
                     ->where('order', '<=', $newOrder)
                     ->decrement('order');
             } else {
-                // Di chuyển lên: các banner có order >= newOrder và < oldOrder tăng 1
                 Banner::where('id', '!=', $id)
                     ->where('order', '>=', $newOrder)
                     ->where('order', '<', $oldOrder)
                     ->increment('order');
             }
 
-            $data['order'] = $newOrder;
-        }
+            $banner->update(['order' => $newOrder]);
 
-        $banner->update($data);
-
-        return response()->json(['success' => true, 'data' => $banner->load('campaign')]);
-    }
-
-    public function destroy($id)
-    {
-        $banner = Banner::findOrFail($id);
-        
-        // Xóa ảnh
-        if ($banner->image && Storage::disk('public')->exists(str_replace('/storage/', '', $banner->image))) {
-            Storage::disk('public')->delete(str_replace('/storage/', '', $banner->image));
-        }
-        
-        // Lưu order để dịch chuyển các banner sau
-        $deletedOrder = $banner->order;
-        $banner->delete();
-
-        // Dịch chuyển các banner có order > deletedOrder giảm 1
-        Banner::where('order', '>', $deletedOrder)->decrement('order');
-
-        return response()->json(['success' => true]);
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $banner = Banner::findOrFail($id);
-        $request->validate(['status' => 'required|boolean']);
-        $banner->update(['status' => $request->status]);
-        return response()->json(['success' => true]);
-    }
-
-    public function updateOrder(Request $request, $id)
-    {
-        $banner = Banner::findOrFail($id);
-        
-        $request->validate([
-            'order' => 'required|integer|min:0'
-        ]);
-
-        $newOrder = $request->order;
-        $oldOrder = $banner->order;
-
-        // Không thay đổi
-        if ($oldOrder == $newOrder) {
             return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-
-        $totalBanners = Banner::count() - 1;
-        if ($newOrder < 0) $newOrder = 0;
-        if ($newOrder > $totalBanners) $newOrder = $totalBanners;
-
-        // Dịch chuyển
-        if ($oldOrder < $newOrder) {
-            // Di chuyển xuống: các banner có order > oldOrder và <= newOrder giảm 1
-            Banner::where('id', '!=', $id)
-                ->where('order', '>', $oldOrder)
-                ->where('order', '<=', $newOrder)
-                ->decrement('order');
-        } else {
-            // Di chuyển lên: các banner có order >= newOrder và < oldOrder tăng 1
-            Banner::where('id', '!=', $id)
-                ->where('order', '>=', $newOrder)
-                ->where('order', '<', $oldOrder)
-                ->increment('order');
-        }
-
-        $banner->update(['order' => $newOrder]);
-
-        return response()->json(['success' => true]);
     }
 }

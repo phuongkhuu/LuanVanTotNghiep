@@ -10,8 +10,15 @@ return new class extends Migration
     {
         Schema::create('campaigns', function (Blueprint $table) {
             $table->id();
-            $table->dateTime('start_time');
-            $table->dateTime('end_time');
+            $table->string('name')->nullable();
+            $table->string('type')->default('seasonal');
+            $table->text('description')->nullable();
+            $table->timestamp('start_time')->nullable();
+            $table->timestamp('end_time')->nullable();
+            $table->string('status')->default('scheduled');
+            $table->foreignId('banner_id')->nullable()->constrained('banners')->onDelete('set null');
+            $table->integer('priority')->default(0);
+            $table->boolean('featured')->default(false);
             $table->timestamps();
         });
     }

@@ -10,10 +10,12 @@ return new class extends Migration
     {
         Schema::create('banners', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('campaign_id')->nullable()->constrained()->onDelete('set null');
-            $table->string('image');
+            $table->string('title')->nullable();
+            $table->string('image')->nullable();
             $table->string('link')->nullable();
-            $table->tinyInteger('status')->default(1);
+            $table->text('description')->nullable();
+            $table->boolean('status')->default(true);
+            $table->integer('order')->default(0); // Đã có cột order ở đây
             $table->timestamps();
         });
     }

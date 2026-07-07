@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,13 +8,22 @@ class Banner extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['campaign_id', 'image', 'link', 'status', 'order'];
+    protected $fillable = [
+        'title', 
+        'image', 
+        'link', 
+        'description',
+        'status', 
+        'order',
+        'campaign_id' // Thêm campaign_id
+    ];
 
     protected $casts = [
-        'status' => 'integer',
+        'status' => 'boolean',
         'order' => 'integer',
     ];
 
+    // Quan hệ với Campaign
     public function campaign()
     {
         return $this->belongsTo(Campaign::class);

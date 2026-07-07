@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('campaign_products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_variant_id')->constrained()->onDelete('cascade');
             $table->foreignId('campaign_id')->constrained()->onDelete('cascade');
+            $table->foreignId('product_variant_id')->constrained('product_variants')->onDelete('cascade');
             $table->timestamps();
         });
     }

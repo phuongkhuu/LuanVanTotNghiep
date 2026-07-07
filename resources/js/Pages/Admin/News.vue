@@ -22,7 +22,7 @@ const search = ref('')
 const currentPage = ref(1)
 const perPage = ref(5)
 
-const newsList = ref(props.news)
+const newsList = ref(props.news || [])
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEdit = ref(false)
@@ -31,6 +31,7 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 const fileError = ref('')
+const uploadSuccess = ref(false)
 
 // Chọn phương thức nhập ảnh: 'url' hoặc 'file'
 const imageInputMode = ref('url')
@@ -147,23 +148,43 @@ const fetchNews = async () => {
 
 const openCreateModal = () => {
     isEdit.value = false
-    form.value = { id: null, product_variant_id: '', author_id: '', title: '', slug: '', thumbnail: '', content: '', status: 1 }
+    form.value = { 
+        id: null, 
+        product_variant_id: '', 
+        author_id: '', 
+        title: '', 
+        slug: '', 
+        thumbnail: '', 
+        content: '', 
+        status: 1 
+    }
     selectedFile.value = null
     imagePreviewUrl.value = ''
     imageInputMode.value = 'url'
     errorMessage.value = ''
     fileError.value = ''
+    uploadSuccess.value = false
     showModal.value = true
 }
 
 const openEditModal = (news) => {
     isEdit.value = true
-    form.value = { ...news }
+    form.value = { 
+        id: news.id,
+        product_variant_id: news.product_variant_id || '', 
+        author_id: news.author_id || '', 
+        title: news.title || '', 
+        slug: news.slug || '', 
+        thumbnail: news.thumbnail || '', 
+        content: news.content || '', 
+        status: news.status !== undefined ? news.status : 1
+    }
     selectedFile.value = null
     imagePreviewUrl.value = ''
     imageInputMode.value = 'url'
     errorMessage.value = ''
     fileError.value = ''
+    uploadSuccess.value = false
     showModal.value = true
 }
 
@@ -171,19 +192,29 @@ const openEditModal = (news) => {
 const handleFileChange = (event) => {
     const file = event.target.files[0]
     fileError.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, ...)'
+    if (!file) {
         return
     }
+    // Kiểm tra định dạng file
+    if (!file.type.startsWith('image/')) {
+        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, webp)'
+        event.target.value = ''
+        return
+    }
+    // Kiểm tra kích thước (2MB)
     if (file.size > 2 * 1024 * 1024) {
         fileError.value = 'Kích thước ảnh không quá 2MB'
+        event.target.value = ''
         return
     }
     selectedFile.value = file
+    // Tạo preview
     const reader = new FileReader()
-    reader.onload = (e) => { imagePreviewUrl.value = e.target.result }
+    reader.onload = (e) => { 
+        imagePreviewUrl.value = e.target.result 
+    }
     reader.readAsDataURL(file)
+    // Xóa URL cũ nếu có
     form.value.thumbnail = ''
 }
 
@@ -198,6 +229,7 @@ const clearFile = () => {
 }
 
 const saveNews = async () => {
+    // Validate
     if (!form.value.title.trim()) {
         errorMessage.value = 'Vui lòng nhập tiêu đề'
         return
@@ -219,11 +251,15 @@ const saveNews = async () => {
     if (isSaving.value) return
     isSaving.value = true
     errorMessage.value = ''
+    uploadSuccess.value = false
 
     try {
         let response
+        
         if (isEdit.value) {
+            // Cập nhật tin tức
             if (selectedFile.value) {
+                // Có file mới -> upload
                 const formData = new FormData()
                 formData.append('_method', 'PUT')
                 formData.append('title', form.value.title)
@@ -233,10 +269,15 @@ const saveNews = async () => {
                 formData.append('author_id', form.value.author_id || '')
                 formData.append('status', form.value.status || 1)
                 formData.append('thumbnail_file', selectedFile.value)
+                
                 response = await axios.post(`/admin/news/${form.value.id}`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+                    headers: { 
+                        'Content-Type': 'multipart/form-data',
+                        'Accept': 'application/json'
+                    }
                 })
             } else {
+                // Không có file mới
                 const dataToSave = {
                     title: form.value.title,
                     slug: form.value.slug,
@@ -246,21 +287,30 @@ const saveNews = async () => {
                     status: form.value.status || 1,
                     thumbnail: form.value.thumbnail || null
                 }
-                response = await axios.put(`/admin/news/${form.value.id}`, dataToSave)
+                response = await axios.put(`/admin/news/${form.value.id}`, dataToSave, {
+                    headers: { 'Accept': 'application/json' }
+                })
             }
+            
             if (response.data && response.data.success) {
+                // Cập nhật danh sách
                 const index = newsList.value.findIndex(n => n.id === form.value.id)
                 if (index !== -1 && response.data.data) {
                     newsList.value[index] = response.data.data
+                } else {
+                    await fetchNews()
                 }
+                uploadSuccess.value = true
+                alert('Cập nhật tin tức thành công!')
                 showModal.value = false
-                form.value = { id: null, product_variant_id: '', author_id: '', title: '', slug: '', thumbnail: '', content: '', status: 1 }
                 clearFile()
             } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra khi cập nhật'
             }
         } else {
+            // Thêm mới tin tức
             if (selectedFile.value) {
+                // Upload file
                 const formData = new FormData()
                 formData.append('title', form.value.title)
                 formData.append('slug', form.value.slug)
@@ -269,10 +319,15 @@ const saveNews = async () => {
                 formData.append('author_id', form.value.author_id || '')
                 formData.append('status', form.value.status || 1)
                 formData.append('thumbnail_file', selectedFile.value)
+                
                 response = await axios.post('/admin/news', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+                    headers: { 
+                        'Content-Type': 'multipart/form-data',
+                        'Accept': 'application/json'
+                    }
                 })
             } else {
+                // Dùng URL
                 const dataToSave = {
                     title: form.value.title,
                     slug: form.value.slug,
@@ -282,20 +337,28 @@ const saveNews = async () => {
                     status: form.value.status || 1,
                     thumbnail: form.value.thumbnail || null
                 }
-                response = await axios.post('/admin/news', dataToSave)
+                response = await axios.post('/admin/news', dataToSave, {
+                    headers: { 'Accept': 'application/json' }
+                })
             }
-            if (response.data && response.data.data) {
+            
+            if (response.data && response.data.success && response.data.data) {
                 newsList.value.unshift(response.data.data)
+                uploadSuccess.value = true
+                alert('Thêm tin tức thành công!')
                 showModal.value = false
-                form.value = { id: null, product_variant_id: '', author_id: '', title: '', slug: '', thumbnail: '', content: '', status: 1 }
                 clearFile()
             } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
+                errorMessage.value = response.data?.message || 'Có lỗi xảy ra khi thêm mới'
             }
         }
     } catch (error) {
         console.error('Lỗi lưu tin tức:', error)
-        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra'
+        if (error.response) {
+            errorMessage.value = error.response.data?.message || 'Có lỗi xảy ra'
+        } else {
+            errorMessage.value = 'Không thể kết nối đến server'
+        }
     } finally {
         isSaving.value = false
     }
@@ -313,7 +376,9 @@ const deleteNews = async () => {
     isSaving.value = true
     errorMessage.value = ''
     try {
-        const response = await axios.delete(`/admin/news/${selectedNews.value.id}`)
+        const response = await axios.delete(`/admin/news/${selectedNews.value.id}`, {
+            headers: { 'Accept': 'application/json' }
+        })
         if (response.data && response.data.success) {
             showDeleteModal.value = false
             const index = newsList.value.findIndex(n => n.id === selectedNews.value.id)
@@ -321,6 +386,7 @@ const deleteNews = async () => {
                 newsList.value.splice(index, 1)
             }
             selectedNews.value = null
+            alert('Xóa tin tức thành công!')
         } else {
             errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
@@ -335,7 +401,11 @@ const deleteNews = async () => {
 const toggleStatus = async (news) => {
     try {
         const newStatus = news.status === 1 ? 0 : 1
-        const response = await axios.patch(`/admin/news/${news.id}/status`, { status: newStatus })
+        const response = await axios.patch(`/admin/news/${news.id}/status`, { 
+            status: newStatus 
+        }, {
+            headers: { 'Accept': 'application/json' }
+        })
         if (response.data && response.data.success) {
             news.status = newStatus
         } else {
@@ -355,6 +425,7 @@ const closeModal = () => {
     errorMessage.value = ''
     fileError.value = ''
     isSaving.value = false
+    uploadSuccess.value = false
     clearFile()
 }
 
@@ -397,7 +468,7 @@ onMounted(() => {
             </div>
 
             <div v-if="isLoading && newsList.length === 0" class="text-center py-8">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-orange-500 border-t-transparent"></div>
                 <p class="mt-2 text-gray-500">Đang tải...</p>
             </div>
 
@@ -420,7 +491,7 @@ onMounted(() => {
                             <tr v-for="(news, index) in paginatedNews" :key="news.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
                                 <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
                                 <td class="p-4">
-                                    <img v-if="news.thumbnail" :src="news.thumbnail" class="h-12 w-16 object-cover rounded" :alt="news.title">
+                                    <img v-if="news.thumbnail" :src="news.thumbnail" class="h-12 w-16 object-cover rounded" :alt="news.title" @error="news.thumbnail = null">
                                     <span v-else class="text-gray-400">---</span>
                                 </td>
                                 <td class="p-4 font-medium text-gray-700 max-w-xs truncate">{{ news.title }}</td>
@@ -448,12 +519,10 @@ onMounted(() => {
 
                 <!-- Footer với phân trang căn giữa -->
                 <div class="p-4 border-t border-gray-200">
-                    <!-- Thông tin số lượng -->
                     <div class="text-center text-sm text-gray-500 mb-3">
                         Hiển thị {{ paginatedNews.length }} / {{ sortedNews.length }} tin tức
                     </div>
                     
-                    <!-- Phân trang căn giữa -->
                     <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
                         <button
                             @click="currentPage--"
@@ -490,17 +559,21 @@ onMounted(() => {
         <!-- Modal Thêm/Sửa -->
         <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="handleOverlayClick">
             <div class="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-                <h3 class="text-xl font-bold mb-4">{{ isEdit ? 'Sửa tin tức' : 'Thêm tin tức mới' }}</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">{{ isEdit ? 'Sửa tin tức' : 'Thêm tin tức mới' }}</h3>
+                    <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">✕</button>
+                </div>
+
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
-                        <input v-model="form.title" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" placeholder="Nhập tiêu đề" :disabled="isSaving">
+                        <input v-model="form.title" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" placeholder="Nhập tiêu đề" :disabled="isSaving">
                         <p class="text-xs text-gray-400 mt-1">Slug tự động sinh từ tiêu đề</p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Slug (để trống để tự tạo)</label>
-                        <input v-model="form.slug" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" placeholder="tu-khoa-slug" :disabled="isSaving">
+                        <input v-model="form.slug" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" placeholder="tu-khoa-slug" :disabled="isSaving">
                     </div>
 
                     <div>
@@ -510,13 +583,13 @@ onMounted(() => {
                             <button type="button" @click="imageInputMode = 'file'" :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">📁 Tải ảnh lên</button>
                         </div>
                         <div v-if="imageInputMode === 'url'">
-                            <input v-model="form.thumbnail" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" placeholder="https://example.com/thumbnail.jpg" :disabled="isSaving">
+                            <input v-model="form.thumbnail" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" placeholder="https://example.com/thumbnail.jpg" :disabled="isSaving">
                         </div>
                         <div v-else>
                             <input id="fileInput" type="file" accept="image/*" @change="handleFileChange" class="w-full" :disabled="isSaving">
                             <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
-                            <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1 hover:underline" type="button">Xóa file đã chọn</button>
-                            <p class="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG, GIF. Kích thước tối đa 2MB</p>
+                            <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1 hover:underline" type="button">✕ Xóa file đã chọn</button>
+                            <p class="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG, GIF, WEBP. Kích thước tối đa 2MB</p>
                         </div>
                         <div v-if="imagePreview" class="mt-2">
                             <p class="text-sm text-gray-600 mb-1">Xem trước:</p>
@@ -528,7 +601,7 @@ onMounted(() => {
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Sản phẩm liên quan</label>
-                        <select v-model="form.product_variant_id" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" :disabled="isSaving">
+                        <select v-model="form.product_variant_id" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving">
                             <option value="">-- Không chọn --</option>
                             <option v-for="variant in productVariants" :key="variant.id" :value="variant.id">{{ variant.name }}</option>
                         </select>
@@ -536,7 +609,7 @@ onMounted(() => {
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                        <select v-model="form.status" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none" :disabled="isSaving">
+                        <select v-model="form.status" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving">
                             <option :value="1">Xuất bản</option>
                             <option :value="0">Nháp</option>
                         </select>
@@ -544,17 +617,22 @@ onMounted(() => {
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung *</label>
-                        <textarea v-model="form.content" rows="8" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary focus:border-primary outline-none resize-none" placeholder="Nội dung bài viết..." :disabled="isSaving"></textarea>
+                        <textarea v-model="form.content" rows="8" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none resize-none" placeholder="Nội dung bài viết..." :disabled="isSaving"></textarea>
                         <p class="text-xs text-gray-400 mt-1">Hỗ trợ HTML</p>
                     </div>
 
                     <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
+                    
+                    <div v-if="uploadSuccess" class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p class="text-sm text-green-600">✅ Lưu thành công!</p>
+                    </div>
                 </div>
+
                 <div class="flex justify-end gap-3 mt-6">
                     <button @click="closeModal" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition" :disabled="isSaving">Hủy</button>
-                    <button @click="saveNews" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition flex items-center gap-2" :disabled="isSaving || !!fileError">
+                    <button @click="saveNews" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center gap-2" :disabled="isSaving || !!fileError">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xử lý...' : 'Lưu' }}
                     </button>

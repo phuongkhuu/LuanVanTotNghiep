@@ -9,22 +9,24 @@ class BannerSeeder extends Seeder
 {
     public function run()
     {
-        $firstCampaignId = DB::table('campaigns')->value('id');
-
         DB::table('banners')->insert([
             [
-                'campaign_id' => $firstCampaignId,
+                'title' => 'Summer Sale',
                 'image' => 'https://example.com/banners/summer-sale.jpg',
                 'link' => '/khuyen-mai',
-                'status' => 1,
+                'description' => 'Chương trình khuyến mãi mùa hè',
+                'status' => true,
+                'order' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'campaign_id' => $firstCampaignId,
+                'title' => 'Preorder',
                 'image' => 'https://example.com/banners/preorder.jpg',
                 'link' => '/san-pham?preorder=true',
-                'status' => 1,
+                'description' => 'Chương trình đặt trước',
+                'status' => true,
+                'order' => 2,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
