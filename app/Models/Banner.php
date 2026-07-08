@@ -15,7 +15,7 @@ class Banner extends Model
         'description',
         'status', 
         'order',
-        'campaign_id' // Thêm campaign_id
+        'campaign_id'
     ];
 
     protected $casts = [

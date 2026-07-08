@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('link')->nullable();
             $table->text('description')->nullable();
             $table->boolean('status')->default(true);
-            $table->integer('order')->default(0); // Đã có cột order ở đây
+            $table->integer('order')->default(0);
             $table->timestamps();
         });
     }

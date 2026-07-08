@@ -22,8 +22,8 @@ return new class extends Migration
         $table->boolean('active')->default(true);
         $table->text('description')->nullable();
         $table->foreignId('product_id')->nullable()->constrained()->nullOnDelete();
-        $table->string('banner')->nullable(); // THÊM
-        $table->foreignId('banner_id')->nullable()->constrained('banners')->nullOnDelete(); // THÊM
+        $table->string('banner')->nullable(); 
+        $table->foreignId('banner_id')->nullable()->constrained('banners')->nullOnDelete();
         $table->json('tiers')->nullable();
         $table->integer('current_buyers')->default(0);
         $table->date('start_date')->nullable();
