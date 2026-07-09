@@ -523,7 +523,7 @@ onMounted(() => {
                                 </td>
                                 <td class="p-4">
                                     <button @click="toggleStatus(banner)" class="px-2 py-1 text-xs rounded-full transition whitespace-nowrap" :class="banner.status === 1 ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
-                                        {{ banner.status === 1 ? 'Hoạt động' : 'Tạm dừng' }}
+                                        {{ banner.status === true ? 'Hoạt động' : 'Tạm dừng' }}
                                     </button>
                                 </td>
                                 <td class="p-4">
@@ -650,8 +650,8 @@ onMounted(() => {
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
                         <select v-model="form.status" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving">
-                            <option :value="1">Hoạt động</option>
-                            <option :value="0">Tạm dừng</option>
+                            <option :value="true">Hoạt động</option>
+                            <option :value="false">Tạm dừng</option>
                         </select>
                     </div>
 

@@ -120,7 +120,7 @@ class BannerController extends Controller
             $rules = [
                 'title' => 'nullable|string|max:255',
                 'campaign_id' => 'nullable|exists:campaigns,id',
-                'image' => 'nullable|url',
+                'image' => 'nullable|string',
                 'link' => 'nullable|string|max:255',
                 'description' => 'nullable|string',
                 'status' => 'boolean',

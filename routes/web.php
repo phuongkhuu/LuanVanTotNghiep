@@ -197,7 +197,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::put('/campaign/{id}/status', [PromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
         Route::get('/campaigns/list', [PromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
         
-        // Thêm vào group promotion routes
         Route::put('/preorder/{id}/toggle', [PromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
 
         // Voucher routes
