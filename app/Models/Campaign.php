@@ -1,5 +1,4 @@
 <?php
-// app/Models/Campaign.php
 
 namespace App\Models;
 
@@ -13,18 +12,34 @@ class Campaign extends Model
     protected $fillable = [
         'name',
         'type',
+        'code',
+        'target_type',
+        'discount_type',
+        'discount_value',
+        'min_order',
+        'limit',
+        'used',
+        'expiry',
         'description',
         'start_time',
         'end_time',
         'status',
+        'banner',
         'priority',
-        'featured'
+        'featured',
+        'product_id',
+        'tiers',
+        'current_buyers',
     ];
 
     protected $casts = [
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'featured' => 'boolean',
+        'tiers' => 'array',
+        'discount_value' => 'decimal:0',
+        'min_order' => 'decimal:0',
+        'expiry' => 'date',
     ];
 
     public function productVariants()
@@ -42,7 +57,10 @@ class Campaign extends Model
         return $this->hasMany(Order::class);
     }
 
-    // ĐÃ XÓA quan hệ với Banner
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function getNameAttribute()
     {

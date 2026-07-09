@@ -188,22 +188,30 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::patch('/banners/{id}/order', [BannerController::class, 'updateOrder'])->name('banners.order');
 
     // Promotion routes
-    Route::get('/promotions/campaigns/list', [PromotionController::class, 'getCampaignsList'])->name('admin.promotions.campaigns.list');
+    Route::prefix('promotions')->group(function () {
+        // Campaign routes
+        Route::get('/', [PromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/campaign', [PromotionController::class, 'storeCampaign'])->name('promotions.campaign.store');
+        Route::put('/campaign/{id}', [PromotionController::class, 'updateCampaign'])->name('promotions.campaign.update');
+        Route::delete('/campaign/{id}', [PromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
+        Route::put('/campaign/{id}/status', [PromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
+        Route::get('/campaigns/list', [PromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
+        
+        // Thêm vào group promotion routes
+        Route::put('/preorder/{id}/toggle', [PromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
 
-    Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
-    Route::post('/promotions/campaign', [PromotionController::class, 'storeCampaign'])->name('promotions.campaign.store');
-    Route::put('/promotions/campaign/{id}', [PromotionController::class, 'updateCampaign'])->name('promotions.campaign.update');
-    Route::delete('/promotions/campaign/{id}', [PromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
-    Route::put('/promotions/campaign/{id}/status', [PromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
+        // Voucher routes
+        Route::post('/voucher', [PromotionController::class, 'storeVoucher'])->name('promotions.voucher.store');
+        Route::put('/voucher/{id}', [PromotionController::class, 'updateVoucher'])->name('promotions.voucher.update');
+        Route::delete('/voucher/{id}', [PromotionController::class, 'deleteVoucher'])->name('promotions.voucher.delete');
+        Route::put('/voucher/{id}/toggle', [PromotionController::class, 'toggleVoucher'])->name('promotions.voucher.toggle');
 
-    Route::post('/promotions/voucher', [PromotionController::class, 'storePromotion'])->name('promotions.voucher.store');
-    Route::put('/promotions/voucher/{id}', [PromotionController::class, 'updatePromotion'])->name('promotions.voucher.update');
-    Route::delete('/promotions/voucher/{id}', [PromotionController::class, 'deletePromotion'])->name('promotions.voucher.delete');
-    Route::put('/promotions/voucher/{id}/toggle', [PromotionController::class, 'togglePromotion'])->name('promotions.voucher.toggle');
+        // Pre-order routes
+        Route::post('/preorder', [PromotionController::class, 'storePreorder'])->name('promotions.preorder.store');
+        Route::put('/preorder/{id}', [PromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
+        Route::delete('/preorder/{id}', [PromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
+    });
 
-    Route::post('/promotions/preorder', [PromotionController::class, 'storePreorder'])->name('promotions.preorder.store');
-    Route::put('/promotions/preorder/{id}', [PromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
-    Route::delete('/promotions/preorder/{id}', [PromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
 
     // Reports
     Route::get('/reports', function () {

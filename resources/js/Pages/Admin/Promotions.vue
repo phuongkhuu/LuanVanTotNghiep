@@ -9,7 +9,11 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-    promotions: {
+    vouchers: {
+        type: Array,
+        default: () => []
+    },
+    preorders: {
         type: Array,
         default: () => []
     },
@@ -39,7 +43,8 @@ const successMessage = ref('');
 
 // State
 const campaigns = ref(props.campaigns || []);
-const promotions = ref(props.promotions || []);
+const vouchers = ref(props.vouchers || []);
+const preorders = ref(props.preorders || []);
 const banners = ref(props.banners || []);
 const products = ref(props.products || []);
 const productVariants = ref(props.productVariants || []);
@@ -168,7 +173,7 @@ const getTargetTypeLabel = (type) => {
 
 const getProductName = (productId) => {
     if (!productId) return 'Chưa chọn';
-    const product = products.value.find(p => p.id === productId);
+    const product = preorderProducts.value.find(p => p.id === productId);
     return product ? product.name : 'Sản phẩm không tồn tại';
 };
 
@@ -281,13 +286,11 @@ const saveCampaign = async () => {
         return;
     }
     
-    // FIX: Cho phép giảm giá = 0, chỉ báo lỗi khi < 0 hoặc > 100
     if (campaignForm.value.discountPercent < 0 || campaignForm.value.discountPercent > 100) {
         errorMessage.value = 'Giảm giá phải từ 0% đến 100%';
         return;
     }
     
-    // FIX: Kiểm tra ngày kết thúc >= ngày bắt đầu
     if (campaignForm.value.startDate && campaignForm.value.endDate) {
         if (new Date(campaignForm.value.endDate) < new Date(campaignForm.value.startDate)) {
             errorMessage.value = 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu';
@@ -393,7 +396,7 @@ const openVoucherModal = (voucher = null) => {
             min_order: voucher.min_order || 0,
             limit: voucher.limit || 100,
             expiry: voucher.expiry || '',
-            active: voucher.active !== undefined ? voucher.active : true,
+            active: voucher.status === 'active',
             description: voucher.description || '',
             campaign_id: voucher.campaign_id || null
         };
@@ -445,7 +448,7 @@ const saveVoucher = async () => {
 };
 
 const deleteVoucher = async (id) => {
-    const voucher = promotions.value.find(p => p.id === id);
+    const voucher = vouchers.value.find(p => p.id === id);
     if (!confirm(`Bạn có chắc chắn muốn xóa mã "${voucher?.code}"?`)) {
         return;
     }
@@ -478,7 +481,7 @@ const openPreorderModal = (preorder = null) => {
     if (preorder) {
         preorderForm.value = {
             id: preorder.id,
-            name: preorder.code || '',
+            name: preorder.name || '',
             product_id: preorder.product_id || null,
             tiers: preorder.tiers || [
                 { from: 1, to: 10, discount: 20 },
@@ -487,7 +490,7 @@ const openPreorderModal = (preorder = null) => {
             ],
             start_date: preorder.start_date || '',
             end_date: preorder.end_date || '',
-            active: preorder.active !== undefined ? preorder.active : true,
+            active: preorder.status === 'active',
             min_order: preorder.min_order || 0,
             campaign_id: preorder.campaign_id || null
         };
@@ -547,8 +550,8 @@ const savePreorder = async () => {
 };
 
 const deletePreorder = async (id) => {
-    const preorder = promotions.value.find(p => p.id === id);
-    if (!confirm(`Bạn có chắc chắn muốn xóa chương trình "${preorder?.code}"?`)) {
+    const preorder = preorders.value.find(p => p.id === id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa chương trình "${preorder?.name}"?`)) {
         return;
     }
     
@@ -558,6 +561,16 @@ const deletePreorder = async (id) => {
     } catch (error) {
         console.error('Lỗi:', error);
         alert('Có lỗi xảy ra khi xóa');
+    }
+};
+
+const togglePreorder = async (preorder) => {
+    try {
+        await router.put(`/admin/promotions/preorder/${preorder.id}/toggle`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra');
     }
 };
 
@@ -661,8 +674,9 @@ const campaignCounts = computed(() => {
     return counts;
 });
 
+// Vouchers
 const filteredVouchers = computed(() => {
-    let filtered = (promotions.value || []).filter(p => p.type === 'voucher');
+    let filtered = vouchers.value || [];
     
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
@@ -675,18 +689,37 @@ const filteredVouchers = computed(() => {
     return filtered;
 });
 
+const voucherCounts = computed(() => {
+    const vouchersData = vouchers.value || [];
+    return {
+        all: vouchersData.length,
+        active: vouchersData.filter(v => v.status === 'active').length,
+        inactive: vouchersData.filter(v => v.status !== 'active').length
+    };
+});
+
+// Pre-orders
 const filteredPreorders = computed(() => {
-    let filtered = (promotions.value || []).filter(p => p.type === 'preorder_tier');
+    let filtered = preorders.value || [];
     
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter(p => 
-            (p.code && p.code.toLowerCase().includes(query)) ||
+            (p.name && p.name.toLowerCase().includes(query)) ||
             (p.description && p.description.toLowerCase().includes(query))
         );
     }
     
     return filtered;
+});
+
+const preorderCounts = computed(() => {
+    const preordersData = preorders.value || [];
+    return {
+        all: preordersData.length,
+        active: preordersData.filter(p => p.status === 'active').length,
+        inactive: preordersData.filter(p => p.status !== 'active').length
+    };
 });
 
 onMounted(() => {
@@ -711,6 +744,7 @@ onMounted(() => {
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Quản lý khuyến mãi</h1>
+                    <p class="text-sm text-gray-500 mt-1">Quản lý chiến dịch, mã giảm giá và pre-order</p>
                 </div>
                 <div class="flex gap-2 flex-wrap">
                     <button @click="openCampaignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-colors text-sm">
@@ -757,7 +791,7 @@ onMounted(() => {
                     :class="activeTab === 'vouchers' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'"
                 >
                     🎫 Mã giảm giá
-                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ promotions.filter(p => p.type === 'voucher').length }}</span>
+                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ vouchers.length }}</span>
                 </button>
                 <button 
                     @click="activeTab = 'preorder'" 
@@ -765,7 +799,7 @@ onMounted(() => {
                     :class="activeTab === 'preorder' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 hover:text-gray-700'"
                 >
                     ⏳ Pre-order
-                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ promotions.filter(p => p.type === 'preorder_tier').length }}</span>
+                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ preorders.length }}</span>
                 </button>
             </div>
 
@@ -785,16 +819,20 @@ onMounted(() => {
                 </button>
             </div>
 
-            <!-- ==================== CAMPAIGNS LIST (3 items per row) ==================== -->
+            <!-- ==================== CAMPAIGNS LIST ==================== -->
             <div v-if="activeTab === 'campaigns'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="campaign in filteredCampaigns" :key="campaign.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
-                    
+                    <div class="relative h-36 bg-gradient-to-r from-blue-50 to-blue-100">
+                        <div class="w-full h-full flex items-center justify-center text-blue-300">
+                            <span class="material-symbols-outlined text-5xl">campaign</span>
+                        </div>
                         
-                    <div class="absolute top-2 right-2 flex gap-1 flex-wrap">
+                        <div class="absolute top-2 right-2 flex gap-1 flex-wrap">
                             <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="getStatusClass(campaign.status)">
                                 {{ getStatusLabel(campaign.status) }}
                             </span>
                             <span v-if="campaign.featured" class="text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">⭐</span>
+                        </div>
                     </div>
 
                     <div class="p-3">
@@ -855,60 +893,71 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- ==================== VOUCHERS LIST (3 items per row) ==================== -->
+            <!-- ==================== VOUCHERS LIST ==================== -->
             <div v-if="activeTab === 'vouchers'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div v-for="voucher in filteredVouchers" :key="voucher.id" class="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all">
-                    <div class="flex justify-between items-start">
-                        <div class="min-w-0 flex-1">
-                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="voucher.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-                                {{ voucher.active ? 'Đang hoạt động' : 'Đã tắt' }}
+                <div v-for="voucher in filteredVouchers" :key="voucher.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
+                    <div class="relative h-28 bg-gradient-to-r from-orange-50 to-orange-100">
+                        <div class="w-full h-full flex items-center justify-center text-orange-300">
+                            <span class="material-symbols-outlined text-4xl">local_offer</span>
+                        </div>
+                        <div class="absolute top-2 right-2">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="voucher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                                {{ voucher.status === 'active' ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
                             </span>
-                            <h3 class="font-bold text-base text-gray-800 mt-1 truncate">{{ voucher.code }}</h3>
-                        </div>
-                        <div class="flex gap-0.5 flex-shrink-0 ml-1">
-                            <button @click="openVoucherModal(voucher)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors text-xs">✏️</button>
-                            <button @click="deleteVoucher(voucher.id)" class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors text-xs">🗑️</button>
                         </div>
                     </div>
 
-                    <p class="text-xs text-gray-500 mb-2 line-clamp-1">{{ voucher.description }}</p>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-bold text-base text-gray-800 truncate">{{ voucher.code }}</h3>
+                                <p class="text-[10px] text-gray-500">Loại: {{ getDiscountTypeLabel(voucher.discount_type) }}</p>
+                            </div>
+                            <div class="flex gap-0.5 ml-1 flex-shrink-0">
+                                <button @click="openVoucherModal(voucher)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Sửa">
+                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button @click="deleteVoucher(voucher.id)" class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Xóa">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>
 
-                    <div class="grid grid-cols-2 gap-1 text-xs">
-                        <span class="flex items-center gap-1 text-[10px]">
-                            <span class="text-gray-500">🎯</span>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100">{{ getTargetTypeLabel(voucher.target_type) }}</span>
-                        </span>
-                        <span class="flex items-center gap-1 text-[10px]">
-                            <span class="text-gray-500">💰</span>
-                            <span class="text-orange-600 font-semibold">{{ getDiscountTypeLabel(voucher.discount_type) }}</span>
-                        </span>
-                        <span class="flex items-center gap-1 text-[10px]">
-                            <span class="text-gray-500">📅</span>
+                        <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ voucher.description || 'Không có mô tả' }}</p>
+
+                        <div class="mt-2 grid grid-cols-2 gap-2">
+                            <div class="bg-orange-50 rounded-lg p-2 text-center">
+                                <p class="text-[10px] text-gray-500">Giá trị</p>
+                                <p class="text-sm font-bold text-orange-600">
+                                    {{ voucher.discount_type === 'percent' ? voucher.discount_value + '%' : formatPrice(voucher.discount_value) }}
+                                </p>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-2 text-center">
+                                <p class="text-[10px] text-gray-500">Đã dùng</p>
+                                <p class="text-sm font-bold text-blue-600">{{ voucher.used }}/{{ voucher.limit }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex items-center gap-1 text-[10px] text-gray-500">
+                            <span class="material-symbols-outlined text-xs">event</span>
                             <span>HSD: {{ formatDate(voucher.expiry) }}</span>
-                        </span>
-                        <span class="flex items-center gap-1 text-[10px]">
-                            <span class="text-gray-500">📊</span>
-                            <span>{{ voucher.used }}/{{ voucher.limit }}</span>
-                        </span>
-                    </div>
-
-                    <div class="mt-2 pt-2 border-t border-gray-100">
-                        <div class="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                            <div 
-                                class="h-full bg-orange-500 rounded-full transition-all"
-                                :style="{ width: Math.min((voucher.used / voucher.limit) * 100, 100) + '%' }"
-                            ></div>
                         </div>
-                    </div>
 
-                    <div class="mt-2 pt-1 flex justify-end">
-                        <button 
-                            @click="toggleVoucher(voucher)"
-                            :class="voucher.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
-                            class="text-[10px] px-3 py-1 rounded-full transition-colors"
-                        >
-                            {{ voucher.active ? '✅ Kích hoạt' : '⛔ Đã tắt' }}
-                        </button>
+                        <div class="mt-1 flex items-center gap-1 text-[10px] text-gray-500">
+                            <span class="material-symbols-outlined text-xs">target</span>
+                            <span>{{ getTargetTypeLabel(voucher.target_type) }}</span>
+                            <span v-if="voucher.min_order > 0" class="ml-1">- Đơn tối thiểu: {{ formatPrice(voucher.min_order) }}</span>
+                        </div>
+
+                        <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                            <button 
+                                @click="toggleVoucher(voucher)" 
+                                :class="voucher.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                class="text-[10px] px-3 py-1 rounded-full transition-colors"
+                            >
+                                {{ voucher.status === 'active' ? '✅ Kích hoạt' : '🔄 Kích hoạt' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -919,62 +968,76 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- ==================== PRE-ORDERS LIST (3 items per row) ==================== -->
+            <!-- ==================== PRE-ORDERS LIST ==================== -->
             <div v-if="activeTab === 'preorder'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div v-for="preorder in filteredPreorders" :key="preorder.id" class="bg-white rounded-xl p-4 border border-gray-200 hover:shadow-md transition-all">
-                    <div class="flex justify-between items-start">
-                        <div class="min-w-0 flex-1">
-                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="preorder.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-                                {{ preorder.active ? 'Đang hoạt động' : 'Đã tắt' }}
-                            </span>
-                            <h3 class="font-bold text-sm text-gray-800 mt-1 truncate">⏳ {{ preorder.code }}</h3>
-                            <p class="text-[10px] text-gray-500 truncate">Sản phẩm: {{ getProductName(preorder.product_id) }}</p>
+                <div v-for="preorder in filteredPreorders" :key="preorder.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
+                    <div class="relative h-28 bg-gradient-to-r from-purple-50 to-purple-100">
+                        <div class="w-full h-full flex items-center justify-center text-purple-300">
+                            <span class="material-symbols-outlined text-4xl">schedule</span>
                         </div>
-                        <div class="flex gap-0.5 flex-shrink-0 ml-1">
-                            <button @click="openPreorderModal(preorder)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors text-xs">✏️</button>
-                            <button @click="deletePreorder(preorder.id)" class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors text-xs">🗑️</button>
+                        <div class="absolute top-2 right-2">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="preorder.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                                {{ preorder.status === 'active' ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="mt-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-medium">Đã đặt: {{ preorder.current_buyers || 0 }} lượt</span>
-                            <span class="text-xs font-bold text-blue-600">
-                                {{ preorder.tiers?.find(t => (preorder.current_buyers || 0) >= t.from && (preorder.current_buyers || 0) <= t.to)?.discount || 0 }}%
-                            </span>
-                        </div>
-
-                        <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                                class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
-                                :style="{ width: Math.min(((preorder.current_buyers || 0) / (preorder.tiers?.[preorder.tiers.length - 1]?.to || 100)) * 100, 100) + '%' }"
-                            ></div>
-                        </div>
-
-                        <div class="mt-2 grid grid-cols-3 gap-1 text-[10px]">
-                            <div v-for="tier in preorder.tiers" :key="tier.from" 
-                                class="text-center p-1 bg-white rounded border"
-                                :class="(preorder.current_buyers || 0) >= tier.from && (preorder.current_buyers || 0) <= tier.to ? 'border-blue-500 bg-blue-50' : 'border-gray-200'"
-                            >
-                                <div class="font-bold">{{ tier.discount }}%</div>
-                                <div class="text-gray-500 text-[8px]">#{{ tier.from }}-{{ tier.to }}</div>
+                    <div class="p-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-bold text-sm text-gray-800 truncate">⏳ {{ preorder.code }}</h3>
+                                <p class="text-[10px] text-gray-500 truncate">Sản phẩm: {{ getProductName(preorder.product_id) }}</p>
+                            </div>
+                            <div class="flex gap-0.5 ml-1 flex-shrink-0">
+                                <button @click="openPreorderModal(preorder)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Sửa">
+                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button @click="deletePreorder(preorder.id)" class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Xóa">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="mt-2 flex justify-between items-center text-[10px] text-gray-500">
-                        <span>📅 {{ formatDate(preorder.start_date) }} - {{ formatDate(preorder.end_date) }}</span>
-                        <span v-if="preorder.min_order > 0">💰 {{ formatPrice(preorder.min_order) }}</span>
-                    </div>
+                        <div class="mt-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-2">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] font-medium">Đã đặt: {{ preorder.current_buyers || 0 }} lượt</span>
+                                <span class="text-xs font-bold text-blue-600">
+                                    {{ preorder.tiers?.find(t => (preorder.current_buyers || 0) >= t.from && (preorder.current_buyers || 0) <= t.to)?.discount || 0 }}%
+                                </span>
+                            </div>
 
-                    <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
-                        <button 
-                            @click="toggleVoucher(preorder)"
-                            :class="preorder.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
-                            class="text-[10px] px-3 py-1 rounded-full transition-colors"
-                        >
-                            {{ preorder.active ? '✅ Kích hoạt' : '⛔ Đã tắt' }}
-                        </button>
+                            <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
+                                    :style="{ width: Math.min(((preorder.current_buyers || 0) / (preorder.tiers?.[preorder.tiers.length - 1]?.to || 100)) * 100, 100) + '%' }"
+                                ></div>
+                            </div>
+
+                            <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
+                                <div v-for="tier in preorder.tiers" :key="tier.from" 
+                                    class="text-center p-1 bg-white rounded border"
+                                    :class="(preorder.current_buyers || 0) >= tier.from && (preorder.current_buyers || 0) <= tier.to ? 'border-blue-500 bg-blue-50' : 'border-gray-200'"
+                                >
+                                    <div class="font-bold">{{ tier.discount }}%</div>
+                                    <div class="text-gray-500 text-[8px]">#{{ tier.from }}-{{ tier.to }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex justify-between items-center text-[10px] text-gray-500">
+                            <span>📅 {{ formatDate(preorder.start_date) }} - {{ formatDate(preorder.end_date) }}</span>
+                            <span v-if="preorder.min_order > 0">💰 {{ formatPrice(preorder.min_order) }}</span>
+                        </div>
+
+                        <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                            <button 
+                                @click="toggleVoucher(preorder)"
+                                :class="preorder.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                class="text-[10px] px-3 py-1 rounded-full transition-colors"
+                            >
+                                {{ preorder.status === 'active' ? '✅ Kích hoạt' : '🔄 Kích hoạt' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1092,7 +1155,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <!-- ==================== SẢN PHẨM ÁP DỤNG ==================== -->
+                    <!-- Sản phẩm áp dụng -->
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng</label>
                         
@@ -1531,13 +1594,6 @@ onMounted(() => {
 .line-clamp-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Banner;
 use App\Models\Campaign;
 use App\Models\CampaignConfig;
-use App\Models\Promotion;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
@@ -19,8 +18,8 @@ class PromotionController extends Controller
     public function index()
     {
         try {
-            // Lấy campaigns
-            $campaigns = Campaign::with(['configs', 'productVariants', 'productVariants.product', 'productVariants.color'])
+            // Lấy tất cả campaigns - phân loại theo type
+            $allCampaigns = Campaign::with(['configs', 'productVariants', 'productVariants.product', 'productVariants.color', 'product'])
                 ->latest()
                 ->get()
                 ->map(function ($campaign) {
@@ -29,7 +28,16 @@ class PromotionController extends Controller
                     return [
                         'id' => $campaign->id,
                         'name' => $campaign->name ?? 'Chiến dịch #' . $campaign->id,
-                        'type' => $campaign->type ?? 'seasonal',
+                        'type' => $campaign->type ?? 'seasonal', // seasonal, voucher, preorder
+                        'campaign_type' => $campaign->campaign_type ?? 'campaign',
+                        'code' => $campaign->code,
+                        'target_type' => $campaign->target_type,
+                        'discount_type' => $campaign->discount_type,
+                        'discount_value' => $campaign->discount_value,
+                        'min_order' => $campaign->min_order,
+                        'limit' => $campaign->limit,
+                        'used' => $campaign->used ?? 0,
+                        'expiry' => $campaign->expiry,
                         'description' => $campaign->description ?? '',
                         'startDate' => $campaign->start_time ? $campaign->start_time->format('Y-m-d') : null,
                         'endDate' => $campaign->end_time ? $campaign->end_time->format('Y-m-d') : null,
@@ -40,39 +48,27 @@ class PromotionController extends Controller
                         'discountPercent' => $config ? (float) $config->discount_percent : 0,
                         'discount' => $config ? (float) $config->discount_percent . '%' : '0%',
                         'products' => $campaign->productVariants->pluck('id')->toArray(),
+                        'product_id' => $campaign->product_id,
+                        'tiers' => $campaign->tiers,
+                        'current_buyers' => $campaign->current_buyers ?? 0,
+                        'active' => $campaign->status === 'active',
+                        'start_date' => $campaign->start_time ? $campaign->start_time->format('Y-m-d') : null,
+                        'end_date' => $campaign->end_time ? $campaign->end_time->format('Y-m-d') : null,
                     ];
                 });
 
-            // Lấy tất cả promotions
-            $promotions = Promotion::with(['campaign', 'product'])
-                ->latest()
-                ->get()
-                ->map(function ($promotion) {
-                    return [
-                        'id' => $promotion->id,
-                        'code' => $promotion->code,
-                        'type' => $promotion->type,
-                        'target_type' => $promotion->target_type,
-                        'discount_type' => $promotion->discount_type,
-                        'discount_value' => $promotion->discount_value,
-                        'min_order' => $promotion->min_order,
-                        'limit' => $promotion->limit,
-                        'used' => $promotion->used ?? 0,
-                        'expiry' => $promotion->expiry,
-                        'active' => $promotion->active,
-                        'description' => $promotion->description,
-                        'campaign_id' => $promotion->campaign_id,
-                        'campaign' => $promotion->campaign ? [
-                            'id' => $promotion->campaign->id,
-                            'name' => $promotion->campaign->name,
-                        ] : null,
-                        'product_id' => $promotion->product_id,
-                        'tiers' => $promotion->tiers,
-                        'current_buyers' => $promotion->current_buyers ?? 0,
-                        'start_date' => $promotion->start_date,
-                        'end_date' => $promotion->end_date,
-                    ];
-                });
+            // Phân loại
+            $campaigns = $allCampaigns->filter(function($item) {
+                return $item['type'] === 'seasonal' || $item['type'] === 'campaign' || $item['type'] === 'flash_sale' || $item['type'] === 'anniversary' || $item['type'] === 'holiday' || $item['type'] === 'product_launch' || $item['type'] === 'other';
+            })->values();
+
+            $vouchers = $allCampaigns->filter(function($item) {
+                return $item['type'] === 'voucher';
+            })->values();
+
+            $preorders = $allCampaigns->filter(function($item) {
+                return $item['type'] === 'preorder';
+            })->values();
 
             // Lấy tất cả banners
             $banners = Banner::with('campaign')->orderBy('order', 'asc')->get()->map(function ($banner) {
@@ -92,53 +88,17 @@ class PromotionController extends Controller
                 ];
             });
 
-            // Lấy tất cả products
-            $products = Product::with(['variants.color', 'category', 'brand'])
-                ->latest()
-                ->get()
-                ->map(function ($product) {
-                    return [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'slug' => $product->slug,
-                        'is_preorder' => $product->is_preorder,
-                        'category' => $product->category ? [
-                            'id' => $product->category->id,
-                            'name' => $product->category->name,
-                        ] : null,
-                        'brand' => $product->brand ? [
-                            'id' => $product->brand->id,
-                            'name' => $product->brand->name,
-                        ] : null,
-                        'variants' => $product->variants->map(function ($variant) {
-                            return [
-                                'id' => $variant->id,
-                                'color' => $variant->color ? [
-                                    'id' => $variant->color->id,
-                                    'name' => $variant->color->name,
-                                ] : null,
-                                'price' => $variant->price ?? 0,
-                                'stock' => $variant->stock ?? 0,
-                                'size_name' => $variant->size_name ?? '',
-                            ];
-                        }),
-                    ];
-                });
-
             // Lấy product variants
             $productVariants = ProductVariant::with(['product', 'color'])
                 ->get()
                 ->map(function ($variant) {
-                    $productName = $variant->product ? $variant->product->name : 'Sản phẩm không xác định';
-                    $isPreorder = $variant->product ? $variant->product->is_preorder : false;
-                    
                     return [
                         'id' => $variant->id,
                         'name' => $variant->product ? $variant->product->name : 'Sản phẩm',
                         'product' => $variant->product ? [
                             'id' => $variant->product->id,
                             'name' => $variant->product->name,
-                            'is_preorder' => $isPreorder,
+                            'is_preorder' => $variant->product->is_preorder ?? false,
                         ] : null,
                         'color' => $variant->color ? [
                             'id' => $variant->color->id,
@@ -150,7 +110,7 @@ class PromotionController extends Controller
                     ];
                 });
 
-            // Lấy chỉ sản phẩm pre-order
+            // Lấy sản phẩm pre-order
             $preorderProducts = Product::where('is_preorder', true)
                 ->with(['variants.color'])
                 ->latest()
@@ -159,9 +119,6 @@ class PromotionController extends Controller
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
-                        'slug' => $product->slug,
-                        'image_url' => $product->image_url,
-                        'description' => $product->description,
                         'variants' => $product->variants->map(function ($variant) {
                             return [
                                 'id' => $variant->id,
@@ -170,7 +127,6 @@ class PromotionController extends Controller
                                     'name' => $variant->color->name,
                                 ] : null,
                                 'price' => $variant->price ?? 0,
-                                'stock' => $variant->stock ?? 0,
                                 'size_name' => $variant->size_name ?? '',
                             ];
                         }),
@@ -179,9 +135,10 @@ class PromotionController extends Controller
 
             return Inertia::render('Admin/Promotions', [
                 'campaigns' => $campaigns,
-                'promotions' => $promotions,
+                'vouchers' => $vouchers,
+                'preorders' => $preorders,
                 'banners' => $banners,
-                'products' => $products,
+                'products' => [],
                 'productVariants' => $productVariants,
                 'preorderProducts' => $preorderProducts,
             ]);
@@ -190,7 +147,8 @@ class PromotionController extends Controller
             Log::error('Lỗi load trang promotions: ' . $e->getMessage());
             return Inertia::render('Admin/Promotions', [
                 'campaigns' => [],
-                'promotions' => [],
+                'vouchers' => [],
+                'preorders' => [],
                 'banners' => [],
                 'products' => [],
                 'productVariants' => [],
@@ -199,6 +157,8 @@ class PromotionController extends Controller
             ]);
         }
     }
+
+    // ==================== CAMPAIGN METHODS ====================
 
     public function storeCampaign(Request $request)
     {
@@ -210,28 +170,38 @@ class PromotionController extends Controller
                 'type' => 'nullable|string|max:50',
                 'description' => 'nullable|string',
                 'startDate' => 'nullable|date',
-                'endDate' => 'nullable|date|after_or_equal:startDate', // FIX: Cho phép ngày trùng
+                'endDate' => 'nullable|date|after_or_equal:startDate',
                 'status' => 'nullable|in:scheduled,active,ended',
                 'priority' => 'nullable|integer|min:0',
                 'featured' => 'boolean',
                 'quantity' => 'nullable|integer|min:0',
-                'discountPercent' => 'nullable|numeric|min:0|max:100', // FIX: Cho phép 0
+                'discountPercent' => 'nullable|numeric|min:0|max:100',
                 'products' => 'nullable|array',
                 'products.*' => 'exists:product_variants,id',
             ]);
 
+            // Xác định status nếu không có
+            $status = $validated['status'] ?? 'scheduled';
+            if ($validated['startDate'] && $validated['startDate'] <= now()->format('Y-m-d')) {
+                if (!$validated['endDate'] || $validated['endDate'] >= now()->format('Y-m-d')) {
+                    $status = 'active';
+                } elseif ($validated['endDate'] < now()->format('Y-m-d')) {
+                    $status = 'ended';
+                }
+            }
+
             $campaign = Campaign::create([
                 'name' => $validated['name'] ?? 'Chiến dịch ' . now()->format('d/m/Y'),
                 'type' => $validated['type'] ?? 'seasonal',
+                'campaign_type' => 'campaign',
                 'description' => $validated['description'] ?? '',
                 'start_time' => $validated['startDate'] ?? null,
                 'end_time' => $validated['endDate'] ?? null,
-                'status' => $validated['status'] ?? 'scheduled',
+                'status' => $status,
                 'priority' => $validated['priority'] ?? 0,
                 'featured' => $validated['featured'] ?? false,
             ]);
 
-            // Tạo config
             if (isset($validated['quantity']) || isset($validated['discountPercent'])) {
                 CampaignConfig::create([
                     'campaign_id' => $campaign->id,
@@ -240,7 +210,6 @@ class PromotionController extends Controller
                 ]);
             }
 
-            // Gán sản phẩm
             if (!empty($validated['products']) && is_array($validated['products'])) {
                 $campaign->productVariants()->attach($validated['products']);
             }
@@ -274,15 +243,27 @@ class PromotionController extends Controller
                 'type' => 'nullable|string|max:50',
                 'description' => 'nullable|string',
                 'startDate' => 'nullable|date',
-                'endDate' => 'nullable|date|after_or_equal:startDate', // FIX: Cho phép ngày trùng
+                'endDate' => 'nullable|date|after_or_equal:startDate',
                 'status' => 'nullable|in:scheduled,active,ended',
                 'priority' => 'nullable|integer|min:0',
                 'featured' => 'boolean',
                 'quantity' => 'nullable|integer|min:0',
-                'discountPercent' => 'nullable|numeric|min:0|max:100', // FIX: Cho phép 0
+                'discountPercent' => 'nullable|numeric|min:0|max:100',
                 'products' => 'nullable|array',
                 'products.*' => 'exists:product_variants,id',
             ]);
+
+            // Xác định status nếu không có
+            $status = $validated['status'] ?? $campaign->status;
+            if ($validated['startDate'] ?? false) {
+                if ($validated['startDate'] <= now()->format('Y-m-d')) {
+                    if (!$validated['endDate'] || $validated['endDate'] >= now()->format('Y-m-d')) {
+                        $status = 'active';
+                    } elseif ($validated['endDate'] < now()->format('Y-m-d')) {
+                        $status = 'ended';
+                    }
+                }
+            }
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,
@@ -290,12 +271,11 @@ class PromotionController extends Controller
                 'description' => $validated['description'] ?? $campaign->description,
                 'start_time' => $validated['startDate'] ?? $campaign->start_time,
                 'end_time' => $validated['endDate'] ?? $campaign->end_time,
-                'status' => $validated['status'] ?? $campaign->status,
+                'status' => $status,
                 'priority' => $validated['priority'] ?? $campaign->priority,
                 'featured' => $validated['featured'] ?? $campaign->featured,
             ]);
 
-            // Cập nhật config
             if (isset($validated['quantity']) || isset($validated['discountPercent'])) {
                 $config = $campaign->configs()->first();
                 if ($config) {
@@ -312,7 +292,6 @@ class PromotionController extends Controller
                 }
             }
 
-            // Cập nhật sản phẩm
             if (isset($validated['products'])) {
                 $campaign->productVariants()->sync($validated['products']);
             }
@@ -341,7 +320,6 @@ class PromotionController extends Controller
             
             $campaign = Campaign::findOrFail($id);
             
-            // Giải phóng banner khỏi chiến dịch
             Banner::where('campaign_id', $campaign->id)->update(['campaign_id' => null]);
             
             $campaign->configs()->delete();
@@ -387,11 +365,14 @@ class PromotionController extends Controller
 
     // ==================== VOUCHER METHODS ====================
 
-    public function storePromotion(Request $request)
+    public function storeVoucher(Request $request)
     {
         try {
+            DB::beginTransaction();
+
             $validated = $request->validate([
-                'code' => 'required|string|max:50|unique:promotions,code',
+                'code' => 'required|string|max:50|unique:campaigns,code',
+                'name' => 'nullable|string|max:255',
                 'target_type' => 'required|in:retail,wholesale,preorder,all',
                 'discount_type' => 'required|in:fixed,percent,freeship',
                 'discount_value' => 'required|numeric|min:0',
@@ -403,9 +384,10 @@ class PromotionController extends Controller
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
 
-            $promotion = Promotion::create([
-                'code' => strtoupper($validated['code']),
+            $campaign = Campaign::create([
+                'name' => $validated['name'] ?? 'Voucher ' . $validated['code'],
                 'type' => 'voucher',
+                'code' => strtoupper($validated['code']),
                 'target_type' => $validated['target_type'],
                 'discount_type' => $validated['discount_type'],
                 'discount_value' => $validated['discount_value'],
@@ -413,10 +395,11 @@ class PromotionController extends Controller
                 'limit' => $validated['limit'] ?? 100,
                 'used' => 0,
                 'expiry' => $validated['expiry'] ?? null,
-                'active' => $validated['active'] ?? true,
+                'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'description' => $validated['description'] ?? "Giảm " . ($validated['discount_type'] === 'percent' ? $validated['discount_value'] . '%' : number_format($validated['discount_value']) . '₫'),
-                'campaign_id' => $validated['campaign_id'] ?? null,
             ]);
+
+            DB::commit();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -424,6 +407,7 @@ class PromotionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Lỗi tạo mã giảm giá: ' . $e->getMessage());
             return redirect()->back()->with([
                 'success' => false,
@@ -432,13 +416,16 @@ class PromotionController extends Controller
         }
     }
 
-    public function updatePromotion(Request $request, $id)
+    public function updateVoucher(Request $request, $id)
     {
         try {
-            $promotion = Promotion::findOrFail($id);
+            DB::beginTransaction();
+
+            $campaign = Campaign::findOrFail($id);
 
             $validated = $request->validate([
-                'code' => 'required|string|max:50|unique:promotions,code,' . $id,
+                'code' => 'required|string|max:50|unique:campaigns,code,' . $id,
+                'name' => 'nullable|string|max:255',
                 'target_type' => 'required|in:retail,wholesale,preorder,all',
                 'discount_type' => 'required|in:fixed,percent,freeship',
                 'discount_value' => 'required|numeric|min:0',
@@ -450,7 +437,8 @@ class PromotionController extends Controller
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
 
-            $promotion->update([
+            $campaign->update([
+                'name' => $validated['name'] ?? $campaign->name,
                 'code' => strtoupper($validated['code']),
                 'target_type' => $validated['target_type'],
                 'discount_type' => $validated['discount_type'],
@@ -458,10 +446,11 @@ class PromotionController extends Controller
                 'min_order' => $validated['min_order'] ?? 0,
                 'limit' => $validated['limit'] ?? 100,
                 'expiry' => $validated['expiry'] ?? null,
-                'active' => $validated['active'] ?? true,
+                'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'description' => $validated['description'] ?? "Giảm " . ($validated['discount_type'] === 'percent' ? $validated['discount_value'] . '%' : number_format($validated['discount_value']) . '₫'),
-                'campaign_id' => $validated['campaign_id'] ?? null,
             ]);
+
+            DB::commit();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -469,6 +458,7 @@ class PromotionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Lỗi cập nhật mã giảm giá: ' . $e->getMessage());
             return redirect()->back()->with([
                 'success' => false,
@@ -477,11 +467,11 @@ class PromotionController extends Controller
         }
     }
 
-    public function deletePromotion($id)
+    public function deleteVoucher($id)
     {
         try {
-            $promotion = Promotion::findOrFail($id);
-            $promotion->delete();
+            $campaign = Campaign::findOrFail($id);
+            $campaign->delete();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -497,11 +487,12 @@ class PromotionController extends Controller
         }
     }
 
-    public function togglePromotion($id)
+    public function toggleVoucher($id)
     {
         try {
-            $promotion = Promotion::findOrFail($id);
-            $promotion->update(['active' => !$promotion->active]);
+            $campaign = Campaign::findOrFail($id);
+            $newStatus = $campaign->status === 'active' ? 'scheduled' : 'active';
+            $campaign->update(['status' => $newStatus]);
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -521,6 +512,8 @@ class PromotionController extends Controller
     public function storePreorder(Request $request)
     {
         try {
+            DB::beginTransaction();
+
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'product_id' => 'required|exists:products,id',
@@ -529,27 +522,26 @@ class PromotionController extends Controller
                 'tiers.*.to' => 'required|integer|gt:tiers.*.from',
                 'tiers.*.discount' => 'required|integer|min:0|max:100',
                 'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date', // FIX: Cho phép ngày trùng
+                'end_date' => 'nullable|date|after_or_equal:start_date',
                 'active' => 'boolean',
                 'min_order' => 'nullable|numeric|min:0',
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
 
-            $promotion = Promotion::create([
-                'code' => strtoupper(str_replace(' ', '_', $validated['name'])),
-                'type' => 'preorder_tier',
-                'target_type' => 'preorder',
+            $campaign = Campaign::create([
+                'name' => $validated['name'],
+                'type' => 'preorder',
                 'product_id' => $validated['product_id'],
                 'tiers' => $validated['tiers'],
-                'start_date' => $validated['start_date'] ?? null,
-                'end_date' => $validated['end_date'] ?? null,
-                'active' => $validated['active'] ?? true,
+                'start_time' => $validated['start_date'] ?? null,
+                'end_time' => $validated['end_date'] ?? null,
+                'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'min_order' => $validated['min_order'] ?? 0,
-                'campaign_id' => $validated['campaign_id'] ?? null,
                 'current_buyers' => 0,
                 'description' => "Giảm giá theo số lượt đặt trước",
-                'discount_value' => 0,
             ]);
+
+            DB::commit();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -557,6 +549,7 @@ class PromotionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Lỗi tạo pre-order: ' . $e->getMessage());
             return redirect()->back()->with([
                 'success' => false,
@@ -568,7 +561,9 @@ class PromotionController extends Controller
     public function updatePreorder(Request $request, $id)
     {
         try {
-            $promotion = Promotion::findOrFail($id);
+            DB::beginTransaction();
+
+            $campaign = Campaign::findOrFail($id);
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -578,22 +573,23 @@ class PromotionController extends Controller
                 'tiers.*.to' => 'required|integer|gt:tiers.*.from',
                 'tiers.*.discount' => 'required|integer|min:0|max:100',
                 'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date', // FIX: Cho phép ngày trùng
+                'end_date' => 'nullable|date|after_or_equal:start_date',
                 'active' => 'boolean',
                 'min_order' => 'nullable|numeric|min:0',
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
 
-            $promotion->update([
-                'code' => strtoupper(str_replace(' ', '_', $validated['name'])),
+            $campaign->update([
+                'name' => $validated['name'],
                 'product_id' => $validated['product_id'],
                 'tiers' => $validated['tiers'],
-                'start_date' => $validated['start_date'] ?? null,
-                'end_date' => $validated['end_date'] ?? null,
-                'active' => $validated['active'] ?? true,
+                'start_time' => $validated['start_date'] ?? null,
+                'end_time' => $validated['end_date'] ?? null,
+                'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'min_order' => $validated['min_order'] ?? 0,
-                'campaign_id' => $validated['campaign_id'] ?? null,
             ]);
+
+            DB::commit();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -601,6 +597,7 @@ class PromotionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Lỗi cập nhật pre-order: ' . $e->getMessage());
             return redirect()->back()->with([
                 'success' => false,
@@ -612,8 +609,8 @@ class PromotionController extends Controller
     public function deletePreorder($id)
     {
         try {
-            $promotion = Promotion::findOrFail($id);
-            $promotion->delete();
+            $campaign = Campaign::findOrFail($id);
+            $campaign->delete();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -629,10 +626,37 @@ class PromotionController extends Controller
         }
     }
 
+    public function togglePreorder($id)
+    {
+        try {
+            $campaign = Campaign::findOrFail($id);
+            $newStatus = $campaign->status === 'active' ? 'scheduled' : 'active';
+            $campaign->update(['status' => $newStatus]);
+
+            return redirect()->route('admin.promotions.index')->with([
+                'success' => true,
+                'message' => 'Cập nhật trạng thái pre-order thành công!'
+            ]);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
     public function getCampaignsList()
     {
         try {
             $campaigns = Campaign::select('id', 'name', 'status', 'start_time', 'end_time')
+                ->where('type', 'seasonal')
+                ->orWhere('type', 'campaign')
+                ->orWhere('type', 'flash_sale')
+                ->orWhere('type', 'anniversary')
+                ->orWhere('type', 'holiday')
+                ->orWhere('type', 'product_launch')
+                ->orWhere('type', 'other')
                 ->orderBy('start_time', 'desc')
                 ->get()
                 ->map(function ($campaign) {
