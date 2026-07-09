@@ -167,7 +167,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::post('/send-quote', [AdminCustomizeController::class, 'sendQuote'])->name('customize.send-quote');
     });
 
-        // News Management
+       // News Management
     Route::prefix('news')->group(function () {
         Route::get('/', [NewsController::class, 'index'])->name('news.index');
         Route::get('/data', [NewsController::class, 'getNews'])->name('news.data');
@@ -181,11 +181,13 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     // Banner routes
     Route::get('/banners', [BannerController::class, 'index'])->name('banners.index');
     Route::get('/banners/data', [BannerController::class, 'getBanners'])->name('banners.data');
+    Route::get('/banners/campaigns', [BannerController::class, 'getCampaigns'])->name('banners.campaigns');
     Route::post('/banners', [BannerController::class, 'store'])->name('banners.store');
     Route::put('/banners/{id}', [BannerController::class, 'update'])->name('banners.update');
     Route::delete('/banners/{id}', [BannerController::class, 'destroy'])->name('banners.destroy');
     Route::patch('/banners/{id}/status', [BannerController::class, 'updateStatus'])->name('banners.status');
     Route::patch('/banners/{id}/order', [BannerController::class, 'updateOrder'])->name('banners.order');
+    Route::post('/banners/check-status', [BannerController::class, 'checkAndUpdateStatus'])->name('banners.check-status');
 
     // Promotion routes
     Route::prefix('promotions')->group(function () {

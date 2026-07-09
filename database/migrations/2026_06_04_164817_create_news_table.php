@@ -10,12 +10,14 @@ return new class extends Migration
     {
         Schema::create('news', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_variant_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('author_id')->constrained('users')->onDelete('restrict');
             $table->string('title');
             $table->string('slug')->unique();
             $table->string('thumbnail')->nullable();
             $table->longText('content');
+            $table->boolean('status')->default(1);
+            $table->string('author_name')->nullable();
+            $table->foreignId('campaign_id')->nullable()->constrained('campaigns')->onDelete('set null');
+            $table->foreignId('banner_id')->nullable()->constrained('banners')->onDelete('set null');
             $table->timestamps();
         });
     }

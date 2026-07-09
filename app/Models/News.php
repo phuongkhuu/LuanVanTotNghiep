@@ -10,16 +10,33 @@ class News extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_variant_id', 'author_id', 'title', 'slug', 'thumbnail', 'content'
+        'title',
+        'slug',
+        'thumbnail',
+        'content',
+        'status',
+        'author_name',
+        'campaign_id',
+        'banner_id',
     ];
 
-    public function productVariant()
+    protected $casts = [
+        'status' => 'boolean',
+    ];
+
+    public function campaign()
     {
-        return $this->belongsTo(ProductVariant::class);
+        return $this->belongsTo(Campaign::class, 'campaign_id');
     }
 
-    public function author()
+    public function banner()
     {
-        return $this->belongsTo(User::class, 'author_id');
+        return $this->belongsTo(Banner::class, 'banner_id');
+    }
+    
+    // Accessor để chuẩn hóa status
+    public function getStatusAttribute($value)
+    {
+        return $value ? 1 : 0;
     }
 }

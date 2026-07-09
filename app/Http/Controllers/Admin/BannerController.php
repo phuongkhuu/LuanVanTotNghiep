@@ -4,23 +4,92 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Banner;
+use App\Models\Campaign;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class BannerController extends Controller
 {
     public function index()
     {
+        // Lấy campaigns - chỉ lấy active và scheduled cho dropdown
+        $campaigns = Campaign::whereIn('status', ['active', 'scheduled'])
+            ->whereNotIn('type', ['voucher', 'preorder'])
+            ->orderByRaw("FIELD(status, 'active', 'scheduled')")
+            ->orderBy('start_time', 'asc')
+            ->get();
+
+        // Lấy tất cả banners và tự động xét trạng thái
+        $banners = Banner::with('campaign')
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($banner) {
+                // Tự động xét trạng thái dựa trên campaign
+                if ($banner->campaign_id && $banner->campaign) {
+                    // Nếu campaign đang diễn ra hoặc sắp diễn ra -> Hoạt động
+                    if (in_array($banner->campaign->status, ['active', 'scheduled'])) {
+                        $banner->status = true; // Hoạt động
+                    } 
+                    // Nếu campaign đã kết thúc -> Tạm dừng (Đã khóa)
+                    elseif ($banner->campaign->status === 'ended') {
+                        $banner->status = false; // Tạm dừng
+                    }
+                    // Lưu lại để đồng bộ database
+                    $banner->save();
+                }
+                return $banner;
+            });
+
         return Inertia::render('Admin/Banners', [
-            'banners' => Banner::with('campaign')->orderBy('order', 'asc')->get()
+            'banners' => $banners,
+            'campaigns' => $campaigns
         ]);
     }
 
     public function getBanners()
     {
-        return response()->json(Banner::with('campaign')->orderBy('order', 'asc')->get());
+        // Lấy tất cả banners và tự động xét trạng thái
+        $banners = Banner::with('campaign')
+            ->orderBy('order', 'asc')
+            ->get()
+            ->map(function ($banner) {
+                if ($banner->campaign_id && $banner->campaign) {
+                    if (in_array($banner->campaign->status, ['active', 'scheduled'])) {
+                        $banner->status = true;
+                    } elseif ($banner->campaign->status === 'ended') {
+                        $banner->status = false;
+                    }
+                    $banner->save();
+                }
+                return $banner;
+            });
+            
+        return response()->json($banners);
+    }
+
+    public function getCampaigns()
+    {
+        $campaigns = Campaign::whereIn('status', ['active', 'scheduled'])
+            ->whereNotIn('type', ['voucher', 'preorder'])
+            ->orderByRaw("FIELD(status, 'active', 'scheduled')")
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->map(function ($campaign) {
+                return [
+                    'id' => $campaign->id,
+                    'name' => $campaign->name,
+                    'status' => $campaign->status,
+                    'type' => $campaign->type,
+                    'start_time' => $campaign->start_time,
+                    'end_time' => $campaign->end_time,
+                ];
+            });
+        
+        return response()->json($campaigns);
     }
 
     public function store(Request $request)
@@ -30,29 +99,60 @@ class BannerController extends Controller
 
             $rules = [
                 'title' => 'nullable|string|max:255',
-                'campaign_id' => 'nullable|exists:campaigns,id',
-                'image' => 'nullable|url',
-                'link' => 'nullable|string|max:255',
+                'campaign_id' => 'required|exists:campaigns,id',
+                'link' => 'nullable|url|max:255',
                 'description' => 'nullable|string',
-                'status' => 'boolean',
                 'order' => 'nullable|integer|min:0'
             ];
 
             if ($request->hasFile('image_file')) {
-                $rules['image_file'] = 'image|max:2048';
+                $rules['image_file'] = 'required|image|mimes:jpeg,png,gif,svg,webp|max:2048';
+            } else {
+                $rules['image'] = 'required|string';
             }
 
             $validated = $request->validate($rules);
 
+            $campaign = Campaign::find($validated['campaign_id']);
+            if (!$campaign) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy chiến dịch'
+                ], 404);
+            }
+
+            if (!in_array($campaign->status, ['active', 'scheduled'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch đã kết thúc hoặc không khả dụng. Chỉ chọn chiến dịch đang diễn ra hoặc sắp diễn ra.'
+                ], 422);
+            }
+
+            if (in_array($campaign->type, ['voucher', 'preorder'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch không hợp lệ. Chỉ chọn campaign thông thường.'
+                ], 422);
+            }
+
+            if ($campaign->status === 'scheduled' && $campaign->start_time && $campaign->start_time <= Carbon::now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch này đã đến thời gian bắt đầu.'
+                ], 422);
+            }
+
+            // Tự động xét trạng thái: active/scheduled -> Hoạt động
+            $status = true;
+
             $data = [
-                'title' => $validated['title'] ?? 'Banner ' . now()->format('d/m/Y'),
-                'campaign_id' => $validated['campaign_id'] ?? null,
+                'title' => $validated['title'] ?? 'Banner ' . now()->format('d/m/Y H:i'),
+                'campaign_id' => $validated['campaign_id'],
                 'link' => $validated['link'] ?? null,
                 'description' => $validated['description'] ?? null,
-                'status' => $validated['status'] ?? true,
+                'status' => $status,
             ];
             
-            // Xử lý ảnh
             if ($request->hasFile('image_file')) {
                 try {
                     $path = $request->file('image_file')->store('banners', 'public');
@@ -65,15 +165,21 @@ class BannerController extends Controller
                     ], 500);
                 }
             } elseif ($request->filled('image')) {
-                $data['image'] = $request->image;
+                $imageUrl = trim($request->image);
+                if (!preg_match('/^(https?:\/\/|\/)/', $imageUrl)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'URL ảnh không hợp lệ. Vui lòng nhập đúng định dạng (ví dụ: https://example.com/image.jpg hoặc /storage/banners/image.jpg)'
+                    ], 422);
+                }
+                $data['image'] = $imageUrl;
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Vui lòng chọn ảnh hoặc nhập URL'
+                    'message' => 'Vui lòng cung cấp ảnh banner (URL hoặc file)'
                 ], 422);
             }
 
-            // Xác định order mới
             $totalBanners = Banner::count();
             $newOrder = $request->input('order', $totalBanners);
             
@@ -94,7 +200,7 @@ class BannerController extends Controller
                 'data' => $banner->load('campaign')
             ]);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::error('Validation error:', $e->errors());
             return response()->json([
                 'success' => false,
@@ -119,29 +225,60 @@ class BannerController extends Controller
             
             $rules = [
                 'title' => 'nullable|string|max:255',
-                'campaign_id' => 'nullable|exists:campaigns,id',
-                'image' => 'nullable|string',
-                'link' => 'nullable|string|max:255',
+                'campaign_id' => 'required|exists:campaigns,id',
+                'link' => 'nullable|url|max:255',
                 'description' => 'nullable|string',
-                'status' => 'boolean',
                 'order' => 'nullable|integer|min:0'
             ];
 
             if ($request->hasFile('image_file')) {
-                $rules['image_file'] = 'image|max:2048';
+                $rules['image_file'] = 'required|image|mimes:jpeg,png,gif,svg,webp|max:2048';
+            } else {
+                $rules['image'] = 'nullable|string';
             }
 
             $validated = $request->validate($rules);
 
+            $campaign = Campaign::find($validated['campaign_id']);
+            if (!$campaign) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy chiến dịch'
+                ], 404);
+            }
+
+            if (!in_array($campaign->status, ['active', 'scheduled'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch đã kết thúc hoặc không khả dụng. Chỉ chọn chiến dịch đang diễn ra hoặc sắp diễn ra.'
+                ], 422);
+            }
+
+            if (in_array($campaign->type, ['voucher', 'preorder'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch không hợp lệ. Chỉ chọn campaign thông thường.'
+                ], 422);
+            }
+
+            if ($campaign->status === 'scheduled' && $campaign->start_time && $campaign->start_time <= Carbon::now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chiến dịch này đã đến thời gian bắt đầu.'
+                ], 422);
+            }
+
+            // Tự động xét trạng thái: active/scheduled -> Hoạt động
+            $status = true;
+
             $data = [
                 'title' => $validated['title'] ?? $banner->title,
-                'campaign_id' => $validated['campaign_id'] ?? $banner->campaign_id,
+                'campaign_id' => $validated['campaign_id'],
                 'link' => $validated['link'] ?? $banner->link,
                 'description' => $validated['description'] ?? $banner->description,
-                'status' => $validated['status'] ?? $banner->status,
+                'status' => $status,
             ];
             
-            // Xử lý ảnh
             if ($request->hasFile('image_file')) {
                 try {
                     if ($banner->image && Storage::disk('public')->exists(str_replace('/storage/', '', $banner->image))) {
@@ -158,10 +295,18 @@ class BannerController extends Controller
                     ], 500);
                 }
             } elseif ($request->filled('image')) {
-                $data['image'] = $request->image;
+                $imageUrl = trim($request->image);
+                if (!preg_match('/^(https?:\/\/|\/)/', $imageUrl)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'URL ảnh không hợp lệ. Vui lòng nhập đúng định dạng (ví dụ: https://example.com/image.jpg hoặc /storage/banners/image.jpg)'
+                    ], 422);
+                }
+                $data['image'] = $imageUrl;
+            } else {
+                $data['image'] = $banner->image;
             }
 
-            // Xử lý thay đổi order
             $newOrder = $request->input('order');
             if (!is_null($newOrder) && $newOrder != $banner->order) {
                 $oldOrder = $banner->order;
@@ -194,7 +339,7 @@ class BannerController extends Controller
                 'data' => $banner->load('campaign')
             ]);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::error('Validation error:', $e->errors());
             return response()->json([
                 'success' => false,
@@ -209,6 +354,7 @@ class BannerController extends Controller
             ], 500);
         }
     }
+
     public function destroy($id)
     {
         try {
@@ -235,14 +381,11 @@ class BannerController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        try {
-            $banner = Banner::findOrFail($id);
-            $request->validate(['status' => 'required|boolean']);
-            $banner->update(['status' => $request->status]);
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        // Không cho phép thay đổi trạng thái thủ công
+        return response()->json([
+            'success' => false,
+            'message' => 'Trạng thái banner được tự động xét dựa trên chiến dịch.'
+        ], 422);
     }
 
     public function updateOrder(Request $request, $id)
@@ -279,6 +422,39 @@ class BannerController extends Controller
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function checkAndUpdateStatus()
+    {
+        try {
+            $banners = Banner::with('campaign')
+                ->whereNotNull('campaign_id')
+                ->get();
+
+            $updated = 0;
+            foreach ($banners as $banner) {
+                if ($banner->campaign) {
+                    // active/scheduled -> Hoạt động (true)
+                    // ended -> Tạm dừng (false)
+                    $newStatus = in_array($banner->campaign->status, ['active', 'scheduled']) ? true : false;
+                    if ($banner->status != $newStatus) {
+                        $banner->update(['status' => $newStatus]);
+                        $updated++;
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Đã cập nhật {$updated} banner",
+                'updated' => $updated
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -9,16 +9,37 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-    productVariants: {
+    campaigns: {
         type: Array,
         default: () => []
     },
+    banners: {
+        type: Array,
+        default: () => []
+    },
+    authors: {
+        type: Array,
+        default: () => []
+    },
+    currentUser: {
+        type: Object,
+        default: () => null
+    },
+    error: {
+        type: String,
+        default: ''
+    }
 })
 
 // Search
 const search = ref('')
 
-// Pagination - 5 items per page
+// Filters
+const filterAuthor = ref('')
+const filterStatus = ref('')
+const filterCampaign = ref('')
+
+// Pagination
 const currentPage = ref(1)
 const perPage = ref(5)
 
@@ -29,47 +50,66 @@ const isEdit = ref(false)
 const selectedNews = ref(null)
 const isLoading = ref(false)
 const isSaving = ref(false)
-const errorMessage = ref('')
-const fileError = ref('')
-const uploadSuccess = ref(false)
+const errorMessage = ref(props.error || '')
 
-// Chọn phương thức nhập ảnh: 'url' hoặc 'file'
-const imageInputMode = ref('url')
-const selectedFile = ref(null)
-const imagePreviewUrl = ref('')
+// Lọc banners theo campaign đã chọn
+const filteredBanners = computed(() => {
+    if (!form.value.campaign_id) return []
+    return props.banners.filter(banner => banner.campaign_id === form.value.campaign_id)
+})
 
 const form = ref({
     id: null,
-    product_variant_id: '',
-    author_id: '',
     title: '',
     slug: '',
-    thumbnail: '',
     content: '',
-    status: 1
+    status: 1,
+    campaign_id: '',
+    banner_id: ''
 })
 
-// Xem trước ảnh
+// Xem trước ảnh từ banner
 const imagePreview = computed(() => {
-    if (imagePreviewUrl.value) return imagePreviewUrl.value
-    if (form.value.thumbnail) return form.value.thumbnail
-    return null
+    if (!form.value.banner_id) return null
+    const selectedBanner = props.banners.find(b => b.id === form.value.banner_id)
+    return selectedBanner ? selectedBanner.image : null
 })
 
-// Lọc tin tức theo tiêu đề hoặc slug
+// Lọc tin tức
 const filteredNews = computed(() => {
     if (!newsList.value || newsList.value.length === 0) return []
-    if (!search.value) return newsList.value
     
-    const keyword = search.value.toLowerCase().trim()
-    return newsList.value.filter(news => {
-        const title = (news.title || '').toLowerCase()
-        const slug = (news.slug || '').toLowerCase()
-        return title.includes(keyword) || slug.includes(keyword)
-    })
+    let result = newsList.value
+    
+    // Filter theo từ khóa tìm kiếm
+    if (search.value) {
+        const keyword = search.value.toLowerCase().trim()
+        result = result.filter(news => {
+            const title = (news.title || '').toLowerCase()
+            const slug = (news.slug || '').toLowerCase()
+            return title.includes(keyword) || slug.includes(keyword)
+        })
+    }
+    
+    // Filter theo tác giả
+    if (filterAuthor.value) {
+        result = result.filter(news => news.author_name === filterAuthor.value)
+    }
+    
+    // Filter theo trạng thái
+    if (filterStatus.value !== '') {
+        result = result.filter(news => news.status === parseInt(filterStatus.value))
+    }
+    
+    // Filter theo chiến dịch
+    if (filterCampaign.value) {
+        result = result.filter(news => news.campaign_id === parseInt(filterCampaign.value))
+    }
+    
+    return result
 })
 
-// Sắp xếp tin tức mới nhất lên đầu
+// Sắp xếp
 const sortedNews = computed(() => {
     return [...filteredNews.value].sort((a, b) => b.id - a.id)
 })
@@ -85,7 +125,6 @@ const totalPages = computed(() => {
     return Math.ceil(sortedNews.value.length / perPage.value)
 })
 
-// Hiển thị số trang (tối đa 5 trang)
 const displayedPages = computed(() => {
     const total = totalPages.value
     const current = currentPage.value
@@ -105,12 +144,11 @@ const displayedPages = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
 
-// Reset về trang 1 khi tìm kiếm
-watch(search, () => {
+// Reset về trang 1 khi filter thay đổi
+watch([search, filterAuthor, filterStatus, filterCampaign], () => {
     currentPage.value = 1
 })
 
-// Tạo slug từ title
 const generateSlug = (title) => {
     if (!title) return ''
     return title
@@ -128,13 +166,25 @@ const formatDate = (date) => {
     return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN')
 }
 
+const getStatusText = (status) => {
+    return status === 1 ? 'Xuất bản' : 'Nháp'
+}
+
+const getStatusClass = (status) => {
+    return status === 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+}
+
 const fetchNews = async () => {
     if (isLoading.value) return
     isLoading.value = true
     try {
         const response = await axios.get('/admin/news/data')
         if (response.data && Array.isArray(response.data)) {
-            newsList.value = response.data
+            // Chuẩn hóa status
+            newsList.value = response.data.map(item => ({
+                ...item,
+                status: item.status === true || item.status === 1 ? 1 : 0
+            }))
         } else {
             newsList.value = []
         }
@@ -150,20 +200,14 @@ const openCreateModal = () => {
     isEdit.value = false
     form.value = { 
         id: null, 
-        product_variant_id: '', 
-        author_id: '', 
         title: '', 
         slug: '', 
-        thumbnail: '', 
         content: '', 
-        status: 1 
+        status: 1,
+        campaign_id: '',
+        banner_id: ''
     }
-    selectedFile.value = null
-    imagePreviewUrl.value = ''
-    imageInputMode.value = 'url'
     errorMessage.value = ''
-    fileError.value = ''
-    uploadSuccess.value = false
     showModal.value = true
 }
 
@@ -171,61 +215,15 @@ const openEditModal = (news) => {
     isEdit.value = true
     form.value = { 
         id: news.id,
-        product_variant_id: news.product_variant_id || '', 
-        author_id: news.author_id || '', 
         title: news.title || '', 
         slug: news.slug || '', 
-        thumbnail: news.thumbnail || '', 
         content: news.content || '', 
-        status: news.status !== undefined ? news.status : 1
+        status: news.status === 1 ? 1 : 0,
+        campaign_id: news.campaign_id || '',
+        banner_id: news.banner_id || ''
     }
-    selectedFile.value = null
-    imagePreviewUrl.value = ''
-    imageInputMode.value = 'url'
     errorMessage.value = ''
-    fileError.value = ''
-    uploadSuccess.value = false
     showModal.value = true
-}
-
-// Xử lý khi chọn file
-const handleFileChange = (event) => {
-    const file = event.target.files[0]
-    fileError.value = ''
-    if (!file) {
-        return
-    }
-    // Kiểm tra định dạng file
-    if (!file.type.startsWith('image/')) {
-        fileError.value = 'Vui lòng chọn file ảnh (jpg, png, gif, webp)'
-        event.target.value = ''
-        return
-    }
-    // Kiểm tra kích thước (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-        fileError.value = 'Kích thước ảnh không quá 2MB'
-        event.target.value = ''
-        return
-    }
-    selectedFile.value = file
-    // Tạo preview
-    const reader = new FileReader()
-    reader.onload = (e) => { 
-        imagePreviewUrl.value = e.target.result 
-    }
-    reader.readAsDataURL(file)
-    // Xóa URL cũ nếu có
-    form.value.thumbnail = ''
-}
-
-const clearFile = () => {
-    selectedFile.value = null
-    imagePreviewUrl.value = ''
-    fileError.value = ''
-    if (imageInputMode.value === 'file') {
-        const fileInput = document.getElementById('fileInput')
-        if (fileInput) fileInput.value = ''
-    }
 }
 
 const saveNews = async () => {
@@ -238,8 +236,12 @@ const saveNews = async () => {
         errorMessage.value = 'Vui lòng nhập nội dung'
         return
     }
-    if (fileError.value) {
-        errorMessage.value = fileError.value
+    if (!form.value.campaign_id) {
+        errorMessage.value = 'Vui lòng chọn chiến dịch'
+        return
+    }
+    if (!form.value.banner_id) {
+        errorMessage.value = 'Vui lòng chọn banner'
         return
     }
 
@@ -251,106 +253,51 @@ const saveNews = async () => {
     if (isSaving.value) return
     isSaving.value = true
     errorMessage.value = ''
-    uploadSuccess.value = false
 
     try {
         let response
+        const dataToSave = {
+            title: form.value.title,
+            slug: form.value.slug,
+            content: form.value.content,
+            status: form.value.status === 1 ? true : false,
+            campaign_id: form.value.campaign_id,
+            banner_id: form.value.banner_id
+            // author_name sẽ được tự động thêm ở server
+        }
         
         if (isEdit.value) {
-            // Cập nhật tin tức
-            if (selectedFile.value) {
-                // Có file mới -> upload
-                const formData = new FormData()
-                formData.append('_method', 'PUT')
-                formData.append('title', form.value.title)
-                formData.append('slug', form.value.slug)
-                formData.append('content', form.value.content)
-                formData.append('product_variant_id', form.value.product_variant_id || '')
-                formData.append('author_id', form.value.author_id || '')
-                formData.append('status', form.value.status || 1)
-                formData.append('thumbnail_file', selectedFile.value)
-                
-                response = await axios.post(`/admin/news/${form.value.id}`, formData, {
-                    headers: { 
-                        'Content-Type': 'multipart/form-data',
-                        'Accept': 'application/json'
-                    }
-                })
-            } else {
-                // Không có file mới
-                const dataToSave = {
-                    title: form.value.title,
-                    slug: form.value.slug,
-                    content: form.value.content,
-                    product_variant_id: form.value.product_variant_id || null,
-                    author_id: form.value.author_id || null,
-                    status: form.value.status || 1,
-                    thumbnail: form.value.thumbnail || null
-                }
-                response = await axios.put(`/admin/news/${form.value.id}`, dataToSave, {
-                    headers: { 'Accept': 'application/json' }
-                })
+            response = await axios.put(`/admin/news/${form.value.id}`, dataToSave, {
+                headers: { 'Accept': 'application/json' }
+            })
+        } else {
+            response = await axios.post('/admin/news', dataToSave, {
+                headers: { 'Accept': 'application/json' }
+            })
+        }
+        
+        if (response.data && response.data.success) {
+            // Chuẩn hóa dữ liệu trả về
+            const savedData = {
+                ...response.data.data,
+                status: response.data.data.status === true || response.data.data.status === 1 ? 1 : 0
             }
             
-            if (response.data && response.data.success) {
-                // Cập nhật danh sách
+            if (isEdit.value) {
                 const index = newsList.value.findIndex(n => n.id === form.value.id)
-                if (index !== -1 && response.data.data) {
-                    newsList.value[index] = response.data.data
+                if (index !== -1) {
+                    newsList.value[index] = savedData
                 } else {
                     await fetchNews()
                 }
-                uploadSuccess.value = true
                 alert('Cập nhật tin tức thành công!')
-                showModal.value = false
-                clearFile()
             } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra khi cập nhật'
-            }
-        } else {
-            // Thêm mới tin tức
-            if (selectedFile.value) {
-                // Upload file
-                const formData = new FormData()
-                formData.append('title', form.value.title)
-                formData.append('slug', form.value.slug)
-                formData.append('content', form.value.content)
-                formData.append('product_variant_id', form.value.product_variant_id || '')
-                formData.append('author_id', form.value.author_id || '')
-                formData.append('status', form.value.status || 1)
-                formData.append('thumbnail_file', selectedFile.value)
-                
-                response = await axios.post('/admin/news', formData, {
-                    headers: { 
-                        'Content-Type': 'multipart/form-data',
-                        'Accept': 'application/json'
-                    }
-                })
-            } else {
-                // Dùng URL
-                const dataToSave = {
-                    title: form.value.title,
-                    slug: form.value.slug,
-                    content: form.value.content,
-                    product_variant_id: form.value.product_variant_id || null,
-                    author_id: form.value.author_id || null,
-                    status: form.value.status || 1,
-                    thumbnail: form.value.thumbnail || null
-                }
-                response = await axios.post('/admin/news', dataToSave, {
-                    headers: { 'Accept': 'application/json' }
-                })
-            }
-            
-            if (response.data && response.data.success && response.data.data) {
-                newsList.value.unshift(response.data.data)
-                uploadSuccess.value = true
+                newsList.value.unshift(savedData)
                 alert('Thêm tin tức thành công!')
-                showModal.value = false
-                clearFile()
-            } else {
-                errorMessage.value = response.data?.message || 'Có lỗi xảy ra khi thêm mới'
             }
+            showModal.value = false
+        } else {
+            errorMessage.value = response.data?.message || 'Có lỗi xảy ra'
         }
     } catch (error) {
         console.error('Lỗi lưu tin tức:', error)
@@ -402,7 +349,7 @@ const toggleStatus = async (news) => {
     try {
         const newStatus = news.status === 1 ? 0 : 1
         const response = await axios.patch(`/admin/news/${news.id}/status`, { 
-            status: newStatus 
+            status: newStatus === 1 ? true : false
         }, {
             headers: { 'Accept': 'application/json' }
         })
@@ -421,12 +368,17 @@ const closeModal = () => {
     showModal.value = false
     showDeleteModal.value = false
     selectedNews.value = null
-    form.value = { id: null, product_variant_id: '', author_id: '', title: '', slug: '', thumbnail: '', content: '', status: 1 }
+    form.value = { 
+        id: null, 
+        title: '', 
+        slug: '', 
+        content: '', 
+        status: 1,
+        campaign_id: '',
+        banner_id: ''
+    }
     errorMessage.value = ''
-    fileError.value = ''
     isSaving.value = false
-    uploadSuccess.value = false
-    clearFile()
 }
 
 const handleOverlayClick = (e) => {
@@ -435,9 +387,19 @@ const handleOverlayClick = (e) => {
     }
 }
 
+const resetFilters = () => {
+    filterAuthor.value = ''
+    filterStatus.value = ''
+    filterCampaign.value = ''
+    search.value = ''
+}
+
 onMounted(() => {
-    if (newsList.value.length === 0) {
+    if (newsList.value.length === 0 && !props.error) {
         fetchNews()
+    }
+    if (props.error) {
+        errorMessage.value = props.error
     }
 })
 </script>
@@ -455,16 +417,44 @@ onMounted(() => {
             </div>
 
             <!-- Thanh tìm kiếm -->
-            <div class="mb-4">
+            <div class="mb-3">
                 <div class="relative max-w-md">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                     <input 
                         v-model="search" 
                         type="text" 
                         placeholder="Tìm theo tiêu đề hoặc slug..." 
-                        class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
+                        class="pl-10 pr-4 py-1.5 bg-white border border-gray-300 rounded-full w-full focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-sm"
                     >
                 </div>
+            </div>
+
+            <!-- Filter - Hàng riêng -->
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+                <select v-model="filterAuthor" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 bg-white min-w-[130px]">
+                    <option value="">Tác giả</option>
+                    <option v-for="author in authors" :key="author" :value="author">{{ author }}</option>
+                </select>
+                
+                <select v-model="filterStatus" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 bg-white min-w-[130px]">
+                    <option value="">Trạng thái</option>
+                    <option value="1">Xuất bản</option>
+                    <option value="0">Nháp</option>
+                </select>
+                
+                <select v-model="filterCampaign" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 bg-white min-w-[150px]">
+                    <option value="">Chiến dịch</option>
+                    <option v-for="campaign in campaigns" :key="campaign.id" :value="campaign.id">{{ campaign.name }}</option>
+                </select>
+                
+                <button @click="resetFilters" class="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300 bg-white whitespace-nowrap">
+                    Xóa lọc
+                </button>
+            </div>
+
+            <!-- Hiển thị lỗi -->
+            <div v-if="errorMessage && !showModal" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-600">{{ errorMessage }}</p>
             </div>
 
             <div v-if="isLoading && newsList.length === 0" class="text-center py-8">
@@ -477,49 +467,51 @@ onMounted(() => {
                     <table class="w-full min-w-[1000px]">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th class="text-left p-4 font-semibold text-gray-700 w-16 whitespace-nowrap">STT</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Ảnh</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Tiêu đề</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Slug</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Sản phẩm</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Trạng thái</th>
-                                <th class="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">Ngày tạo</th>
-                                <th class="text-center p-4 font-semibold text-gray-700 w-32 whitespace-nowrap">Thao tác</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 w-12 whitespace-nowrap text-sm">STT</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Ảnh</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Tiêu đề</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Chiến dịch</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Tác giả</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Trạng thái</th>
+                                <th class="text-left p-3 font-semibold text-gray-700 whitespace-nowrap text-sm">Ngày tạo</th>
+                                <th class="text-center p-3 font-semibold text-gray-700 w-28 whitespace-nowrap text-sm">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="(news, index) in paginatedNews" :key="news.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-                                <td class="p-4">
-                                    <img v-if="news.thumbnail" :src="news.thumbnail" class="h-12 w-16 object-cover rounded" :alt="news.title" @error="news.thumbnail = null">
-                                    <span v-else class="text-gray-400">---</span>
+                                <td class="p-3 text-gray-500 text-sm whitespace-nowrap text-center">{{ (currentPage - 1) * perPage + index + 1 }}</td>
+                                <td class="p-3">
+                                    <img v-if="news.thumbnail" :src="news.thumbnail" class="h-10 w-14 object-cover rounded" :alt="news.title" @error="news.thumbnail = null">
+                                    <span v-else class="text-gray-400 text-sm">---</span>
                                 </td>
-                                <td class="p-4 font-medium text-gray-700 max-w-xs truncate">{{ news.title }}</td>
-                                <td class="p-4 text-gray-500 text-sm">{{ news.slug }}</td>
-                                <td class="p-4 text-gray-500 text-sm">{{ news.product_variant?.name || '---' }}</td>
-                                <td class="p-4">
-                                    <button @click="toggleStatus(news)" class="px-2 py-1 text-xs rounded-full transition whitespace-nowrap" :class="news.status === 1 ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
-                                        {{ news.status === 1 ? 'Xuất bản' : 'Nháp' }}
+                                <td class="p-3 font-medium text-gray-700 max-w-[150px] truncate text-sm">{{ news.title }}</td>
+                                <td class="p-3 text-gray-500 text-sm">{{ news.campaign?.name || '---' }}</td>
+                                <td class="p-3 text-gray-500 text-sm">{{ news.author_name || '---' }}</td>
+                                <td class="p-3">
+                                    <button @click="toggleStatus(news)" 
+                                        class="px-2 py-0.5 text-xs rounded-full transition whitespace-nowrap"
+                                        :class="getStatusClass(news.status)">
+                                        {{ getStatusText(news.status) }}
                                     </button>
                                 </td>
-                                <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ formatDate(news.created_at) }}</td>
-                                <td class="p-4 text-center whitespace-nowrap">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <button @click="openEditModal(news)" class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium" :disabled="isSaving">Sửa</button>
-                                        <button @click="confirmDelete(news)" class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium" :disabled="isSaving">Xóa</button>
+                                <td class="p-3 text-gray-500 text-sm whitespace-nowrap">{{ formatDate(news.created_at) }}</td>
+                                <td class="p-3 text-center whitespace-nowrap">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button @click="openEditModal(news)" class="px-2.5 py-1 text-xs text-green-600 hover:bg-green-100 rounded transition-colors font-medium" :disabled="isSaving">Sửa</button>
+                                        <button @click="confirmDelete(news)" class="px-2.5 py-1 text-xs text-red-600 hover:bg-red-100 rounded transition-colors font-medium" :disabled="isSaving">Xóa</button>
                                     </div>
                                 </td>
                             </tr>
                             <tr v-if="paginatedNews.length === 0 && !isLoading">
-                                <td colspan="9" class="p-8 text-center text-gray-400">Chưa có tin tức nào</td>
+                                <td colspan="8" class="p-8 text-center text-gray-400">Chưa có tin tức nào</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Footer với phân trang căn giữa -->
-                <div class="p-4 border-t border-gray-200">
-                    <div class="text-center text-sm text-gray-500 mb-3">
+                <!-- Footer với phân trang -->
+                <div class="p-3 border-t border-gray-200">
+                    <div class="text-center text-sm text-gray-500 mb-2">
                         Hiển thị {{ paginatedNews.length }} / {{ sortedNews.length }} tin tức
                     </div>
                     
@@ -527,7 +519,7 @@ onMounted(() => {
                         <button
                             @click="currentPage--"
                             :disabled="currentPage === 1"
-                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             ◄
                         </button>
@@ -537,7 +529,7 @@ onMounted(() => {
                                 v-for="page in displayedPages"
                                 :key="page"
                                 @click="currentPage = page"
-                                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                                class="px-3 py-1 text-sm rounded-lg transition-colors font-medium"
                                 :class="currentPage === page ? 'bg-orange-600 text-white' : 'border border-gray-300 hover:bg-gray-50'"
                             >
                                 {{ page }}
@@ -547,7 +539,7 @@ onMounted(() => {
                         <button
                             @click="currentPage++"
                             :disabled="currentPage === totalPages"
-                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             ►
                         </button>
@@ -576,35 +568,47 @@ onMounted(() => {
                         <input v-model="form.slug" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" placeholder="tu-khoa-slug" :disabled="isSaving">
                     </div>
 
+                    <!-- Chọn Chiến dịch -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Ảnh đại diện</label>
-                        <div class="flex gap-2 border-b pb-2 mb-2">
-                            <button type="button" @click="imageInputMode = 'url'" :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">🔗 Nhập URL</button>
-                            <button type="button" @click="imageInputMode = 'file'" :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">📁 Tải ảnh lên</button>
-                        </div>
-                        <div v-if="imageInputMode === 'url'">
-                            <input v-model="form.thumbnail" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" placeholder="https://example.com/thumbnail.jpg" :disabled="isSaving">
-                        </div>
-                        <div v-else>
-                            <input id="fileInput" type="file" accept="image/*" @change="handleFileChange" class="w-full" :disabled="isSaving">
-                            <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
-                            <button v-if="selectedFile" @click="clearFile" class="text-red-500 text-xs mt-1 hover:underline" type="button">✕ Xóa file đã chọn</button>
-                            <p class="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG, GIF, WEBP. Kích thước tối đa 2MB</p>
-                        </div>
-                        <div v-if="imagePreview" class="mt-2">
-                            <p class="text-sm text-gray-600 mb-1">Xem trước:</p>
-                            <div class="w-32 h-20 border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                                <img :src="imagePreview" class="max-w-full max-h-full object-contain" @error="imagePreviewUrl = ''; form.thumbnail = ''" alt="Thumbnail preview">
-                            </div>
-                        </div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Chiến dịch *</label>
+                        <select v-model="form.campaign_id" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving">
+                            <option value="">-- Chọn chiến dịch --</option>
+                            <option v-for="campaign in campaigns" :key="campaign.id" :value="campaign.id">
+                                {{ campaign.name }}
+                            </option>
+                        </select>
                     </div>
 
+                    <!-- Chọn Banner -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Sản phẩm liên quan</label>
-                        <select v-model="form.product_variant_id" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving">
-                            <option value="">-- Không chọn --</option>
-                            <option v-for="variant in productVariants" :key="variant.id" :value="variant.id">{{ variant.name }}</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Banner *</label>
+                        <select v-model="form.banner_id" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none" :disabled="isSaving || !form.campaign_id">
+                            <option value="">-- Chọn banner --</option>
+                            <option v-for="banner in filteredBanners" :key="banner.id" :value="banner.id">
+                                {{ banner.title || 'Banner #' + banner.id }}
+                            </option>
                         </select>
+                        <p v-if="!form.campaign_id" class="text-xs text-yellow-600 mt-1">⚠️ Vui lòng chọn chiến dịch trước</p>
+                        <p v-else-if="filteredBanners.length === 0" class="text-xs text-yellow-600 mt-1">⚠️ Không có banner nào cho chiến dịch này</p>
+                    </div>
+
+                    <!-- Xem trước ảnh từ banner -->
+                    <div v-if="imagePreview">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ảnh từ Banner</label>
+                        <div class="w-32 h-20 border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                            <img :src="imagePreview" class="max-w-full max-h-full object-contain" :alt="'Banner image'">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Ảnh được lấy từ banner đã chọn</p>
+                    </div>
+
+                    <!-- Tác giả - Hiển thị thông tin user đang đăng nhập -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tác giả</label>
+                        <div class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                            <span class="font-medium">{{ currentUser?.name || 'Admin' }}</span>
+                            <span class="text-sm text-gray-400 ml-2">(Tự động lấy từ tài khoản đăng nhập)</span>
+                        </div>
+                        <p class="text-xs text-blue-500 mt-1">* Tác giả sẽ tự động được lấy từ tài khoản đang đăng nhập</p>
                     </div>
 
                     <div>
@@ -624,15 +628,11 @@ onMounted(() => {
                     <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
-                    
-                    <div v-if="uploadSuccess" class="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <p class="text-sm text-green-600">✅ Lưu thành công!</p>
-                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
                     <button @click="closeModal" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition" :disabled="isSaving">Hủy</button>
-                    <button @click="saveNews" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center gap-2" :disabled="isSaving || !!fileError">
+                    <button @click="saveNews" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition flex items-center gap-2" :disabled="isSaving">
                         <span v-if="isSaving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         {{ isSaving ? 'Đang xử lý...' : 'Lưu' }}
                     </button>
