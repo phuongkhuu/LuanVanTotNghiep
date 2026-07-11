@@ -34,15 +34,23 @@
 
           <div v-for="(item, idx) in cartItems" :key="item.id" class="grid grid-cols-1 md:grid-cols-12 gap-4 py-6 items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div class="col-span-12 md:col-span-6 flex gap-4">
-              <div class="w-24 h-32 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+              <div class="w-24 h-32 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden relative">
                 <img class="w-full h-full object-cover" :src="item.image || '/images/default-product.jpg'" :alt="item.name">
+                <!-- ✅ Thêm badge pre-order -->
+                <span v-if="item.is_pre_order" class="absolute top-2 left-2 bg-orange-500 text-white px-2 py-1 rounded-md text-xs font-bold">
+                  Pre-order
+                </span>
               </div>
               <div>
-                <Link :href="route('product.detail', { id: item.id })" class="font-semibold text-gray-800 hover:text-primary">
+                <Link :href="route('product.detail', { id: item.product_id })" class="font-semibold text-gray-800 hover:text-primary">
                   {{ item.name }}
                 </Link>
                 <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color || 'Đen' }} | Size: {{ item.size || 'M' }}</p>
-                <button @click="removeItem(idx)" class="text-primary text-sm flex items-center mt-2 hover:text-primary-dark">
+                <!-- ✅ Hiển thị badge pre-order nếu có -->
+                <span v-if="item.is_pre_order" class="inline-block bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded mt-1">
+                  Pre-order - Mua ngay
+                </span>
+                <button @click="removeItem(item.id)" class="text-primary text-sm flex items-center mt-2 hover:text-primary-dark">
                   <span class="material-symbols-outlined text-[18px] mr-1">delete</span> Xóa
                 </button>
               </div>
@@ -52,12 +60,23 @@
               <span class="font-semibold text-gray-800">{{ formatPrice(item.price) }}</span>
             </div>
             <div class="col-span-4 md:col-span-2 flex justify-center">
+              <!-- ✅ Disable nút điều chỉnh số lượng cho pre-order -->
               <div class="flex items-center border border-gray-200 rounded-full px-2 py-1">
-                <button @click="updateQuantity(idx, -1)" class="w-8 h-8 flex items-center justify-center text-gray-600">
+                <button 
+                  @click="updateQuantity(item.id, -1)" 
+                  :disabled="item.is_pre_order"
+                  class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                  :class="{'opacity-50 cursor-not-allowed': item.is_pre_order}"
+                >
                   <span class="material-symbols-outlined text-[20px]">remove</span>
                 </button>
                 <span class="px-4 font-bold text-gray-800">{{ item.quantity }}</span>
-                <button @click="updateQuantity(idx, 1)" class="w-8 h-8 flex items-center justify-center text-gray-600">
+                <button 
+                  @click="updateQuantity(item.id, 1)" 
+                  :disabled="item.is_pre_order"
+                  class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                  :class="{'opacity-50 cursor-not-allowed': item.is_pre_order}"
+                >
                   <span class="material-symbols-outlined text-[20px]">add</span>
                 </button>
               </div>
@@ -66,6 +85,14 @@
               <span class="md:hidden font-semibold text-gray-500 block text-sm">Tạm tính:</span>
               <span class="font-semibold text-primary font-bold">{{ formatPrice(item.price * item.quantity) }}</span>
             </div>
+          </div>
+
+          <!-- ✅ Thông báo nếu có sản phẩm pre-order -->
+          <div v-if="hasPreOrderItems" class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <p class="text-orange-700 text-sm flex items-center gap-2">
+              <span class="material-symbols-outlined text-orange-500">info</span>
+              Sản phẩm Pre-order không thể thay đổi số lượng trong giỏ hàng. Vui lòng mua ngay để đặt hàng.
+            </p>
           </div>
 
           <div class="flex flex-col md:flex-row gap-4 mt-6 items-center">
@@ -102,7 +129,19 @@
                 <span class="font-display-lg text-2xl text-primary font-bold">{{ formatPrice(total) }}</span>
               </div>
             </div>
-            <Link :href="route('checkout')" class="w-full bg-primary text-white py-5 rounded-lg mt-6 hover:bg-primary-dark transition-colors uppercase font-bold text-center block">
+            
+            <!-- ✅ Thêm cảnh báo pre-order -->
+            <div v-if="hasPreOrderItems" class="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+              <p class="text-orange-700 text-sm flex items-start gap-2">
+                <span class="material-symbols-outlined text-orange-500 text-sm">warning</span>
+                <span>Đơn hàng có sản phẩm Pre-order. Thời gian giao hàng có thể lâu hơn.</span>
+              </p>
+            </div>
+
+            <Link 
+              :href="route('checkout')" 
+              class="w-full bg-primary text-white py-5 rounded-lg mt-6 hover:bg-primary-dark transition-colors uppercase font-bold text-center block"
+            >
               Tiến hành thanh toán
             </Link>
             <div class="mt-6 space-y-3">
@@ -137,16 +176,26 @@
               <div class="aspect-[4/5] bg-gray-100 overflow-hidden relative">
                 <img class="w-full h-full object-cover group-hover:scale-110 transition-transform" :src="product.image" :alt="product.name">
                 <span v-if="product.badge" class="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs">{{ product.badge }}</span>
+                <!-- ✅ Thêm badge pre-order cho suggested products -->
+                <span v-if="product.is_pre_order" class="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1 rounded-full text-xs">Pre-order</span>
               </div>
               <div class="p-4">
                 <h4 class="font-semibold text-base line-clamp-1 text-gray-800">{{ product.name }}</h4>
                 <p class="text-gray-500 text-sm mb-2">{{ product.category }}</p>
                 <div class="flex justify-between items-center">
                   <span class="font-bold text-primary text-lg">{{ formatPrice(product.price) }}</span>
-                  <button @click="addToCartProduct(product)" class="bg-gray-100 p-2 rounded-full hover:bg-primary/10 transition-colors">
-                    <span class="material-symbols-outlined text-gray-600">add_shopping_cart</span>
+                  <!-- ✅ Nút Add to cart bị disable cho pre-order -->
+                  <button 
+                    @click="addToCartProduct(product)" 
+                    class="bg-gray-100 p-2 rounded-full hover:bg-primary/10 transition-colors"
+                    :disabled="product.is_pre_order"
+                    :class="{'opacity-50 cursor-not-allowed': product.is_pre_order}"
+                  >
+                    <span class="material-symbols-outlined text-gray-600">{{ product.is_pre_order ? 'lock' : 'add_shopping_cart' }}</span>
                   </button>
                 </div>
+                <!-- ✅ Hiển thị thông báo mua ngay cho pre-order -->
+                <p v-if="product.is_pre_order" class="text-xs text-orange-600 mt-1">Mua ngay để đặt hàng</p>
               </div>
             </Link>
           </div>
@@ -172,24 +221,26 @@ const cartItems = ref([])
 const loading = ref(false)
 const couponCode = ref('')
 const discountAmount = ref(0)
-const shippingFee = 30000 // Phí vận chuyển cố định
+const shippingFee = 30000
 
 // Computed
 const subtotal = computed(() => {
   return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 })
 
-// ✅ SỬA: Chỉ tính phí vận chuyển khi có sản phẩm
 const total = computed(() => {
   const subtotalValue = subtotal.value
-  // Nếu giỏ hàng trống hoặc subtotal = 0, không tính phí vận chuyển
   const shipping = (cartItems.value.length > 0 && subtotalValue > 0) ? shippingFee : 0
   return subtotalValue + shipping - discountAmount.value
 })
 
-// ✅ THÊM: Tính phí vận chuyển hiển thị
 const displayShippingFee = computed(() => {
   return (cartItems.value.length > 0 && subtotal.value > 0) ? shippingFee : 0
+})
+
+// ✅ Kiểm tra có sản phẩm pre-order không
+const hasPreOrderItems = computed(() => {
+  return cartItems.value.some(item => item.is_pre_order === true)
 })
 
 const cartCount = computed(() => {
@@ -203,11 +254,19 @@ const loadCart = async () => {
     const response = await axios.get('/api/cart')
     console.log('📦 Cart data:', response.data)
     if (response.data.success) {
-      cartItems.value = response.data.items || []
+      // ✅ Lọc bỏ sản phẩm pre-order ở frontend (phòng trường hợp)
+      const items = response.data.items || []
+      cartItems.value = items.filter(item => !item.is_pre_order)
+      
+      // ✅ Nếu có sản phẩm pre-order bị lọc, hiển thị thông báo
+      if (items.length !== cartItems.value.length) {
+        const preOrderCount = items.length - cartItems.value.length
+        // Có thể hiển thị notification ở đây
+        console.log(`Đã lọc bỏ ${preOrderCount} sản phẩm pre-order`)
+      }
     }
   } catch (error) {
     console.error('❌ Lỗi tải giỏ hàng:', error)
-    // Nếu lỗi 401 (chưa đăng nhập)
     if (error.response && error.response.status === 401) {
       router.get(route('login'))
     }
@@ -216,38 +275,56 @@ const loadCart = async () => {
   }
 }
 
-const updateQuantity = async (index, delta) => {
-  const item = cartItems.value[index]
-  if (!item) return
+const updateQuantity = async (variantId, delta) => {
+  if (!variantId) {
+    console.error('❌ Không có variant_id')
+    return
+  }
+
+  const item = cartItems.value.find(item => item.id === variantId)
+  if (!item) {
+    console.error('❌ Không tìm thấy sản phẩm với variant_id:', variantId)
+    return
+  }
+
+  // ✅ Không cho phép thay đổi số lượng sản phẩm pre-order
+  if (item.is_pre_order) {
+    alert('Sản phẩm Pre-order không thể thay đổi số lượng trong giỏ hàng')
+    return
+  }
   
   const newQuantity = item.quantity + delta
   if (newQuantity < 1) {
-    await removeItem(index)
+    await removeItem(variantId)
     return
   }
 
   try {
     await axios.put('/api/cart/update', {
-      variant_id: item.id,
+      variant_id: variantId,
       quantity: newQuantity
     })
     await loadCart()
   } catch (error) {
+    console.error('❌ Lỗi cập nhật:', error)
     alert(error.response?.data?.message || 'Cập nhật thất bại')
   }
 }
 
-const removeItem = async (index) => {
-  const item = cartItems.value[index]
-  if (!item) return
-  
+const removeItem = async (variantId) => {
+  if (!variantId) {
+    console.error('❌ Không có variant_id')
+    return
+  }
+
   if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
 
   try {
-    await axios.delete(`/api/cart/remove/${item.id}`)
+    await axios.delete(`/api/cart/remove/${variantId}`)
     await loadCart()
   } catch (error) {
-    alert('Xóa sản phẩm thất bại')
+    console.error('❌ Lỗi xóa:', error)
+    alert(error.response?.data?.message || 'Xóa sản phẩm thất bại')
   }
 }
 
@@ -270,10 +347,33 @@ onMounted(() => {
 })
 
 // Suggested products
-const suggestedProducts = ref([])
+const suggestedProducts = ref([
+  {
+    id: 1,
+    name: 'KingBag Crossbody Mini',
+    category: 'Túi đeo chéo',
+    price: 990000,
+    image: '/images/product1.jpg',
+    is_pre_order: false
+  },
+  {
+    id: 2,
+    name: 'Solo Adventure 40L',
+    category: 'Ba lô du lịch',
+    price: 450000,
+    image: '/images/product2.jpg',
+    is_pre_order: true
+  }
+])
 
-// Thêm sản phẩm từ suggested
 const addToCartProduct = (product) => {
+  // ✅ Nếu là pre-order, chuyển đến trang chi tiết để mua ngay
+  if (product.is_pre_order) {
+    router.get(route('product.detail', { id: product.id }))
+    return
+  }
+  
+  // Nếu không phải pre-order, thêm vào giỏ hàng bình thường
   router.get(route('product.detail', { id: product.id }))
 }
 </script>

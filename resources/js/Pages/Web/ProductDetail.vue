@@ -64,7 +64,13 @@
           </div>
 
           <div>
-            <span class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full mb-2 uppercase font-bold">Sản Phẩm Mới</span>
+            <!-- Hiển thị nhãn Pre-order nếu là sản phẩm pre-order -->
+            <span v-if="product.is_preorder" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full mb-2 uppercase font-bold">
+              Pre-order
+            </span>
+            <span v-else class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full mb-2 uppercase font-bold">
+              Sản Phẩm Mới
+            </span>
             <h1 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-1">{{ product.name }}</h1>
             <div class="flex items-center gap-1 text-amber-400 mb-4">
               <span v-for="n in 5" :key="n" class="material-symbols-outlined text-base" :style="{ fontVariationSettings: n <= 4 ? '\'FILL\' 1' : '\'FILL\' 0' }">star</span>
@@ -74,16 +80,28 @@
 
           <div class="flex flex-col gap-2">
             <div class="flex items-baseline gap-3">
-              <span class="font-headline-md text-2xl text-primary font-bold">{{ formatPrice(variantPrice) }}</span>
+              <span class="font-headline-md text-3xl font-bold text-primary">{{ formatPrice(variantPrice) }}</span>
               <span v-if="product.oldPrice" class="text-gray-400 line-through text-sm">{{ product.oldPrice }}</span>
-              <span v-if="product.discount" class="text-red-500 font-bold text-sm">{{ product.discount }}</span>
+              <span v-if="product.discount" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">{{ product.discount }}</span>
             </div>
             <p class="text-gray-600 text-sm leading-relaxed">{{ product.description || 'Thiết kế tối giản, chất liệu cao cấp, bền bỉ.' }}</p>
-            <p v-if="selectedVariant" class="text-sm text-gray-500">
+            
+            <!-- Hiển thị tồn kho cho sản phẩm thường -->
+            <p v-if="!product.is_preorder && selectedVariant" class="text-sm text-gray-500">
               Tồn kho: <span class="font-semibold" :class="selectedVariant.stock > 0 ? 'text-green-600' : 'text-red-600'">
                 {{ selectedVariant.stock > 0 ? selectedVariant.stock + ' sản phẩm' : 'Hết hàng' }}
               </span>
             </p>
+            
+            <!-- Hiển thị thông báo Pre-order -->
+            <div v-if="product.is_preorder" class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p class="text-sm text-orange-700 font-semibold">
+                Sản phẩm này chỉ được đặt trước (Pre-order)
+              </p>
+              <p class="text-xs text-orange-600 mt-1">
+                Thời gian giao hàng dự kiến: 7-14 ngày làm việc
+              </p>
+            </div>
           </div>
 
           <!-- Size selection -->
@@ -131,32 +149,65 @@
               <button 
                 @click="increaseQuantity" 
                 class="w-10 h-10 border-2 border-gray-200 rounded-xl flex items-center justify-center hover:border-primary transition-colors"
-                :disabled="selectedVariant && quantity >= selectedVariant.stock"
+                :disabled="!product.is_preorder && selectedVariant && quantity >= selectedVariant.stock"
               >
                 <span class="material-symbols-outlined">add</span>
               </button>
             </div>
+            <!-- Hiển thị giới hạn số lượng cho pre-order -->
+            <p v-if="product.is_preorder" class="text-xs text-gray-500 mt-1">
+              * Pre-order không giới hạn số lượng
+            </p>
           </div>
 
-          <!-- Action Buttons -->
+          <!-- Action Buttons - PHÂN BIỆT PRE-ORDER VÀ THƯỜNG -->
           <div class="flex flex-col gap-3 py-6">
-            <div class="grid grid-cols-2 gap-3">
+            <!-- Nếu là sản phẩm pre-order: CHỈ CÓ NÚT ĐẶT TRƯỚC -->
+            <template v-if="product.is_preorder">
+              <!-- Nút Đặt trước ngay (full width) -->
               <button 
-                @click="addToCart" 
-                :disabled="loading || !selectedVariant || selectedVariant.stock <= 0"
-                class="flex-1 h-14 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="buyNow" 
+                :disabled="loading || !selectedVariant"
+                class="w-full h-14 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span class="material-symbols-outlined" v-if="!loading">shopping_cart</span>
+                <span class="material-symbols-outlined" v-if="!loading">bolt</span>
                 <span v-if="loading" class="inline-block animate-spin">⟳</span>
-                {{ loading ? 'Đang xử lý...' : 'Thêm vào giỏ hàng' }}
+                {{ loading ? 'Đang xử lý...' : 'Đặt trước ngay' }}
               </button>
-              <Link :href="route('checkout')" class="flex-1 h-14 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
-                <span class="material-symbols-outlined">event_repeat</span> Đặt hàng trước
+              
+              <!-- Nút Tùy chỉnh (full width) -->
+              <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
+                <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
               </Link>
-            </div>
-            <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
-              <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
-            </Link>
+            </template>
+
+            <!-- Nếu là sản phẩm thường: 2 nút chia đôi + 1 nút full width -->
+            <template v-else>
+              <div class="grid grid-cols-2 gap-3">
+                <button 
+                  @click="addToCart" 
+                  :disabled="loading || !selectedVariant || selectedVariant.stock <= 0"
+                  class="flex-1 h-14 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span class="material-symbols-outlined" v-if="!loading">shopping_cart</span>
+                  <span v-if="loading" class="inline-block animate-spin">⟳</span>
+                  {{ loading ? 'Đang xử lý...' : 'Thêm vào giỏ hàng' }}
+                </button>
+                
+                <button 
+                  @click="buyNow" 
+                  :disabled="loading || !selectedVariant || selectedVariant.stock <= 0"
+                  class="flex-1 h-14 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary/5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span class="material-symbols-outlined">bolt</span> Mua ngay
+                </button>
+              </div>
+              
+              <!-- Nút Tùy chỉnh (full width) -->
+              <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
+                <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
+              </Link>
+            </template>
           </div>
 
           <!-- Features list -->
@@ -168,7 +219,7 @@
         </div>
       </div>
 
-      <!-- Product Highlights (giữ nguyên) -->
+      <!-- Product Highlights -->
       <section class="mt-16">
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">Đặc điểm nổi bật</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -259,7 +310,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
@@ -323,14 +374,7 @@ const selectColor = (color, label) => {
 const findVariant = () => {
   const variants = props.product.variants || []
   
-  console.log('🔍 Tìm variant với:', {
-    selectedColor: selectedColor.value,
-    selectedSize: selectedSize.value,
-    variants: variants
-  })
-  
   if (!variants.length) {
-    console.warn('⚠️ Không có variants cho sản phẩm này')
     selectedVariant.value = null
     return
   }
@@ -367,7 +411,6 @@ const findVariant = () => {
   }
 
   selectedVariant.value = found
-  console.log('✅ Variant tìm được:', found)
   
   if (found) {
     quantity.value = 1
@@ -375,6 +418,13 @@ const findVariant = () => {
 }
 
 const increaseQuantity = () => {
+  // Cho pre-order: không giới hạn số lượng
+  if (props.product.is_preorder) {
+    quantity.value++
+    return
+  }
+  
+  // Cho sản phẩm thường: kiểm tra stock
   if (selectedVariant.value && quantity.value < selectedVariant.value.stock) {
     quantity.value++
   }
@@ -387,12 +437,13 @@ const decreaseQuantity = () => {
 }
 
 const formatPrice = (price) => {
-  if (!price) return '0₫'
+  if (!price) return '0đ'
   if (typeof price === 'number') {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price)
+    return new Intl.NumberFormat('vi-VN').format(price) + 'đ'
+  }
+  const num = parseInt(String(price).replace(/[^0-9]/g, ''))
+  if (!isNaN(num) && num > 0) {
+    return new Intl.NumberFormat('vi-VN').format(num) + 'đ'
   }
   return price
 }
@@ -400,7 +451,6 @@ const formatPrice = (price) => {
 const showMessage = (msg, type = 'success') => {
   message.value = msg
   messageType.value = type
-  // Tự động ẩn sau 3 giây
   setTimeout(() => { 
     message.value = '' 
   }, 3000)
@@ -411,14 +461,105 @@ const goToLogin = () => {
   router.get(route('login'))
 }
 
-// ===== THÊM VÀO GIỎ HÀNG - KHÔNG CHUYỂN TRANG =====
-const addToCart = async () => {
-  console.log('🛒 addToCart called, selectedVariant:', selectedVariant.value)
-  console.log('🔐 Trạng thái đăng nhập:', isAuthenticated.value)
-  
+// ===== HÀM MUA NGAY (XỬ LÝ CẢ PRE-ORDER VÀ THƯỜNG) =====
+const buyNow = async () => {
   // KIỂM TRA ĐĂNG NHẬP
   if (!isAuthenticated.value) {
-    console.log('❌ Chưa đăng nhập')
+    showMessage('Vui lòng đăng nhập để mua hàng', 'error')
+    setTimeout(() => {
+      goToLogin()
+    }, 1500)
+    return
+  }
+  
+  // Validate
+  if (!selectedVariant.value) {
+    showMessage('Vui lòng chọn màu sắc và kích thước', 'error')
+    return
+  }
+
+  // Kiểm tra stock (chỉ cho sản phẩm thường)
+  if (!props.product.is_preorder && selectedVariant.value.stock <= 0) {
+    showMessage('Sản phẩm đã hết hàng', 'error')
+    return
+  }
+
+  if (!props.product.is_preorder && quantity.value > selectedVariant.value.stock) {
+    showMessage(`Sản phẩm chỉ còn ${selectedVariant.value.stock} sản phẩm`, 'error')
+    return
+  }
+
+  loading.value = true
+
+  try {
+    // ✅ PRE-ORDER: Lưu vào session và chuyển thẳng đến checkout
+    if (props.product.is_preorder) {
+      // Lưu thông tin pre-order vào session
+      await axios.post('/api/pre-order/session', {
+        variant_id: selectedVariant.value.id,
+        quantity: quantity.value
+      }, {
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true
+      })
+      
+      loading.value = false
+      // Chuyển đến trang thanh toán với flag pre-order
+      router.get(route('checkout'))
+      return
+    }
+
+    // ✅ SẢN PHẨM THƯỜNG: Thêm vào giỏ hàng rồi chuyển đến checkout
+    const payload = {
+      variant_id: selectedVariant.value.id,
+      quantity: quantity.value
+    }
+
+    const response = await axios.post('/api/cart/add', payload, {
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true
+    })
+
+    if (response.data.success) {
+      // Cập nhật số lượng giỏ hàng
+      window.dispatchEvent(new CustomEvent('cart-updated', {
+        detail: { count: response.data.cart_count || 0 }
+      }))
+      
+      loading.value = false
+      // CHUYỂN ĐẾN TRANG THANH TOÁN
+      router.get(route('checkout'))
+    } else {
+      showMessage(response.data.message || 'Thêm vào giỏ hàng thất bại', 'error')
+      loading.value = false
+    }
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      showMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error')
+      setTimeout(() => {
+        goToLogin()
+      }, 1500)
+      return
+    }
+    
+    const msg = error.response?.data?.message || 'Không thể kết nối đến server. Vui lòng thử lại.'
+    showMessage(msg, 'error')
+    loading.value = false
+  }
+}
+
+// ===== THÊM VÀO GIỎ HÀNG (CHỈ DÀNH CHO SẢN PHẨM THƯỜNG) =====
+const addToCart = async () => {
+  // KIỂM TRA ĐĂNG NHẬP
+  if (!isAuthenticated.value) {
     showMessage('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng', 'error')
     setTimeout(() => {
       goToLogin()
@@ -428,19 +569,16 @@ const addToCart = async () => {
   
   // Validate
   if (!selectedVariant.value) {
-    console.log('❌ Chưa chọn variant')
     showMessage('Vui lòng chọn màu sắc và kích thước', 'error')
     return
   }
 
   if (selectedVariant.value.stock <= 0) {
-    console.log('❌ Hết hàng')
     showMessage('Sản phẩm đã hết hàng', 'error')
     return
   }
 
   if (quantity.value > selectedVariant.value.stock) {
-    console.log('❌ Vượt quá tồn kho')
     showMessage(`Sản phẩm chỉ còn ${selectedVariant.value.stock} sản phẩm`, 'error')
     return
   }
@@ -451,7 +589,6 @@ const addToCart = async () => {
     variant_id: selectedVariant.value.id,
     quantity: quantity.value
   }
-  console.log('📦 Payload gửi lên server:', payload)
 
   try {
     const response = await axios.post('/api/cart/add', payload, {
@@ -462,30 +599,18 @@ const addToCart = async () => {
       },
       withCredentials: true
     })
-    console.log('📦 Response từ server:', response.data)
 
     if (response.data.success) {
-      // ✅ HIỂN THỊ THÔNG BÁO THÀNH CÔNG
       showMessage('✅ Đã thêm vào giỏ hàng thành công!', 'success')
       
-      // ✅ Cập nhật số lượng giỏ hàng ở header (nếu có)
       window.dispatchEvent(new CustomEvent('cart-updated', {
         detail: { count: response.data.cart_count || 0 }
       }))
-      
-      // ✅ KHÔNG CHUYỂN TRANG - Ở LẠI TRANG HIỆN TẠI
-      // Đã xóa dòng router.get(route('cart'))
       
     } else {
       showMessage(response.data.message || 'Thêm vào giỏ hàng thất bại', 'error')
     }
   } catch (error) {
-    console.error('❌ LỖI CHI TIẾT:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data
-    })
-    
     if (error.response && error.response.status === 401) {
       showMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error')
       setTimeout(() => {
@@ -507,14 +632,6 @@ const addToCartSimple = (item) => {
 
 // Lifecycle
 onMounted(() => {
-  console.log('📦 Product data:', props.product)
-  console.log('🔐 Auth data:', page.props.auth)
-  console.log('🔐 isAuthenticated:', isAuthenticated.value)
-  
-  if (!isAuthenticated.value) {
-    showMessage('Vui lòng đăng nhập để mua hàng', 'error')
-  }
-  
   // Khởi tạo màu và size mặc định
   if (props.product.colors && props.product.colors.length > 0) {
     const firstColor = props.product.colors[0]
@@ -527,14 +644,6 @@ onMounted(() => {
   }
 
   findVariant()
-})
-
-// Watch để debug
-watch([selectedColor, selectedSize], () => {
-  console.log('🔄 Selected changed:', { 
-    color: selectedColor.value, 
-    size: selectedSize.value 
-  })
 })
 </script>
 

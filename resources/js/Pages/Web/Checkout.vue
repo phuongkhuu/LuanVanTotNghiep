@@ -7,6 +7,15 @@
       <div class="mb-6">
         <h1 class="font-headline-lg text-2xl md:text-3xl border-l-4 pl-4 border-primary text-gray-900">Thanh toán</h1>
         <p class="text-gray-500 text-sm mt-2 ml-5">Vui lòng kiểm tra lại thông tin đặt hàng và nhận hàng.</p>
+        <!-- Hiển thị loại đơn hàng -->
+        <div class="mt-2 ml-5">
+          <span v-if="isPreOrder" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full font-bold">
+            Đơn hàng Pre-order
+          </span>
+          <span v-else class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full font-bold">
+            Đơn hàng bán lẻ
+          </span>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -179,28 +188,6 @@
                   </div>
                 </div>
               </label>
-              <!-- <label 
-                class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
-                :class="paymentMethod === 'ewallet' 
-                  ? 'border-2 border-primary bg-amber-50 shadow-sm' 
-                  : 'border border-gray-200 bg-white hover:border-primary/50 hover:bg-amber-50/30'"
-              >
-                <div class="flex items-center gap-4 w-full">
-                  <input 
-                    v-model="paymentMethod" 
-                    value="ewallet" 
-                    type="radio" 
-                    class="w-5 h-5 text-primary border-gray-300 focus:ring-0 accent-primary"
-                  >
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-2xl" :class="paymentMethod === 'ewallet' ? 'text-primary' : 'text-gray-500'">account_balance_wallet</span>
-                    <div>
-                      <span class="font-semibold text-gray-800 block">Ví điện tử (Momo, ZaloPay)</span>
-                      <span class="text-xs text-gray-500">Thanh toán qua ví điện tử</span>
-                    </div>
-                  </div>
-                </div>
-              </label>
               <label 
                 class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
                 :class="paymentMethod === 'bank_transfer' 
@@ -222,7 +209,7 @@
                     </div>
                   </div>
                 </div>
-              </label> -->
+              </label>
             </div>
           </div>
         </section>
@@ -232,15 +219,28 @@
           <div class="sticky top-28 space-y-6">
             <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               <h2 class="font-semibold text-xl mb-6 border-b border-gray-200 pb-4 text-gray-800">Đơn hàng của bạn</h2>
+              
+              <!-- Hiển thị badge pre-order nếu có -->
+              <div v-if="isPreOrder" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p class="text-sm text-orange-700 font-semibold flex items-center gap-2">
+                  <span class="material-symbols-outlined text-orange-500">info</span>
+                  Đây là đơn hàng Pre-order. Thời gian giao hàng dự kiến: 7-14 ngày
+                </p>
+              </div>
+              
               <div class="space-y-4 mb-6 max-h-80 overflow-y-auto">
                 <div v-for="item in cartItems" :key="item.id" class="flex gap-4 items-center">
                   <div class="relative w-20 h-20 bg-gray-100 rounded-lg border border-gray-100 overflow-hidden flex-shrink-0">
                     <img :src="item.image" class="w-full h-full object-cover" :alt="item.name">
                     <span class="absolute -top-1 -right-1 bg-primary text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full font-bold">{{ item.quantity }}</span>
+                    <!-- Badge pre-order trên item -->
+                    <span v-if="item.is_pre_order" class="absolute bottom-0 left-0 right-0 bg-orange-500 text-white text-[8px] text-center py-0.5 font-bold">
+                      PRE-ORDER
+                    </span>
                   </div>
                   <div class="flex-grow">
                     <p class="font-semibold text-sm leading-tight text-gray-800">{{ item.name }}</p>
-                    <p class="text-xs text-gray-500">Màu: {{ item.color }}</p>
+                    <p class="text-xs text-gray-500">Màu: {{ item.color }} | Size: {{ item.size }}</p>
                   </div>
                   <div class="text-right">
                     <p class="font-semibold text-sm font-bold text-gray-800">{{ formatPrice(item.price) }}</p>
@@ -267,7 +267,7 @@
                 </div>
               </div>
               <button @click="placeOrder" :disabled="loading" class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
-                <span v-if="!loading">Đặt hàng ngay</span>
+                <span v-if="!loading">{{ isPreOrder ? 'Đặt trước ngay' : 'Đặt hàng ngay' }}</span>
                 <span v-else>Đang xử lý...</span>
               </button>
               <p class="text-center text-xs text-gray-500 mt-4">
@@ -296,12 +296,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
-// --- Props nhận từ controller ---
+// Props nhận từ controller
 const props = defineProps({
   user: {
     type: Object,
@@ -326,13 +326,21 @@ const props = defineProps({
   final_total: {
     type: Number,
     default: 0
+  },
+  order_type: {
+    type: String,
+    default: 'retail'
+  },
+  is_pre_order: {
+    type: Boolean,
+    default: false
   }
 })
 
-// --- Sử dụng dữ liệu từ props ---
+// Sử dụng dữ liệu từ props
 const cartItems = ref(props.products || [])
 const loading = ref(false)
-const isAuthenticated = ref(false)
+const isAuthenticated = ref(!!props.user)
 
 // Thông tin người đặt
 const customerInfo = ref({
@@ -352,10 +360,7 @@ const receiverInfo = ref({
   note: '',
 })
 
-// Checkbox "Nhận hàng cùng người đặt"
 const sameAsCustomer = ref(false)
-
-// Phương thức thanh toán
 const paymentMethod = ref('cod')
 
 // Tính toán lại subtotal và total
@@ -384,9 +389,9 @@ const formatPrice = (val) => {
   return Number(val).toLocaleString('vi-VN') + '₫'
 }
 
-// --- Đặt hàng - KIỂM TRA ĐĂNG NHẬP ---
+// Đặt hàng
 const placeOrder = () => {
-  // KIỂM TRA ĐĂNG NHẬP
+  // Kiểm tra đăng nhập
   if (!isAuthenticated.value || !props.user) {
     alert('Vui lòng đăng nhập để thanh toán')
     sessionStorage.setItem('redirectAfterLogin', window.location.href)
@@ -435,6 +440,7 @@ const placeOrder = () => {
       price: item.price,
     })),
     total_amount: total.value,
+    order_type: props.order_type || 'retail', // ✅ Quan trọng: Truyền order_type
   }
 
   console.log('📦 Order data:', orderData)
@@ -458,14 +464,7 @@ const placeOrder = () => {
 // Lifecycle
 onMounted(() => {
   console.log('📦 Checkout props:', props)
-  
-  // Kiểm tra đăng nhập
-  if (props.user) {
-    isAuthenticated.value = true
-  } else {
-    // Nếu chưa đăng nhập, chuyển hướng về trang đăng nhập
-    sessionStorage.setItem('redirectAfterLogin', window.location.href)
-    router.get(route('login'))
-  }
+  console.log('📦 Order type:', props.order_type)
+  console.log('📦 Is pre-order:', props.is_pre_order)
 })
 </script>

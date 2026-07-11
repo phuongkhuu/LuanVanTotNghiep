@@ -4,19 +4,29 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Payment;
+use App\Models\ProductVariant;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Exports\OrdersExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
+    /**
+     * Hiển thị danh sách đơn hàng theo loại
+     */
     public function index($type = 'retail')
     {
         $validTypes = ['retail', 'wholesale', 'preorder'];
         $type = in_array($type, $validTypes) ? $type : 'retail';
 
         $orders = Order::with(['details.productVariant.product', 'payment'])
+            ->where('order_code', $type)
             ->latest()
             ->get()
             ->map(function ($order) {
@@ -28,7 +38,7 @@ class OrderController extends Controller
                         'quantity' => $detail->quantity,
                         'price'    => (int) $detail->unit_price,
                         'subtotal' => (int) $detail->subtotal,
-                        'image'    => $product ? $product->image : null,
+                        'image'    => $product ? ($product->image_url[0] ?? '/images/default-product.jpg') : '/images/default-product.jpg',
                     ];
                 });
 
@@ -39,9 +49,12 @@ class OrderController extends Controller
 
                 $payment = 'COD';
                 $paymentClass = 'bg-green-100 text-green-800';
-                if ($order->payment && $order->payment->method === 'bank_transfer') {
+                if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
                     $payment = 'Chuyển khoản';
                     $paymentClass = 'bg-blue-100 text-blue-800';
+                } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
+                    $payment = 'Ví điện tử';
+                    $paymentClass = 'bg-purple-100 text-purple-800';
                 }
 
                 return [
@@ -74,6 +87,9 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Hiển thị chi tiết đơn hàng
+     */
     public function show($id)
     {
         $order = Order::with(['details.productVariant.product', 'payment'])->findOrFail($id);
@@ -86,7 +102,7 @@ class OrderController extends Controller
                 'quantity' => $detail->quantity,
                 'price'    => (int) $detail->unit_price,
                 'subtotal' => (int) $detail->subtotal,
-                'image'    => $product ? $product->image : null,
+                'image'    => $product ? ($product->image_url[0] ?? '/images/default-product.jpg') : '/images/default-product.jpg',
             ];
         });
 
@@ -96,8 +112,10 @@ class OrderController extends Controller
         $final = $subtotal + $shipping - $discount;
 
         $payment = 'COD';
-        if ($order->payment && $order->payment->method === 'bank_transfer') {
+        if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
             $payment = 'Chuyển khoản';
+        } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
+            $payment = 'Ví điện tử';
         }
 
         $orderData = [
@@ -125,17 +143,151 @@ class OrderController extends Controller
         return Inertia::render('Admin/Orders/Show', ['order' => $orderData]);
     }
 
+    /**
+     * Cập nhật trạng thái đơn hàng
+     */
     public function updateStatus($id, Request $request)
     {
-        $order = Order::findOrFail($id);
-        $newStatus = $request->status;
-        $statusMap = $this->getStatusMapForOrder($order);
-        $statusInt = $statusMap[$newStatus] ?? 0;
+        try {
+            $order = Order::findOrFail($id);
+            $newStatus = $request->status;
+            $statusMap = $this->getStatusMapForOrder($order);
+            
+            if (!isset($statusMap[$newStatus])) {
+                return back()->with('error', 'Trạng thái không hợp lệ');
+            }
+            
+            $statusInt = $statusMap[$newStatus];
+            $order->order_status = $statusInt;
+            $order->save();
 
-        $order->order_status = $statusInt;
-        $order->save();
+            Log::info("Order #{$order->id} status updated to: {$newStatus}");
 
-        return back()->with('success', 'Cập nhật trạng thái thành công');
+            return back()->with('success', 'Cập nhật trạng thái thành công');
+        } catch (\Exception $e) {
+            Log::error('Update order status error: ' . $e->getMessage());
+            return back()->with('error', 'Có lỗi xảy ra khi cập nhật trạng thái');
+        }
+    }
+
+    /**
+     * Tạo đơn hàng mới (từ PaymentController gọi)
+     */
+    public function store(Request $request)
+    {
+        Log::info('Admin\OrderController@store called', $request->all());
+        
+        try {
+            $validated = $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:20',
+                'customer_email' => 'required|email|max:255',
+                'receiver_name' => 'required|string|max:255',
+                'receiver_phone' => 'required|string|max:20',
+                'shipping_address' => 'required|string|max:500',
+                'note' => 'nullable|string|max:500',
+                'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+                'items' => 'required|array|min:1',
+                'items.*.id' => 'required|exists:product_variants,id',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.price' => 'required|numeric|min:0',
+                'total_amount' => 'required|numeric|min:0',
+                'order_type' => 'required|in:retail,preorder',
+            ]);
+
+            $orderType = $validated['order_type'];
+            $userId = Auth::id();
+            $totalAmount = (int) $validated['total_amount'];
+            $shippingFee = 0;
+            $discountAmount = 0;
+
+            Log::info('Creating order with type: ' . $orderType . ' for user: ' . $userId);
+
+            // Bắt đầu transaction
+            DB::beginTransaction();
+
+            // Tạo đơn hàng với order_code đúng loại
+            $order = Order::create([
+                'user_id' => $userId,
+                'order_code' => $orderType, // 'retail' hoặc 'preorder'
+                'customer_name' => $validated['customer_name'],
+                'customer_phone' => $validated['customer_phone'],
+                'customer_email' => $validated['customer_email'],
+                'receiver_name' => $validated['receiver_name'],
+                'receiver_phone' => $validated['receiver_phone'],
+                'shipping_address' => $validated['shipping_address'],
+                'note' => $validated['note'],
+                'shipping_fee' => $shippingFee,
+                'total_amount' => $totalAmount,
+                'discount_amount' => $discountAmount,
+                'final_amount' => $totalAmount + $shippingFee - $discountAmount,
+                'order_status' => 0, // Pending
+            ]);
+
+            Log::info('Order created:', ['order_id' => $order->id, 'type' => $orderType]);
+
+            // Tạo chi tiết đơn hàng và cập nhật stock
+            foreach ($validated['items'] as $item) {
+                $variant = ProductVariant::find($item['id']);
+                $quantity = (int) $item['quantity'];
+                $price = (int) $item['price'];
+                $subtotal = $price * $quantity;
+
+                // Tạo order detail
+                OrderDetail::create([
+                    'order_id' => $order->id,
+                    'product_variant_id' => $variant->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $price,
+                    'subtotal' => $subtotal,
+                ]);
+
+                // Cập nhật stock: CHỈ GIẢM STOCK CHO RETAIL
+                // Pre-order KHÔNG giảm stock vì chưa có hàng
+                if ($orderType === 'retail') {
+                    if ($variant->stock < $quantity) {
+                        throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
+                    }
+                    $variant->stock -= $quantity;
+                    $variant->save();
+                    Log::info("Stock updated for variant {$variant->id}: new stock {$variant->stock}");
+                } else {
+                    Log::info("Pre-order: Stock not reduced for variant {$variant->id}");
+                }
+            }
+
+            // Tạo thanh toán
+            Payment::create([
+                'order_id' => $order->id,
+                'transaction_code' => 'PAY-' . $order->id . '-' . time(),
+                'payment_method' => $validated['payment_method'],
+                'amount' => $totalAmount + $shippingFee - $discountAmount,
+                'payment_date' => now(),
+                'status' => 'pending',
+            ]);
+
+            DB::commit();
+
+            // Tạo mã đơn hàng hiển thị
+            $displayCode = 'ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đặt hàng thành công',
+                'order' => $order->load(['details', 'payment']),
+                'order_display_code' => $displayCode,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order creation error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -144,7 +296,6 @@ class OrderController extends Controller
     public function export(Request $request)
     {
         try {
-            // Lấy TẤT CẢ đơn hàng, không phân biệt loại
             $orders = Order::with(['details.productVariant.product', 'payment'])
                 ->latest()
                 ->get();
@@ -153,28 +304,24 @@ class OrderController extends Controller
                 return back()->with('error', 'Không có đơn hàng nào để xuất');
             }
             
-            // Format orders
             $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderForExport($order);
             });
             
-            // Tạo export với type là 'all'
             $export = new OrdersExport('all', $formattedOrders);
-            
-            // Tạo filename
             $date = now()->format('Ymd');
             $filename = "{$date}_tat_ca_don_hang.xlsx";
             
             return Excel::download($export, $filename);
             
         } catch (\Exception $e) {
-            \Log::error('Export all orders error: ' . $e->getMessage());
+            Log::error('Export all orders error: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi xảy ra khi xuất file: ' . $e->getMessage());
         }
     }
 
     /**
-     * Xuất đơn hàng theo bộ lọc (loại đơn, trạng thái, tìm kiếm)
+     * Xuất đơn hàng theo bộ lọc
      */
     public function exportWithFilters(Request $request)
     {
@@ -183,30 +330,20 @@ class OrderController extends Controller
             $status = $request->input('status', 'all');
             $search = $request->input('search', '');
             
-            // Lấy đơn hàng theo loại
             $query = Order::with(['details.productVariant.product', 'payment'])
                 ->where('order_code', $type);
             
-            // Lọc theo trạng thái nếu có
             if ($status !== 'all') {
                 $statusMap = [
-                    'pending' => 0,
-                    'processing' => 1,
-                    'shipping' => 2,
-                    'completed' => 3,
-                    'cancelled' => 4,
-                    'approved' => 1,
-                    'production' => 2,
-                    'confirmed' => 1,
-                    'waiting' => 2,
+                    'pending' => 0, 'processing' => 1, 'shipping' => 2,
+                    'completed' => 3, 'cancelled' => 4, 'approved' => 1,
+                    'production' => 2, 'confirmed' => 1, 'waiting' => 2,
                 ];
-                
                 if (isset($statusMap[$status])) {
                     $query->where('order_status', $statusMap[$status]);
                 }
             }
             
-            // Lọc theo tìm kiếm
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('id', 'LIKE', "%{$search}%")
@@ -223,20 +360,13 @@ class OrderController extends Controller
                 return back()->with('error', 'Không có đơn hàng nào để xuất');
             }
             
-            // Format orders
             $formattedOrders = $orders->map(function ($order) {
                 return $this->formatOrderForExport($order);
             });
             
-            // Tạo export
             $export = new OrdersExport($type, $formattedOrders);
             
-            // Tạo filename
-            $typeLabels = [
-                'retail' => 'ban_le',
-                'wholesale' => 'ban_si',
-                'preorder' => 'preorder'
-            ];
+            $typeLabels = ['retail' => 'ban_le', 'wholesale' => 'ban_si', 'preorder' => 'preorder'];
             $typeLabel = $typeLabels[$type] ?? 'don_hang';
             $statusLabel = $status !== 'all' ? "_" . $status : "";
             $date = now()->format('Ymd');
@@ -245,7 +375,7 @@ class OrderController extends Controller
             return Excel::download($export, $filename);
             
         } catch (\Exception $e) {
-            \Log::error('Export filtered orders error: ' . $e->getMessage());
+            Log::error('Export filtered orders error: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi xảy ra khi xuất file: ' . $e->getMessage());
         }
     }
@@ -272,8 +402,10 @@ class OrderController extends Controller
         $final = $subtotal + $shipping - $discount;
 
         $payment = 'COD';
-        if ($order->payment && $order->payment->method === 'bank_transfer') {
+        if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
             $payment = 'Chuyển khoản';
+        } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
+            $payment = 'Ví điện tử';
         }
 
         $productList = $products->map(function ($item) {

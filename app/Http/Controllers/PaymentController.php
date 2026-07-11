@@ -5,36 +5,42 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\ProductVariant;
-use App\Models\Order;
-use App\Models\OrderDetail;
-use App\Models\Payment;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
     protected $orderController;
 
-    public function __construct(OrderController $orderController)
+    public function __construct()
     {
-        $this->orderController = $orderController;
+        // Inject Admin\OrderController
+        $this->orderController = app(\App\Http\Controllers\Admin\OrderController::class);
     }
 
-    public function index()
+    /**
+     * Hiển thị trang thanh toán
+     */
+    public function index(Request $request)
     {
-        // Lấy giỏ hàng từ session
-        $cartItems = Session::get('cart', []);
+        $isPreOrder = $request->session()->get('pre_order_checkout', false);
+        $preOrderVariantId = $request->session()->get('pre_order_variant_id', null);
+        
         $products = [];
         $subtotal = 0;
+        $orderType = 'retail';
 
-        foreach ($cartItems as $variantId => $item) {
-            $variant = ProductVariant::with('product', 'color')->find($variantId);
-            if ($variant) {
-                $price = $item['price'] ?? $variant->price;
-                $quantity = $item['quantity'];
+        if ($isPreOrder && $preOrderVariantId) {
+            Log::info('Processing pre-order checkout for variant: ' . $preOrderVariantId);
+            
+            $variant = ProductVariant::with('product', 'color')->find($preOrderVariantId);
+            if ($variant && ($variant->product->is_preorder ?? false)) {
+                $quantity = $request->session()->get('pre_order_quantity', 1);
+                $price = $variant->price;
                 $total = $price * $quantity;
-                $subtotal += $total;
+                $subtotal = $total;
+                
                 $products[] = [
                     'id'          => $variant->id,
                     'name'        => $variant->product->name,
@@ -45,13 +51,54 @@ class PaymentController extends Controller
                     'image'       => $variant->product->image_url[0] ?? '/images/default-product.jpg',
                     'color'       => $variant->color->name ?? 'Đen',
                     'size'        => $variant->size_name ?? 'M',
+                    'is_pre_order' => true,
                 ];
+                
+                $orderType = 'preorder';
+            } else {
+                Log::warning('Pre-order variant not found or invalid: ' . $preOrderVariantId);
+                $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
+                return redirect()->route('cart')->with('error', 'Sản phẩm Pre-order không hợp lệ');
             }
-        }
-
-        // Nếu giỏ hàng trống, chuyển về trang giỏ hàng
-        if (empty($products)) {
-            return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
+        } else {
+            Log::info('Processing retail checkout from cart');
+            $cartItems = Session::get('cart', []);
+            
+            $filteredCart = [];
+            foreach ($cartItems as $variantId => $item) {
+                $variant = ProductVariant::with('product')->find($variantId);
+                if ($variant && !($variant->product->is_preorder ?? false)) {
+                    $filteredCart[$variantId] = $item;
+                }
+            }
+            
+            foreach ($filteredCart as $variantId => $item) {
+                $variant = ProductVariant::with('product', 'color')->find($variantId);
+                if ($variant) {
+                    $price = $item['price'] ?? $variant->price;
+                    $quantity = $item['quantity'];
+                    $total = $price * $quantity;
+                    $subtotal += $total;
+                    $products[] = [
+                        'id'          => $variant->id,
+                        'name'        => $variant->product->name,
+                        'variant_name'=> $variant->name ?? '',
+                        'price'       => $price,
+                        'quantity'    => $quantity,
+                        'total'       => $total,
+                        'image'       => $variant->product->image_url[0] ?? '/images/default-product.jpg',
+                        'color'       => $variant->color->name ?? 'Đen',
+                        'size'        => $variant->size_name ?? 'M',
+                        'is_pre_order' => false,
+                    ];
+                }
+            }
+            
+            if (empty($products)) {
+                return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
+            }
+            
+            $orderType = 'retail';
         }
 
         $shippingFee = 0;
@@ -72,11 +119,18 @@ class PaymentController extends Controller
             'shipping_fee' => $shippingFee,
             'discount' => $discount,
             'final_total' => $finalTotal,
+            'order_type' => $orderType,
+            'is_pre_order' => $isPreOrder,
         ]);
     }
 
+    /**
+     * Xử lý tạo đơn hàng
+     */
     public function store(Request $request)
     {
+        Log::info('PaymentController@store called', $request->all());
+        
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -91,15 +145,13 @@ class PaymentController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
+            'order_type' => 'required|in:retail,preorder',
         ]);
 
-        $cartItems = Session::get('cart', []);
+        $orderType = $validated['order_type'];
+        Log::info('Creating order with type: ' . $orderType);
 
-        if (empty($cartItems)) {
-            return back()->withErrors(['error' => 'Giỏ hàng trống.']);
-        }
-
-        // Tạo request để gửi đến OrderController
+        // Tạo request mới để gửi đến Admin\OrderController
         $orderRequest = new Request([
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
@@ -111,16 +163,23 @@ class PaymentController extends Controller
             'payment_method' => $validated['payment_method'],
             'items' => $validated['items'],
             'total_amount' => $validated['total_amount'],
-            'order_type' => 'retail',
+            'order_type' => $orderType,
         ]);
 
         try {
-            // Gọi OrderController để tạo đơn hàng
+            // Gọi Admin\OrderController để tạo đơn hàng
             $response = $this->orderController->store($orderRequest);
             $responseData = $response->getData();
 
             if ($responseData->success) {
-                // Lưu thông tin đơn hàng vào session
+                if ($orderType === 'retail') {
+                    $request->session()->forget('cart');
+                    Log::info('Cart cleared after retail order');
+                } else {
+                    $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
+                    Log::info('Pre-order session cleared');
+                }
+                
                 session(['last_order' => $responseData->order]);
                 session(['last_order_display_code' => $responseData->order_display_code ?? '']);
 
@@ -130,6 +189,7 @@ class PaymentController extends Controller
             return back()->withErrors(['error' => $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.']);
 
         } catch (\Exception $e) {
+            Log::error('Payment store error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
         }
     }

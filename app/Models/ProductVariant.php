@@ -29,6 +29,11 @@ class ProductVariant extends Model
         return $this->belongsTo(Color::class);
     }
 
+    // Thêm scope để lấy variant có màu
+    public function scopeHasColor($query)
+    {
+        return $query->whereNotNull('color_id');
+    }
 
     public function orderDetails()
     {

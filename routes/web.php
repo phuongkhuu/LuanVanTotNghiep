@@ -70,13 +70,34 @@ Route::get('/gio-hang', function () {
     return Inertia::render('Web/Cart');
 })->name('cart')->middleware('auth');
 
-// ⭐ QUAN TRỌNG: Cart API routes - Thêm middleware 'auth' và 'web'
+// ⭐ Cart API routes
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/add', [CartController::class, 'add']);
     Route::put('/cart/update', [CartController::class, 'update']);
     Route::delete('/cart/remove/{variantId}', [CartController::class, 'remove']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
+    
+    // ⭐ Thêm route cho Pre-order session
+    Route::post('/pre-order/session', function (Request $request) {
+        $request->validate([
+            'variant_id' => 'required|exists:product_variants,id',
+            'quantity' => 'required|integer|min:1'
+        ]);
+        
+        // Lưu thông tin pre-order vào session
+        session([
+            'pre_order_checkout' => true,
+            'pre_order_variant_id' => $request->variant_id,
+            'pre_order_quantity' => $request->quantity,
+        ]);
+        session()->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Pre-order session saved'
+        ]);
+    });
 });
 
 // ==================== CHECKOUT ROUTES (Yêu cầu đăng nhập) ====================
@@ -167,7 +188,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::post('/send-quote', [AdminCustomizeController::class, 'sendQuote'])->name('customize.send-quote');
     });
 
-       // News Management
+    // News Management
     Route::prefix('news')->group(function () {
         Route::get('/', [NewsController::class, 'index'])->name('news.index');
         Route::get('/data', [NewsController::class, 'getNews'])->name('news.data');
@@ -177,7 +198,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::patch('/{id}/status', [NewsController::class, 'updateStatus'])->name('news.update-status');
     });
 
-       
     // Banner routes
     Route::get('/banners', [BannerController::class, 'index'])->name('banners.index');
     Route::get('/banners/data', [BannerController::class, 'getBanners'])->name('banners.data');
@@ -212,7 +232,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::put('/preorder/{id}', [PromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
         Route::delete('/preorder/{id}', [PromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
     });
-
 
     // Reports
     Route::get('/reports', function () {

@@ -94,6 +94,8 @@ class ProductController extends Controller
             'features' => $features,
             'description' => $product->description,
             'material' => $product->material,
+            // ⭐ THÊM DÒNG NÀY - truyền is_preorder
+            'is_preorder' => (bool) $product->is_preorder,
             // ⭐ THÊM DÒNG NÀY - truyền variants vào productData
             'variants' => $product->variants->map(function($variant) {
                 return [
