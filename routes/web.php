@@ -11,7 +11,8 @@ use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\NewsController;
-use App\Http\Controllers\Admin\PromotionController;
+use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\CartController;
@@ -55,9 +56,8 @@ Route::get('/mua-si', function () {
     return Inertia::render('Web/Wholesale');
 })->name('wholesale');
 
-Route::get('/khuyen-mai', function () {
-    return Inertia::render('Web/Promotion');
-})->name('promotion');
+// Promotion route - Sử dụng PromotionController (Web)
+Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotion');
 
 Route::get('/tuy-chinh', function () {
     return Inertia::render('Web/Customize');
@@ -209,28 +209,28 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::patch('/banners/{id}/order', [BannerController::class, 'updateOrder'])->name('banners.order');
     Route::post('/banners/check-status', [BannerController::class, 'checkAndUpdateStatus'])->name('banners.check-status');
 
-    // Promotion routes
+    // Promotion routes - Sử dụng AdminPromotionController
     Route::prefix('promotions')->group(function () {
         // Campaign routes
-        Route::get('/', [PromotionController::class, 'index'])->name('promotions.index');
-        Route::post('/campaign', [PromotionController::class, 'storeCampaign'])->name('promotions.campaign.store');
-        Route::put('/campaign/{id}', [PromotionController::class, 'updateCampaign'])->name('promotions.campaign.update');
-        Route::delete('/campaign/{id}', [PromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
-        Route::put('/campaign/{id}/status', [PromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
-        Route::get('/campaigns/list', [PromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
+        Route::get('/', [AdminPromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/campaign', [AdminPromotionController::class, 'storeCampaign'])->name('promotions.campaign.store');
+        Route::put('/campaign/{id}', [AdminPromotionController::class, 'updateCampaign'])->name('promotions.campaign.update');
+        Route::delete('/campaign/{id}', [AdminPromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
+        Route::put('/campaign/{id}/status', [AdminPromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
+        Route::get('/campaigns/list', [AdminPromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
         
-        Route::put('/preorder/{id}/toggle', [PromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
+        Route::put('/preorder/{id}/toggle', [AdminPromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
 
         // Voucher routes
-        Route::post('/voucher', [PromotionController::class, 'storeVoucher'])->name('promotions.voucher.store');
-        Route::put('/voucher/{id}', [PromotionController::class, 'updateVoucher'])->name('promotions.voucher.update');
-        Route::delete('/voucher/{id}', [PromotionController::class, 'deleteVoucher'])->name('promotions.voucher.delete');
-        Route::put('/voucher/{id}/toggle', [PromotionController::class, 'toggleVoucher'])->name('promotions.voucher.toggle');
+        Route::post('/voucher', [AdminPromotionController::class, 'storeVoucher'])->name('promotions.voucher.store');
+        Route::put('/voucher/{id}', [AdminPromotionController::class, 'updateVoucher'])->name('promotions.voucher.update');
+        Route::delete('/voucher/{id}', [AdminPromotionController::class, 'deleteVoucher'])->name('promotions.voucher.delete');
+        Route::put('/voucher/{id}/toggle', [AdminPromotionController::class, 'toggleVoucher'])->name('promotions.voucher.toggle');
 
         // Pre-order routes
-        Route::post('/preorder', [PromotionController::class, 'storePreorder'])->name('promotions.preorder.store');
-        Route::put('/preorder/{id}', [PromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
-        Route::delete('/preorder/{id}', [PromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
+        Route::post('/preorder', [AdminPromotionController::class, 'storePreorder'])->name('promotions.preorder.store');
+        Route::put('/preorder/{id}', [AdminPromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
+        Route::delete('/preorder/{id}', [AdminPromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
     });
 
     // Reports
