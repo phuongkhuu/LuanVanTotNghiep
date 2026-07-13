@@ -1,732 +1,3 @@
-<script setup>
-import { ref, computed, watch, onMounted } from 'vue';
-import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
-
-// Props
-const props = defineProps({
-    campaigns: {
-        type: Array,
-        default: () => []
-    },
-    vouchers: {
-        type: Array,
-        default: () => []
-    },
-    preorders: {
-        type: Array,
-        default: () => []
-    },
-    banners: {
-        type: Array,
-        default: () => []
-    },
-    products: {
-        type: Array,
-        default: () => []
-    },
-    productVariants: {
-        type: Array,
-        default: () => []
-    },
-    preorderProducts: {
-        type: Array,
-        default: () => []
-    }
-});
-
-// Flash messages
-const page = usePage();
-const flash = computed(() => page.props.flash || {});
-const showSuccess = ref(false);
-const successMessage = ref('');
-
-// State
-const campaigns = ref(props.campaigns || []);
-const vouchers = ref(props.vouchers || []);
-const preorders = ref(props.preorders || []);
-const banners = ref(props.banners || []);
-const products = ref(props.products || []);
-const productVariants = ref(props.productVariants || []);
-const preorderProducts = ref(props.preorderProducts || []);
-
-// Search & Filter
-const searchQuery = ref('');
-const activeTab = ref('campaigns');
-const activeStatusTab = ref('all');
-
-// Modal
-const showModal = ref(false);
-const showVoucherModal = ref(false);
-const showPreorderModal = ref(false);
-const editingCampaign = ref(null);
-const editingVoucher = ref(null);
-const editingPreorder = ref(null);
-const isSubmitting = ref(false);
-const errorMessage = ref('');
-
-// Status options
-const statusOptions = [
-    { value: 'all', label: 'Tất cả' },
-    { value: 'active', label: 'Đang diễn ra' },
-    { value: 'ended', label: 'Đã kết thúc' },
-    { value: 'scheduled', label: 'Sắp diễn ra' }
-];
-
-// Campaign Form
-const campaignForm = ref({
-    id: null,
-    name: '',
-    type: 'seasonal',
-    description: '',
-    startDate: '',
-    endDate: '',
-    status: 'scheduled',
-    priority: 0,
-    featured: false,
-    quantity: 1,
-    discountPercent: 0,
-    products: []
-});
-
-// Voucher Form
-const voucherForm = ref({
-    id: null,
-    code: '',
-    target_type: 'all',
-    discount_type: 'percent',
-    discount_value: 0,
-    min_order: 0,
-    limit: 100,
-    expiry: '',
-    active: true,
-    description: '',
-    campaign_id: null
-});
-
-// Preorder Form
-const preorderForm = ref({
-    id: null,
-    name: '',
-    product_id: null,
-    tiers: [
-        { from: 1, to: 10, discount: 20 },
-        { from: 11, to: 20, discount: 10 },
-        { from: 21, to: 30, discount: 5 }
-    ],
-    start_date: '',
-    end_date: '',
-    active: true,
-    min_order: 0,
-    campaign_id: null
-});
-
-// ==================== HELPER FUNCTIONS ====================
-
-const formatDate = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
-const formatPrice = (value) => {
-    if (!value) return '0₫';
-    return Number(value).toLocaleString('vi-VN') + '₫';
-};
-
-const getStatusClass = (status) => {
-    const classes = {
-        active: 'bg-green-100 text-green-700',
-        ended: 'bg-gray-100 text-gray-600',
-        scheduled: 'bg-blue-100 text-blue-700'
-    };
-    return classes[status] || 'bg-gray-100 text-gray-600';
-};
-
-const getStatusLabel = (status) => {
-    const labels = {
-        active: 'Đang diễn ra',
-        ended: 'Đã kết thúc',
-        scheduled: 'Sắp diễn ra'
-    };
-    return labels[status] || status;
-};
-
-const getDiscountTypeLabel = (type) => {
-    const labels = {
-        fixed: 'Giảm trực tiếp',
-        percent: 'Giảm theo %',
-        freeship: 'Miễn phí ship'
-    };
-    return labels[type] || type;
-};
-
-const getTargetTypeLabel = (type) => {
-    const labels = {
-        retail: 'Bán lẻ',
-        wholesale: 'Bán sỉ',
-        preorder: 'Pre-order',
-        all: 'Tất cả'
-    };
-    return labels[type] || type;
-};
-
-const getProductName = (productId) => {
-    if (!productId) return 'Chưa chọn';
-    const product = preorderProducts.value.find(p => p.id === productId);
-    return product ? product.name : 'Sản phẩm không tồn tại';
-};
-
-// ==================== FUNCTION TÍNH TRẠNG THÁI ====================
-
-const calculateCampaignStatus = (startDate, endDate) => {
-    if (!startDate) return 'scheduled';
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    
-    if (start.getTime() > today.getTime()) {
-        return 'scheduled';
-    }
-    
-    if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(0, 0, 0, 0);
-        
-        if (end.getTime() < today.getTime()) {
-            return 'ended';
-        }
-        
-        if (end.getTime() >= today.getTime() && start.getTime() <= today.getTime()) {
-            return 'active';
-        }
-    }
-    
-    if (start.getTime() <= today.getTime()) {
-        return 'active';
-    }
-    
-    return 'scheduled';
-};
-
-// ==================== DATE FUNCTIONS ====================
-
-const today = new Date().toISOString().split('T')[0];
-
-const minEndDate = computed(() => {
-    return campaignForm.value.startDate || today;
-});
-
-const updateStatusFromDates = () => {
-    const startDate = campaignForm.value.startDate;
-    const endDate = campaignForm.value.endDate;
-    campaignForm.value.status = calculateCampaignStatus(startDate, endDate);
-};
-
-watch(() => campaignForm.value.startDate, updateStatusFromDates);
-watch(() => campaignForm.value.endDate, updateStatusFromDates);
-
-// ==================== RELOAD FUNCTION ====================
-
-const reloadPage = () => {
-    window.location.reload();
-};
-
-// ==================== CAMPAIGN FUNCTIONS ====================
-
-const openCampaignModal = (campaign = null) => {
-    editingCampaign.value = campaign;
-    errorMessage.value = '';
-    
-    if (campaign) {
-        campaignForm.value = {
-            id: campaign.id,
-            name: campaign.name || '',
-            type: campaign.type || 'seasonal',
-            description: campaign.description || '',
-            startDate: campaign.startDate || '',
-            endDate: campaign.endDate || '',
-            status: campaign.status || 'scheduled',
-            priority: campaign.priority || 0,
-            featured: campaign.featured || false,
-            quantity: campaign.quantity || 1,
-            discountPercent: campaign.discountPercent || 0,
-            products: campaign.products || []
-        };
-    } else {
-        campaignForm.value = {
-            id: null,
-            name: '',
-            type: 'seasonal',
-            description: '',
-            startDate: '',
-            endDate: '',
-            status: 'scheduled',
-            priority: 0,
-            featured: false,
-            quantity: 1,
-            discountPercent: 0,
-            products: []
-        };
-    }
-    showModal.value = true;
-};
-
-const saveCampaign = async () => {
-    if (!campaignForm.value.name) {
-        errorMessage.value = 'Vui lòng nhập tên chiến dịch';
-        return;
-    }
-    
-    if (!campaignForm.value.quantity || campaignForm.value.quantity <= 0) {
-        errorMessage.value = 'Số lượng tối thiểu phải lớn hơn 0';
-        return;
-    }
-    
-    if (campaignForm.value.discountPercent < 0 || campaignForm.value.discountPercent > 100) {
-        errorMessage.value = 'Giảm giá phải từ 0% đến 100%';
-        return;
-    }
-    
-    if (campaignForm.value.startDate && campaignForm.value.endDate) {
-        if (new Date(campaignForm.value.endDate) < new Date(campaignForm.value.startDate)) {
-            errorMessage.value = 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu';
-            return;
-        }
-    }
-    
-    isSubmitting.value = true;
-    errorMessage.value = '';
-    
-    try {
-        const status = calculateCampaignStatus(campaignForm.value.startDate, campaignForm.value.endDate);
-        
-        const data = {
-            name: campaignForm.value.name,
-            type: campaignForm.value.type,
-            description: campaignForm.value.description,
-            startDate: campaignForm.value.startDate,
-            endDate: campaignForm.value.endDate,
-            status: status,
-            priority: parseInt(campaignForm.value.priority) || 0,
-            featured: campaignForm.value.featured || false,
-            quantity: parseInt(campaignForm.value.quantity) || 1,
-            discountPercent: parseFloat(campaignForm.value.discountPercent) || 0,
-            products: Array.isArray(campaignForm.value.products) ? campaignForm.value.products : []
-        };
-        
-        if (editingCampaign.value) {
-            await router.put(`/admin/promotions/campaign/${editingCampaign.value.id}`, data);
-        } else {
-            await router.post('/admin/promotions/campaign', data);
-        }
-        
-        closeModal();
-        reloadPage();
-        
-    } catch (error) {
-        console.error('Lỗi:', error);
-        if (error.response?.data?.errors) {
-            const errors = error.response.data.errors;
-            errorMessage.value = Object.values(errors).flat().join(', ');
-        } else {
-            errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
-        }
-        isSubmitting.value = false;
-    }
-};
-
-const deleteCampaign = async (id) => {
-    const campaign = campaigns.value.find(c => c.id === id);
-    if (!confirm(`Bạn có chắc chắn muốn xóa chiến dịch "${campaign?.name}"?`)) {
-        return;
-    }
-    
-    try {
-        await router.delete(`/admin/promotions/campaign/${id}`);
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra khi xóa');
-    }
-};
-
-const toggleCampaignStatus = async (campaign) => {
-    const newStatus = campaign.status === 'active' ? 'ended' : 'active';
-    try {
-        await router.put(`/admin/promotions/campaign/${campaign.id}/status`, { status: newStatus });
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra');
-    }
-};
-
-// ==================== PRODUCT SELECTION ====================
-
-const toggleProduct = (variantId) => {
-    const index = campaignForm.value.products.indexOf(variantId);
-    if (index > -1) {
-        campaignForm.value.products.splice(index, 1);
-    } else {
-        campaignForm.value.products.push(variantId);
-    }
-};
-
-const isProductSelected = (variantId) => {
-    return campaignForm.value.products.includes(variantId);
-};
-
-// ==================== VOUCHER FUNCTIONS ====================
-
-const openVoucherModal = (voucher = null) => {
-    editingVoucher.value = voucher;
-    errorMessage.value = '';
-    
-    if (voucher) {
-        voucherForm.value = {
-            id: voucher.id,
-            code: voucher.code || '',
-            target_type: voucher.target_type || 'all',
-            discount_type: voucher.discount_type || 'percent',
-            discount_value: voucher.discount_value || 0,
-            min_order: voucher.min_order || 0,
-            limit: voucher.limit || 100,
-            expiry: voucher.expiry || '',
-            active: voucher.status === 'active',
-            description: voucher.description || '',
-            campaign_id: voucher.campaign_id || null
-        };
-    } else {
-        voucherForm.value = {
-            id: null,
-            code: '',
-            target_type: 'all',
-            discount_type: 'percent',
-            discount_value: 0,
-            min_order: 0,
-            limit: 100,
-            expiry: '',
-            active: true,
-            description: '',
-            campaign_id: null
-        };
-    }
-    showVoucherModal.value = true;
-};
-
-const saveVoucher = async () => {
-    if (!voucherForm.value.code) {
-        errorMessage.value = 'Vui lòng nhập mã giảm giá';
-        return;
-    }
-    
-    if (voucherForm.value.discount_value < 0) {
-        errorMessage.value = 'Giá trị giảm giá không được âm';
-        return;
-    }
-    
-    isSubmitting.value = true;
-    errorMessage.value = '';
-    
-    try {
-        if (editingVoucher.value) {
-            await router.put(`/admin/promotions/voucher/${editingVoucher.value.id}`, voucherForm.value);
-        } else {
-            await router.post('/admin/promotions/voucher', voucherForm.value);
-        }
-        closeVoucherModal();
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
-        isSubmitting.value = false;
-    }
-};
-
-const deleteVoucher = async (id) => {
-    const voucher = vouchers.value.find(p => p.id === id);
-    if (!confirm(`Bạn có chắc chắn muốn xóa mã "${voucher?.code}"?`)) {
-        return;
-    }
-    
-    try {
-        await router.delete(`/admin/promotions/voucher/${id}`);
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra khi xóa');
-    }
-};
-
-const toggleVoucher = async (voucher) => {
-    try {
-        await router.put(`/admin/promotions/voucher/${voucher.id}/toggle`);
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra');
-    }
-};
-
-// ==================== PRE-ORDER FUNCTIONS ====================
-
-const openPreorderModal = (preorder = null) => {
-    editingPreorder.value = preorder;
-    errorMessage.value = '';
-    
-    if (preorder) {
-        preorderForm.value = {
-            id: preorder.id,
-            name: preorder.name || '',
-            product_id: preorder.product_id || null,
-            tiers: preorder.tiers || [
-                { from: 1, to: 10, discount: 20 },
-                { from: 11, to: 20, discount: 10 },
-                { from: 21, to: 30, discount: 5 }
-            ],
-            start_date: preorder.start_date || '',
-            end_date: preorder.end_date || '',
-            active: preorder.status === 'active',
-            min_order: preorder.min_order || 0,
-            campaign_id: preorder.campaign_id || null
-        };
-    } else {
-        preorderForm.value = {
-            id: null,
-            name: '',
-            product_id: null,
-            tiers: [
-                { from: 1, to: 10, discount: 20 },
-                { from: 11, to: 20, discount: 10 },
-                { from: 21, to: 30, discount: 5 }
-            ],
-            start_date: '',
-            end_date: '',
-            active: true,
-            min_order: 0,
-            campaign_id: null
-        };
-    }
-    showPreorderModal.value = true;
-};
-
-const savePreorder = async () => {
-    if (!preorderForm.value.name) {
-        errorMessage.value = 'Vui lòng nhập tên chương trình';
-        return;
-    }
-    if (!preorderForm.value.product_id) {
-        errorMessage.value = 'Vui lòng chọn sản phẩm pre-order';
-        return;
-    }
-    
-    if (preorderForm.value.start_date && preorderForm.value.end_date) {
-        if (new Date(preorderForm.value.end_date) < new Date(preorderForm.value.start_date)) {
-            errorMessage.value = 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu';
-            return;
-        }
-    }
-    
-    isSubmitting.value = true;
-    errorMessage.value = '';
-    
-    try {
-        if (editingPreorder.value) {
-            await router.put(`/admin/promotions/preorder/${editingPreorder.value.id}`, preorderForm.value);
-        } else {
-            await router.post('/admin/promotions/preorder', preorderForm.value);
-        }
-        closePreorderModal();
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
-        isSubmitting.value = false;
-    }
-};
-
-const deletePreorder = async (id) => {
-    const preorder = preorders.value.find(p => p.id === id);
-    if (!confirm(`Bạn có chắc chắn muốn xóa chương trình "${preorder?.name}"?`)) {
-        return;
-    }
-    
-    try {
-        await router.delete(`/admin/promotions/preorder/${id}`);
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra khi xóa');
-    }
-};
-
-const togglePreorder = async (preorder) => {
-    try {
-        await router.put(`/admin/promotions/preorder/${preorder.id}/toggle`);
-        reloadPage();
-    } catch (error) {
-        console.error('Lỗi:', error);
-        alert('Có lỗi xảy ra');
-    }
-};
-
-const addTier = () => {
-    const tiers = preorderForm.value.tiers;
-    const lastTier = tiers[tiers.length - 1];
-    const newFrom = lastTier ? lastTier.to + 1 : 1;
-    const newTo = newFrom + 9;
-    preorderForm.value.tiers.push({
-        from: newFrom,
-        to: newTo,
-        discount: 5
-    });
-};
-
-const removeTier = (index) => {
-    if (preorderForm.value.tiers.length > 1) {
-        preorderForm.value.tiers.splice(index, 1);
-    }
-};
-
-// ==================== MODAL FUNCTIONS ====================
-
-const closeModal = () => {
-    showModal.value = false;
-    editingCampaign.value = null;
-    errorMessage.value = '';
-    isSubmitting.value = false;
-};
-
-const closeVoucherModal = () => {
-    showVoucherModal.value = false;
-    editingVoucher.value = null;
-    errorMessage.value = '';
-    isSubmitting.value = false;
-};
-
-const closePreorderModal = () => {
-    showPreorderModal.value = false;
-    editingPreorder.value = null;
-    errorMessage.value = '';
-    isSubmitting.value = false;
-};
-
-// Show flash message
-const showFlashMessage = () => {
-    if (flash.value && flash.value.success && flash.value.message) {
-        successMessage.value = flash.value.message;
-        showSuccess.value = true;
-        setTimeout(() => {
-            showSuccess.value = false;
-        }, 5000);
-    }
-};
-
-watch(() => page.props.flash, () => {
-    showFlashMessage();
-}, { deep: true });
-
-// ==================== COMPUTED ====================
-
-const processedCampaigns = computed(() => {
-    return campaigns.value.map(campaign => ({
-        ...campaign,
-        status: calculateCampaignStatus(campaign.startDate, campaign.endDate)
-    }));
-});
-
-const filteredCampaigns = computed(() => {
-    let filtered = processedCampaigns.value || [];
-    
-    if (activeStatusTab.value !== 'all') {
-        filtered = filtered.filter(c => c.status === activeStatusTab.value);
-    }
-    
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(c => 
-            (c.name && c.name.toLowerCase().includes(query)) ||
-            (c.description && c.description.toLowerCase().includes(query))
-        );
-    }
-    
-    return filtered;
-});
-
-const campaignCounts = computed(() => {
-    const counts = {
-        all: campaigns.value.length,
-        active: 0,
-        ended: 0,
-        scheduled: 0
-    };
-    
-    processedCampaigns.value.forEach(c => {
-        if (c.status === 'active') counts.active++;
-        else if (c.status === 'ended') counts.ended++;
-        else if (c.status === 'scheduled') counts.scheduled++;
-    });
-    
-    return counts;
-});
-
-// Vouchers
-const filteredVouchers = computed(() => {
-    let filtered = vouchers.value || [];
-    
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(v => 
-            (v.code && v.code.toLowerCase().includes(query)) ||
-            (v.description && v.description.toLowerCase().includes(query))
-        );
-    }
-    
-    return filtered;
-});
-
-const voucherCounts = computed(() => {
-    const vouchersData = vouchers.value || [];
-    return {
-        all: vouchersData.length,
-        active: vouchersData.filter(v => v.status === 'active').length,
-        inactive: vouchersData.filter(v => v.status !== 'active').length
-    };
-});
-
-// Pre-orders
-const filteredPreorders = computed(() => {
-    let filtered = preorders.value || [];
-    
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(p => 
-            (p.name && p.name.toLowerCase().includes(query)) ||
-            (p.description && p.description.toLowerCase().includes(query))
-        );
-    }
-    
-    return filtered;
-});
-
-const preorderCounts = computed(() => {
-    const preordersData = preorders.value || [];
-    return {
-        all: preordersData.length,
-        active: preordersData.filter(p => p.status === 'active').length,
-        inactive: preordersData.filter(p => p.status !== 'active').length
-    };
-});
-
-onMounted(() => {
-    showFlashMessage();
-});
-</script>
-
 <template>
     <Head title="Quản lý khuyến mãi - BigBag Admin" />
     
@@ -822,9 +93,34 @@ onMounted(() => {
             <!-- ==================== CAMPAIGNS LIST ==================== -->
             <div v-if="activeTab === 'campaigns'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="campaign in filteredCampaigns" :key="campaign.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
-                    <div class="relative h-36 bg-gradient-to-r from-blue-50 to-blue-100">
-                        <div class="w-full h-full flex items-center justify-center text-blue-300">
-                            <span class="material-symbols-outlined text-5xl">campaign</span>
+                    <!-- Banner -->
+                    <div class="relative h-36 overflow-hidden">
+                        <div v-if="campaign.banner && campaign.banner.image" class="w-full h-full">
+                            <img 
+                                :src="campaign.banner.image" 
+                                :alt="campaign.name"
+                                class="w-full h-full object-cover"
+                                @error="handleImageError"
+                            >
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                        </div>
+                        <div v-else-if="campaign.banner_url" class="w-full h-full">
+                            <img 
+                                :src="campaign.banner_url" 
+                                :alt="campaign.name"
+                                class="w-full h-full object-cover"
+                                @error="handleImageError"
+                            >
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                        </div>
+                        <div v-else class="w-full h-full flex items-center justify-center" :class="getBannerGradient(campaign.status)">
+                            <span class="material-symbols-outlined text-5xl" :class="getBannerIconColor(campaign.status)">campaign</span>
+                        </div>
+                        
+                        <!-- Badge SALE -->
+                        <div v-if="campaign.status === 'active' && campaign.discountPercent > 0" 
+                             class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            SALE {{ campaign.discountPercent }}%
                         </div>
                         
                         <div class="absolute top-2 right-2 flex gap-1 flex-wrap">
@@ -833,15 +129,16 @@ onMounted(() => {
                             </span>
                             <span v-if="campaign.featured" class="text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">⭐</span>
                         </div>
+                        
+                        <div class="absolute bottom-2 left-3 right-3">
+                            <h3 class="font-bold text-sm text-white truncate drop-shadow-lg">{{ campaign.name }}</h3>
+                            <p class="text-[10px] text-white/80 drop-shadow">Loại: {{ campaign.type || 'Seasonal' }}</p>
+                        </div>
                     </div>
 
                     <div class="p-3">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1 min-w-0">
-                                <h3 class="font-bold text-sm text-gray-800 truncate">{{ campaign.name }}</h3>
-                                <p class="text-[10px] text-gray-500">Loại: {{ campaign.type || 'Seasonal' }}</p>
-                            </div>
-                            <div class="flex gap-0.5 ml-1 flex-shrink-0">
+                        <div class="flex justify-end">
+                            <div class="flex gap-0.5">
                                 <button @click="openCampaignModal(campaign)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Sửa">
                                     <span class="material-symbols-outlined text-sm">edit</span>
                                 </button>
@@ -853,15 +150,9 @@ onMounted(() => {
 
                         <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ campaign.description || 'Không có mô tả' }}</p>
 
-                        <div class="mt-2 grid grid-cols-2 gap-2">
-                            <div class="bg-orange-50 rounded-lg p-2 text-center">
-                                <p class="text-[10px] text-gray-500">Giảm giá</p>
-                                <p class="text-sm font-bold text-orange-600">{{ campaign.discount || '0%' }}</p>
-                            </div>
-                            <div class="bg-blue-50 rounded-lg p-2 text-center">
-                                <p class="text-[10px] text-gray-500">SL tối thiểu</p>
-                                <p class="text-sm font-bold text-blue-600">{{ campaign.quantity || 0 }}</p>
-                            </div>
+                        <div class="mt-2 bg-green-50 rounded-lg p-2 text-center">
+                            <p class="text-[10px] text-gray-500">Giảm giá</p>
+                            <p class="text-lg font-bold text-green-600">{{ campaign.discount || '0%' }}</p>
                         </div>
 
                         <div class="mt-2 flex items-center gap-1 text-[10px] text-gray-500">
@@ -871,7 +162,7 @@ onMounted(() => {
 
                         <div class="mt-0.5 flex items-center gap-1 text-[10px] text-gray-500">
                             <span class="material-symbols-outlined text-xs">inventory_2</span>
-                            <span>{{ campaign.products?.length || 0 }} sản phẩm</span>
+                            <span>{{ campaign.products?.length || 0 }} sản phẩm được giảm giá</span>
                         </div>
 
                         <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
@@ -975,6 +266,15 @@ onMounted(() => {
                         <div class="w-full h-full flex items-center justify-center text-purple-300">
                             <span class="material-symbols-outlined text-4xl">schedule</span>
                         </div>
+                        <div class="absolute top-2 left-2 flex flex-col gap-1">
+                            <span v-if="preorder.status === 'active' && preorder.tiers && preorder.tiers.length > 0" 
+                                  class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold">
+                                SALE {{ getCurrentTierDiscount(preorder) }}%
+                            </span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white">
+                                {{ preorder.current_buyers || 0 }} người đặt
+                            </span>
+                        </div>
                         <div class="absolute top-2 right-2">
                             <span class="text-[10px] px-2 py-0.5 rounded-full" :class="preorder.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
                                 {{ preorder.status === 'active' ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
@@ -985,7 +285,7 @@ onMounted(() => {
                     <div class="p-3">
                         <div class="flex justify-between items-start">
                             <div class="flex-1 min-w-0">
-                                <h3 class="font-bold text-sm text-gray-800 truncate">⏳ {{ preorder.code }}</h3>
+                                <h3 class="font-bold text-sm text-gray-800 truncate">⏳ {{ preorder.name }}</h3>
                                 <p class="text-[10px] text-gray-500 truncate">Sản phẩm: {{ getProductName(preorder.product_id) }}</p>
                             </div>
                             <div class="flex gap-0.5 ml-1 flex-shrink-0">
@@ -1002,14 +302,14 @@ onMounted(() => {
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-[10px] font-medium">Đã đặt: {{ preorder.current_buyers || 0 }} lượt</span>
                                 <span class="text-xs font-bold text-blue-600">
-                                    {{ preorder.tiers?.find(t => (preorder.current_buyers || 0) >= t.from && (preorder.current_buyers || 0) <= t.to)?.discount || 0 }}%
+                                    {{ getCurrentTierDiscount(preorder) }}%
                                 </span>
                             </div>
 
                             <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                 <div 
                                     class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
-                                    :style="{ width: Math.min(((preorder.current_buyers || 0) / (preorder.tiers?.[preorder.tiers.length - 1]?.to || 100)) * 100, 100) + '%' }"
+                                    :style="{ width: getProgressPercent(preorder) + '%' }"
                                 ></div>
                             </div>
 
@@ -1031,7 +331,7 @@ onMounted(() => {
 
                         <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
                             <button 
-                                @click="toggleVoucher(preorder)"
+                                @click="togglePreorder(preorder)"
                                 :class="preorder.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
                                 class="text-[10px] px-3 py-1 rounded-full transition-colors"
                             >
@@ -1049,7 +349,7 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- ==================== CAMPAIGN MODAL ==================== -->
+        <!-- ==================== CAMPAIGN MODAL (ĐÃ BỎ QUANTITY) ==================== -->
         <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeModal">
             <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
@@ -1129,44 +429,97 @@ onMounted(() => {
                         <input type="hidden" v-model="campaignForm.status">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Số lượng tối thiểu *</label>
-                            <input 
-                                v-model.number="campaignForm.quantity" 
-                                type="number" 
-                                min="1"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                placeholder="1"
-                            >
-                            <p class="text-xs text-gray-500 mt-1">Số sản phẩm tối thiểu để áp dụng (phải lớn hơn 0)</p>
-                        </div>
-                        <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Giảm giá (%)</label>
-                            <input 
-                                v-model.number="campaignForm.discountPercent" 
-                                type="number" 
-                                min="0" 
-                                max="100"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                placeholder="0"
-                            >
-                            <p class="text-xs text-gray-500 mt-1">Phần trăm giảm giá (0-100%). Có thể để 0%</p>
-                        </div>
+                    <!-- CHỈ CÒN DISCOUNT PERCENT, BỎ QUANTITY -->
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Phần trăm giảm giá (%) *</label>
+                        <input 
+                            v-model.number="campaignForm.discountPercent" 
+                            type="number" 
+                            min="0" 
+                            max="100"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Nhập % giảm giá"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Giảm giá từ 0% đến 100%. Sản phẩm sẽ được cập nhật giá mới ngay khi kích hoạt.</p>
                     </div>
 
                     <!-- Sản phẩm áp dụng -->
                     <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng</label>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng *</label>
+                        <p class="text-xs text-blue-600 mb-2">⚠️ Chỉ chọn sản phẩm RETAIL (không phải Pre-order)</p>
                         
-                        <div v-if="productVariants.filter(v => !v.product?.is_preorder).length > 0" class="mb-2">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">📦 Thường</span>
-                                <span class="text-xs text-gray-400">({{ productVariants.filter(v => !v.product?.is_preorder).length }})</span>
+                        <!-- Filter Bar -->
+                        <div class="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex-1 min-w-[120px]">
+                                <select 
+                                    v-model="filterBrand" 
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                >
+                                    <option value="">📦 Tất cả thương hiệu</option>
+                                    <option v-for="brand in brands" :key="brand.id" :value="brand.id">
+                                        {{ brand.name }}
+                                    </option>
+                                </select>
                             </div>
-                            <div class="border border-gray-300 rounded-lg p-1.5 max-h-28 overflow-y-auto">
-                                <div v-for="variant in productVariants.filter(v => !v.product?.is_preorder)" :key="variant.id" 
-                                     class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs">
+                            <div class="flex-1 min-w-[120px]">
+                                <select 
+                                    v-model="filterCategory" 
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                >
+                                    <option value="">📂 Tất cả danh mục</option>
+                                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                                        {{ category.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="flex-1 min-w-[150px]">
+                                <input 
+                                    v-model="filterSearchProduct" 
+                                    type="text" 
+                                    placeholder="🔍 Tìm sản phẩm..." 
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                >
+                            </div>
+                            <div class="flex gap-1">
+                                <button 
+                                    @click="selectAllFilteredProducts" 
+                                    class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs hover:bg-blue-200 transition-colors"
+                                >
+                                    Chọn tất cả
+                                </button>
+                                <button 
+                                    @click="deselectAllFilteredProducts" 
+                                    class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200 transition-colors"
+                                >
+                                    Bỏ chọn
+                                </button>
+                                <button 
+                                    @click="resetProductFilters" 
+                                    class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-300 transition-colors"
+                                >
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hiển thị số lượng -->
+                        <div class="text-xs text-gray-500 mb-1">
+                            Hiển thị: <span class="font-semibold">{{ filteredProductVariants.length }}</span> sản phẩm 
+                            <span v-if="filterBrand || filterCategory || filterSearchProduct" class="text-blue-500">
+                                (đã lọc)
+                            </span>
+                            | Đã chọn: <span class="font-semibold text-blue-600">{{ campaignForm.products.length }}</span>
+                        </div>
+
+                        <!-- Danh sách sản phẩm thường (RETAIL) -->
+                        <div v-if="normalProductVariants.length > 0" class="mb-2">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">📦 Retail</span>
+                                <span class="text-xs text-gray-400">({{ normalProductVariants.length }})</span>
+                            </div>
+                            <div class="border border-gray-300 rounded-lg p-1.5 max-h-40 overflow-y-auto">
+                                <div v-for="variant in normalProductVariants" :key="variant.id" 
+                                     class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs group">
                                     <input 
                                         type="checkbox" 
                                         :id="'normal-' + variant.id"
@@ -1175,45 +528,49 @@ onMounted(() => {
                                         class="w-3 h-3 text-blue-600 rounded focus:ring-blue-500"
                                     >
                                     <label :for="'normal-' + variant.id" class="text-xs cursor-pointer flex-1 flex items-center gap-1 truncate">
-                                        <span class="font-medium truncate max-w-[100px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
+                                        <span class="font-medium truncate max-w-[120px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
                                         <span class="text-gray-400 text-[10px]">({{ variant.color?.name || 'Không màu' }})</span>
+                                        <span v-if="variant.product?.brand_name" class="text-blue-500 text-[10px] bg-blue-50 px-1 rounded">🏷️ {{ variant.product.brand_name }}</span>
+                                        <span v-if="variant.product?.category_name" class="text-green-500 text-[10px] bg-green-50 px-1 rounded">📁 {{ variant.product.category_name }}</span>
                                         <span class="text-blue-600 text-[10px] font-medium">{{ formatPrice(variant.price) }}</span>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div v-if="productVariants.filter(v => v.product?.is_preorder).length > 0" class="mb-2">
+                        <!-- Danh sách sản phẩm pre-order (KHÔNG CHO CHỌN) -->
+                        <div v-if="preorderProductVariants.length > 0" class="mb-2">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">⏳ Pre-order</span>
-                                <span class="text-xs text-gray-400">({{ productVariants.filter(v => v.product?.is_preorder).length }})</span>
+                                <span class="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">⏳ Pre-order (Không áp dụng)</span>
+                                <span class="text-xs text-gray-400">({{ preorderProductVariants.length }})</span>
                             </div>
-                            <div class="border border-gray-300 rounded-lg p-1.5 max-h-28 overflow-y-auto">
-                                <div v-for="variant in productVariants.filter(v => v.product?.is_preorder)" :key="variant.id" 
-                                     class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs">
+                            <div class="border border-gray-300 rounded-lg p-1.5 max-h-40 overflow-y-auto bg-gray-50">
+                                <div v-for="variant in preorderProductVariants" :key="variant.id" 
+                                     class="flex items-center gap-1.5 py-0.5 px-1.5 rounded text-xs opacity-60">
                                     <input 
                                         type="checkbox" 
-                                        :id="'preorder-' + variant.id"
-                                        :checked="isProductSelected(variant.id)"
-                                        @change="toggleProduct(variant.id)"
-                                        class="w-3 h-3 text-purple-600 rounded focus:ring-purple-500"
+                                        disabled
+                                        class="w-3 h-3 text-gray-400 rounded cursor-not-allowed"
                                     >
-                                    <label :for="'preorder-' + variant.id" class="text-xs cursor-pointer flex-1 flex items-center gap-1 truncate">
-                                        <span class="font-medium truncate max-w-[100px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
+                                    <span class="text-xs flex-1 flex items-center gap-1 truncate">
+                                        <span class="font-medium truncate max-w-[120px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
                                         <span class="text-gray-400 text-[10px]">({{ variant.color?.name || 'Không màu' }})</span>
                                         <span class="text-purple-600 text-[10px] font-medium">{{ formatPrice(variant.price) }}</span>
-                                    </label>
+                                    </span>
+                                    <span class="text-[10px] text-purple-500 bg-purple-100 px-1.5 py-0.5 rounded">Pre-order</span>
                                 </div>
                             </div>
+                            <p class="text-[10px] text-gray-400 mt-1">⚠️ Pre-order chỉ áp dụng riêng, không nằm trong chiến dịch</p>
                         </div>
 
-                        <div v-if="productVariants.length === 0" class="border border-gray-300 rounded-lg p-3 text-center text-gray-400 text-sm">
-                            <span class="material-symbols-outlined text-2xl block mb-1">inventory_2</span>
-                            <p class="text-xs">Không có sản phẩm nào</p>
-                            <p class="text-[10px] mt-0.5">Vui lòng thêm sản phẩm và biến thể</p>
+                        <!-- Empty state -->
+                        <div v-if="filteredProductVariants.length === 0" class="border border-gray-300 rounded-lg p-4 text-center text-gray-400 text-sm">
+                            <span class="material-symbols-outlined text-3xl block mb-1">inventory_2</span>
+                            <p class="text-xs">Không tìm thấy sản phẩm nào</p>
+                            <p class="text-[10px] mt-0.5">Vui lòng thay đổi bộ lọc hoặc thêm sản phẩm</p>
                         </div>
                         
-                        <div class="text-xs text-gray-500 mt-1">Tổng: <span class="font-semibold">{{ campaignForm.products.length }}</span> sản phẩm</div>
+                        <div class="text-xs text-gray-500 mt-1">Tổng: <span class="font-semibold">{{ campaignForm.products.length }}</span> sản phẩm được giảm giá</div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -1356,17 +713,6 @@ onMounted(() => {
                     </div>
 
                     <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Liên kết chiến dịch</label>
-                        <select 
-                            v-model="voucherForm.campaign_id" 
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
-                        >
-                            <option :value="null">-- Không liên kết --</option>
-                            <option v-for="camp in campaigns" :key="camp.id" :value="camp.id">{{ camp.name }}</option>
-                        </select>
-                    </div>
-
-                    <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
                         <textarea 
                             v-model="voucherForm.description" 
@@ -1406,7 +752,7 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- ==================== PRE-ORDER MODAL ==================== -->
+        <!-- ==================== PRE-ORDER MODAL (ĐÃ BỎ CAMPAIGN_ID) ==================== -->
         <div v-if="showPreorderModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closePreorderModal">
             <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
@@ -1497,16 +843,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Liên kết chiến dịch</label>
-                        <select 
-                            v-model="preorderForm.campaign_id" 
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                        >
-                            <option :value="null">-- Không liên kết --</option>
-                            <option v-for="camp in campaigns" :key="camp.id" :value="camp.id">{{ camp.name }}</option>
-                        </select>
-                    </div>
+                    <!-- ĐÃ BỎ PHẦN LIÊN KẾT CHIẾN DỊCH -->
 
                     <div>
                         <div class="flex justify-between items-center mb-2">
@@ -1590,6 +927,866 @@ onMounted(() => {
     </AdminLayout>
 </template>
 
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
+
+// Props
+const props = defineProps({
+    campaigns: {
+        type: Array,
+        default: () => []
+    },
+    vouchers: {
+        type: Array,
+        default: () => []
+    },
+    preorders: {
+        type: Array,
+        default: () => []
+    },
+    banners: {
+        type: Array,
+        default: () => []
+    },
+    products: {
+        type: Array,
+        default: () => []
+    },
+    productVariants: {
+        type: Array,
+        default: () => []
+    },
+    preorderProducts: {
+        type: Array,
+        default: () => []
+    },
+    brands: {
+        type: Array,
+        default: () => []
+    },
+    categories: {
+        type: Array,
+        default: () => []
+    },
+    defaultBanner: {
+        type: String,
+        default: '/images/default-campaign-banner.jpg'
+    }
+});
+
+// Flash messages
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const showSuccess = ref(false);
+const successMessage = ref('');
+
+// State
+const campaigns = ref(props.campaigns || []);
+const vouchers = ref(props.vouchers || []);
+const preorders = ref(props.preorders || []);
+const banners = ref(props.banners || []);
+const products = ref(props.products || []);
+const productVariants = ref(props.productVariants || []);
+const preorderProducts = ref(props.preorderProducts || []);
+const brands = ref(props.brands || []);
+const categories = ref(props.categories || []);
+
+// Search & Filter
+const searchQuery = ref('');
+const activeTab = ref('campaigns');
+const activeStatusTab = ref('all');
+
+// Product filter trong modal
+const filterBrand = ref('');
+const filterCategory = ref('');
+const filterSearchProduct = ref('');
+
+// Modal
+const showModal = ref(false);
+const showVoucherModal = ref(false);
+const showPreorderModal = ref(false);
+const editingCampaign = ref(null);
+const editingVoucher = ref(null);
+const editingPreorder = ref(null);
+const isSubmitting = ref(false);
+const errorMessage = ref('');
+
+// Status options
+const statusOptions = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'active', label: 'Đang diễn ra' },
+    { value: 'ended', label: 'Đã kết thúc' },
+    { value: 'scheduled', label: 'Sắp diễn ra' }
+];
+
+// Campaign Form (ĐÃ BỎ QUANTITY)
+const campaignForm = ref({
+    id: null,
+    name: '',
+    type: 'seasonal',
+    description: '',
+    startDate: '',
+    endDate: '',
+    status: 'scheduled',
+    priority: 0,
+    featured: false,
+    discountPercent: 0,
+    products: []
+});
+
+// Voucher Form
+const voucherForm = ref({
+    id: null,
+    code: '',
+    target_type: 'all',
+    discount_type: 'percent',
+    discount_value: 0,
+    min_order: 0,
+    limit: 100,
+    expiry: '',
+    active: true,
+    description: '',
+    campaign_id: null
+});
+
+// Preorder Form (ĐÃ BỎ CAMPAIGN_ID)
+const preorderForm = ref({
+    id: null,
+    name: '',
+    product_id: null,
+    tiers: [
+        { from: 1, to: 10, discount: 20 },
+        { from: 11, to: 20, discount: 10 },
+        { from: 21, to: 30, discount: 5 }
+    ],
+    start_date: '',
+    end_date: '',
+    active: true,
+    min_order: 0
+});
+
+// ==================== HELPER FUNCTIONS FOR BANNER ====================
+
+const getBannerGradient = (status) => {
+    const gradients = {
+        active: 'bg-gradient-to-r from-green-400 to-blue-500',
+        ended: 'bg-gradient-to-r from-gray-400 to-gray-500',
+        scheduled: 'bg-gradient-to-r from-blue-400 to-purple-500'
+    };
+    return gradients[status] || 'bg-gradient-to-r from-gray-400 to-gray-500';
+};
+
+const getBannerIconColor = (status) => {
+    const colors = {
+        active: 'text-white/80',
+        ended: 'text-white/60',
+        scheduled: 'text-white/80'
+    };
+    return colors[status] || 'text-white/60';
+};
+
+const handleImageError = (e) => {
+    e.target.style.display = 'none';
+    const parent = e.target.parentElement;
+    if (parent) {
+        parent.innerHTML = `
+            <div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-gray-400 to-gray-500">
+                <span class="material-symbols-outlined text-5xl text-white/60">campaign</span>
+            </div>
+        `;
+    }
+};
+
+// ==================== COMPUTED FILTER PRODUCTS ====================
+
+const filteredProductVariants = computed(() => {
+    let variants = productVariants.value;
+
+    if (filterBrand.value) {
+        variants = variants.filter(v => 
+            v.product && v.product.brand_id === parseInt(filterBrand.value)
+        );
+    }
+
+    if (filterCategory.value) {
+        variants = variants.filter(v => 
+            v.product && v.product.category_id === parseInt(filterCategory.value)
+        );
+    }
+
+    if (filterSearchProduct.value) {
+        const keyword = filterSearchProduct.value.toLowerCase();
+        variants = variants.filter(v => 
+            (v.product && v.product.name.toLowerCase().includes(keyword)) ||
+            (v.color && v.color.name.toLowerCase().includes(keyword)) ||
+            (v.size_name && v.size_name.toLowerCase().includes(keyword))
+        );
+    }
+
+    return variants;
+});
+
+// Lọc sản phẩm thường (RETAIL)
+const normalProductVariants = computed(() => {
+    return filteredProductVariants.value.filter(v => !v.product?.is_preorder);
+});
+
+// Lọc sản phẩm preorder
+const preorderProductVariants = computed(() => {
+    return filteredProductVariants.value.filter(v => v.product?.is_preorder);
+});
+
+const resetProductFilters = () => {
+    filterBrand.value = '';
+    filterCategory.value = '';
+    filterSearchProduct.value = '';
+};
+
+// ==================== HELPER FUNCTIONS ====================
+
+const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatPrice = (value) => {
+    if (!value) return '0₫';
+    return Number(value).toLocaleString('vi-VN') + '₫';
+};
+
+const getStatusClass = (status) => {
+    const classes = {
+        active: 'bg-green-100 text-green-700',
+        ended: 'bg-gray-100 text-gray-600',
+        scheduled: 'bg-blue-100 text-blue-700'
+    };
+    return classes[status] || 'bg-gray-100 text-gray-600';
+};
+
+const getStatusLabel = (status) => {
+    const labels = {
+        active: 'Đang diễn ra',
+        ended: 'Đã kết thúc',
+        scheduled: 'Sắp diễn ra'
+    };
+    return labels[status] || status;
+};
+
+const getDiscountTypeLabel = (type) => {
+    const labels = {
+        fixed: 'Giảm trực tiếp',
+        percent: 'Giảm theo %',
+        freeship: 'Miễn phí ship'
+    };
+    return labels[type] || type;
+};
+
+const getTargetTypeLabel = (type) => {
+    const labels = {
+        retail: 'Bán lẻ',
+        wholesale: 'Bán sỉ',
+        preorder: 'Pre-order',
+        all: 'Tất cả'
+    };
+    return labels[type] || type;
+};
+
+const getProductName = (productId) => {
+    if (!productId) return 'Chưa chọn';
+    const product = preorderProducts.value.find(p => p.id === productId);
+    return product ? product.name : 'Sản phẩm không tồn tại';
+};
+
+// ==================== PRE-ORDER HELPER ====================
+
+const getCurrentTierDiscount = (preorder) => {
+    if (!preorder.tiers || !preorder.tiers.length) return 0;
+    const currentBuyers = preorder.current_buyers || 0;
+    
+    for (const tier of preorder.tiers) {
+        if (currentBuyers >= tier.from && currentBuyers <= tier.to) {
+            return tier.discount;
+        }
+    }
+    return 0;
+};
+
+const getProgressPercent = (preorder) => {
+    if (!preorder.tiers || !preorder.tiers.length) return 0;
+    const lastTier = preorder.tiers[preorder.tiers.length - 1];
+    const max = lastTier.to || 100;
+    const current = preorder.current_buyers || 0;
+    return Math.min((current / max) * 100, 100);
+};
+
+// ==================== FUNCTION TÍNH TRẠNG THÁI ====================
+
+const calculateCampaignStatus = (startDate, endDate) => {
+    if (!startDate) return 'scheduled';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    if (start.getTime() > today.getTime()) {
+        return 'scheduled';
+    }
+    
+    if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+        
+        if (end.getTime() < today.getTime()) {
+            return 'ended';
+        }
+        
+        if (end.getTime() >= today.getTime() && start.getTime() <= today.getTime()) {
+            return 'active';
+        }
+    }
+    
+    if (start.getTime() <= today.getTime()) {
+        return 'active';
+    }
+    
+    return 'scheduled';
+};
+
+// ==================== DATE FUNCTIONS ====================
+
+const today = new Date().toISOString().split('T')[0];
+
+const minEndDate = computed(() => {
+    return campaignForm.value.startDate || today;
+});
+
+const updateStatusFromDates = () => {
+    const startDate = campaignForm.value.startDate;
+    const endDate = campaignForm.value.endDate;
+    campaignForm.value.status = calculateCampaignStatus(startDate, endDate);
+};
+
+watch(() => campaignForm.value.startDate, updateStatusFromDates);
+watch(() => campaignForm.value.endDate, updateStatusFromDates);
+
+// ==================== RELOAD FUNCTION ====================
+
+const reloadPage = () => {
+    window.location.reload();
+};
+
+// ==================== CAMPAIGN FUNCTIONS ====================
+
+const openCampaignModal = (campaign = null) => {
+    editingCampaign.value = campaign;
+    errorMessage.value = '';
+    resetProductFilters();
+    
+    if (campaign) {
+        campaignForm.value = {
+            id: campaign.id,
+            name: campaign.name || '',
+            type: campaign.type || 'seasonal',
+            description: campaign.description || '',
+            startDate: campaign.startDate || '',
+            endDate: campaign.endDate || '',
+            status: campaign.status || 'scheduled',
+            priority: campaign.priority || 0,
+            featured: campaign.featured || false,
+            discountPercent: campaign.discountPercent || 0,
+            products: campaign.products || []
+        };
+    } else {
+        campaignForm.value = {
+            id: null,
+            name: '',
+            type: 'seasonal',
+            description: '',
+            startDate: '',
+            endDate: '',
+            status: 'scheduled',
+            priority: 0,
+            featured: false,
+            discountPercent: 0,
+            products: []
+        };
+    }
+    showModal.value = true;
+};
+
+const saveCampaign = async () => {
+    if (!campaignForm.value.name) {
+        errorMessage.value = 'Vui lòng nhập tên chiến dịch';
+        return;
+    }
+    
+    if (campaignForm.value.discountPercent < 0 || campaignForm.value.discountPercent > 100) {
+        errorMessage.value = 'Giảm giá phải từ 0% đến 100%';
+        return;
+    }
+    
+    if (campaignForm.value.startDate && campaignForm.value.endDate) {
+        if (new Date(campaignForm.value.endDate) < new Date(campaignForm.value.startDate)) {
+            errorMessage.value = 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu';
+            return;
+        }
+    }
+    
+    if (campaignForm.value.products.length === 0) {
+        errorMessage.value = 'Vui lòng chọn ít nhất 1 sản phẩm để áp dụng';
+        return;
+    }
+    
+    isSubmitting.value = true;
+    errorMessage.value = '';
+    
+    try {
+        const status = calculateCampaignStatus(campaignForm.value.startDate, campaignForm.value.endDate);
+        
+        const data = {
+            name: campaignForm.value.name,
+            type: campaignForm.value.type,
+            description: campaignForm.value.description,
+            startDate: campaignForm.value.startDate,
+            endDate: campaignForm.value.endDate,
+            status: status,
+            priority: parseInt(campaignForm.value.priority) || 0,
+            featured: campaignForm.value.featured || false,
+            discountPercent: parseFloat(campaignForm.value.discountPercent) || 0,
+            products: Array.isArray(campaignForm.value.products) ? campaignForm.value.products : []
+        };
+        
+        if (editingCampaign.value) {
+            await router.put(`/admin/promotions/campaign/${editingCampaign.value.id}`, data);
+        } else {
+            await router.post('/admin/promotions/campaign', data);
+        }
+        
+        closeModal();
+        reloadPage();
+        
+    } catch (error) {
+        console.error('Lỗi:', error);
+        if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage.value = Object.values(errors).flat().join(', ');
+        } else {
+            errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
+        }
+        isSubmitting.value = false;
+    }
+};
+
+const deleteCampaign = async (id) => {
+    const campaign = campaigns.value.find(c => c.id === id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa chiến dịch "${campaign?.name}"?`)) {
+        return;
+    }
+    
+    try {
+        await router.delete(`/admin/promotions/campaign/${id}`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra khi xóa');
+    }
+};
+
+const toggleCampaignStatus = async (campaign) => {
+    const newStatus = campaign.status === 'active' ? 'ended' : 'active';
+    try {
+        await router.put(`/admin/promotions/campaign/${campaign.id}/status`, { status: newStatus });
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra');
+    }
+};
+
+// ==================== PRODUCT SELECTION ====================
+
+const toggleProduct = (variantId) => {
+    const index = campaignForm.value.products.indexOf(variantId);
+    if (index > -1) {
+        campaignForm.value.products.splice(index, 1);
+    } else {
+        campaignForm.value.products.push(variantId);
+    }
+};
+
+const isProductSelected = (variantId) => {
+    return campaignForm.value.products.includes(variantId);
+};
+
+const selectAllFilteredProducts = () => {
+    const variantIds = filteredProductVariants.value
+        .filter(v => !v.product?.is_preorder)
+        .map(v => v.id);
+    variantIds.forEach(id => {
+        if (!campaignForm.value.products.includes(id)) {
+            campaignForm.value.products.push(id);
+        }
+    });
+};
+
+const deselectAllFilteredProducts = () => {
+    const variantIds = filteredProductVariants.value
+        .filter(v => !v.product?.is_preorder)
+        .map(v => v.id);
+    campaignForm.value.products = campaignForm.value.products.filter(id => !variantIds.includes(id));
+};
+
+// ==================== VOUCHER FUNCTIONS ====================
+
+const openVoucherModal = (voucher = null) => {
+    editingVoucher.value = voucher;
+    errorMessage.value = '';
+    
+    if (voucher) {
+        voucherForm.value = {
+            id: voucher.id,
+            code: voucher.code || '',
+            target_type: voucher.target_type || 'all',
+            discount_type: voucher.discount_type || 'percent',
+            discount_value: voucher.discount_value || 0,
+            min_order: voucher.min_order || 0,
+            limit: voucher.limit || 100,
+            expiry: voucher.expiry || '',
+            active: voucher.status === 'active',
+            description: voucher.description || '',
+            campaign_id: voucher.campaign_id || null
+        };
+    } else {
+        voucherForm.value = {
+            id: null,
+            code: '',
+            target_type: 'all',
+            discount_type: 'percent',
+            discount_value: 0,
+            min_order: 0,
+            limit: 100,
+            expiry: '',
+            active: true,
+            description: '',
+            campaign_id: null
+        };
+    }
+    showVoucherModal.value = true;
+};
+
+const saveVoucher = async () => {
+    if (!voucherForm.value.code) {
+        errorMessage.value = 'Vui lòng nhập mã giảm giá';
+        return;
+    }
+    
+    if (voucherForm.value.discount_value < 0) {
+        errorMessage.value = 'Giá trị giảm giá không được âm';
+        return;
+    }
+    
+    isSubmitting.value = true;
+    errorMessage.value = '';
+    
+    try {
+        if (editingVoucher.value) {
+            await router.put(`/admin/promotions/voucher/${editingVoucher.value.id}`, voucherForm.value);
+        } else {
+            await router.post('/admin/promotions/voucher', voucherForm.value);
+        }
+        closeVoucherModal();
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
+        isSubmitting.value = false;
+    }
+};
+
+const deleteVoucher = async (id) => {
+    const voucher = vouchers.value.find(p => p.id === id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa mã "${voucher?.code}"?`)) {
+        return;
+    }
+    
+    try {
+        await router.delete(`/admin/promotions/voucher/${id}`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra khi xóa');
+    }
+};
+
+const toggleVoucher = async (voucher) => {
+    try {
+        await router.put(`/admin/promotions/voucher/${voucher.id}/toggle`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra');
+    }
+};
+
+// ==================== PRE-ORDER FUNCTIONS ====================
+
+const openPreorderModal = (preorder = null) => {
+    editingPreorder.value = preorder;
+    errorMessage.value = '';
+    
+    if (preorder) {
+        preorderForm.value = {
+            id: preorder.id,
+            name: preorder.name || '',
+            product_id: preorder.product_id || null,
+            tiers: preorder.tiers || [
+                { from: 1, to: 10, discount: 20 },
+                { from: 11, to: 20, discount: 10 },
+                { from: 21, to: 30, discount: 5 }
+            ],
+            start_date: preorder.start_date || '',
+            end_date: preorder.end_date || '',
+            active: preorder.status === 'active',
+            min_order: preorder.min_order || 0
+        };
+    } else {
+        preorderForm.value = {
+            id: null,
+            name: '',
+            product_id: null,
+            tiers: [
+                { from: 1, to: 10, discount: 20 },
+                { from: 11, to: 20, discount: 10 },
+                { from: 21, to: 30, discount: 5 }
+            ],
+            start_date: '',
+            end_date: '',
+            active: true,
+            min_order: 0
+        };
+    }
+    showPreorderModal.value = true;
+};
+
+const savePreorder = async () => {
+    if (!preorderForm.value.name) {
+        errorMessage.value = 'Vui lòng nhập tên chương trình';
+        return;
+    }
+    if (!preorderForm.value.product_id) {
+        errorMessage.value = 'Vui lòng chọn sản phẩm pre-order';
+        return;
+    }
+    
+    if (preorderForm.value.start_date && preorderForm.value.end_date) {
+        if (new Date(preorderForm.value.end_date) < new Date(preorderForm.value.start_date)) {
+            errorMessage.value = 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu';
+            return;
+        }
+    }
+    
+    isSubmitting.value = true;
+    errorMessage.value = '';
+    
+    try {
+        if (editingPreorder.value) {
+            await router.put(`/admin/promotions/preorder/${editingPreorder.value.id}`, preorderForm.value);
+        } else {
+            await router.post('/admin/promotions/preorder', preorderForm.value);
+        }
+        closePreorderModal();
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        errorMessage.value = error.response?.data?.message || 'Có lỗi xảy ra';
+        isSubmitting.value = false;
+    }
+};
+
+const deletePreorder = async (id) => {
+    const preorder = preorders.value.find(p => p.id === id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa chương trình "${preorder?.name}"?`)) {
+        return;
+    }
+    
+    try {
+        await router.delete(`/admin/promotions/preorder/${id}`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra khi xóa');
+    }
+};
+
+const togglePreorder = async (preorder) => {
+    try {
+        await router.put(`/admin/promotions/preorder/${preorder.id}/toggle`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra');
+    }
+};
+
+const addTier = () => {
+    const tiers = preorderForm.value.tiers;
+    const lastTier = tiers[tiers.length - 1];
+    const newFrom = lastTier ? lastTier.to + 1 : 1;
+    const newTo = newFrom + 9;
+    preorderForm.value.tiers.push({
+        from: newFrom,
+        to: newTo,
+        discount: 5
+    });
+};
+
+const removeTier = (index) => {
+    if (preorderForm.value.tiers.length > 1) {
+        preorderForm.value.tiers.splice(index, 1);
+    }
+};
+
+// ==================== MODAL FUNCTIONS ====================
+
+const closeModal = () => {
+    showModal.value = false;
+    editingCampaign.value = null;
+    errorMessage.value = '';
+    isSubmitting.value = false;
+    resetProductFilters();
+};
+
+const closeVoucherModal = () => {
+    showVoucherModal.value = false;
+    editingVoucher.value = null;
+    errorMessage.value = '';
+    isSubmitting.value = false;
+};
+
+const closePreorderModal = () => {
+    showPreorderModal.value = false;
+    editingPreorder.value = null;
+    errorMessage.value = '';
+    isSubmitting.value = false;
+};
+
+// Show flash message
+const showFlashMessage = () => {
+    if (flash.value && flash.value.success && flash.value.message) {
+        successMessage.value = flash.value.message;
+        showSuccess.value = true;
+        setTimeout(() => {
+            showSuccess.value = false;
+        }, 5000);
+    }
+};
+
+watch(() => page.props.flash, () => {
+    showFlashMessage();
+}, { deep: true });
+
+// ==================== COMPUTED ====================
+
+const processedCampaigns = computed(() => {
+    return campaigns.value.map(campaign => ({
+        ...campaign,
+        status: calculateCampaignStatus(campaign.startDate, campaign.endDate)
+    }));
+});
+
+const filteredCampaigns = computed(() => {
+    let filtered = processedCampaigns.value || [];
+    
+    if (activeStatusTab.value !== 'all') {
+        filtered = filtered.filter(c => c.status === activeStatusTab.value);
+    }
+    
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter(c => 
+            (c.name && c.name.toLowerCase().includes(query)) ||
+            (c.description && c.description.toLowerCase().includes(query))
+        );
+    }
+    
+    return filtered;
+});
+
+const campaignCounts = computed(() => {
+    const counts = {
+        all: campaigns.value.length,
+        active: 0,
+        ended: 0,
+        scheduled: 0
+    };
+    
+    processedCampaigns.value.forEach(c => {
+        if (c.status === 'active') counts.active++;
+        else if (c.status === 'ended') counts.ended++;
+        else if (c.status === 'scheduled') counts.scheduled++;
+    });
+    
+    return counts;
+});
+
+// Vouchers
+const filteredVouchers = computed(() => {
+    let filtered = vouchers.value || [];
+    
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter(v => 
+            (v.code && v.code.toLowerCase().includes(query)) ||
+            (v.description && v.description.toLowerCase().includes(query))
+        );
+    }
+    
+    return filtered;
+});
+
+const voucherCounts = computed(() => {
+    const vouchersData = vouchers.value || [];
+    return {
+        all: vouchersData.length,
+        active: vouchersData.filter(v => v.status === 'active').length,
+        inactive: vouchersData.filter(v => v.status !== 'active').length
+    };
+});
+
+// Pre-orders
+const filteredPreorders = computed(() => {
+    let filtered = preorders.value || [];
+    
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter(p => 
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.description && p.description.toLowerCase().includes(query))
+        );
+    }
+    
+    return filtered;
+});
+
+const preorderCounts = computed(() => {
+    const preordersData = preorders.value || [];
+    return {
+        all: preordersData.length,
+        active: preordersData.filter(p => p.status === 'active').length,
+        inactive: preordersData.filter(p => p.status !== 'active').length
+    };
+});
+
+onMounted(() => {
+    showFlashMessage();
+});
+</script>
+
 <style scoped>
 .line-clamp-1 {
     display: -webkit-box;
@@ -1619,5 +1816,20 @@ onMounted(() => {
 }
 .animate-spin {
     animation: spin 0.8s linear infinite;
+}
+
+.max-h-40::-webkit-scrollbar {
+    width: 4px;
+}
+.max-h-40::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+.max-h-40::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+.max-h-40::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 </style>

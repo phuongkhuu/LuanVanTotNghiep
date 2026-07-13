@@ -39,8 +39,14 @@ class PromotionController extends Controller
                     ];
                 });
 
-            // Lấy các campaign đang diễn ra (active)
-            $activeCampaigns = Campaign::with(['configs', 'productVariants', 'productVariants.product', 'productVariants.color'])
+            // Lấy các campaign đang diễn ra (active) kèm theo banners
+            $activeCampaigns = Campaign::with([
+                'configs', 
+                'productVariants', 
+                'productVariants.product', 
+                'productVariants.color',
+                'banners' // THÊM QUAN HỆ BANNER
+            ])
                 ->where('status', 'active')
                 ->whereIn('type', ['seasonal', 'campaign', 'flash_sale', 'anniversary', 'holiday', 'product_launch', 'other'])
                 ->latest()
@@ -59,6 +65,14 @@ class PromotionController extends Controller
                         $productName = $firstVariant->product->name;
                     }
                     
+                    // Lấy banner đang hoạt động đầu tiên của campaign
+                    $activeBanner = $campaign->banners
+                        ->where('status', Banner::STATUS_ACTIVE)
+                        ->first();
+                    
+                    // Nếu không có banner active, lấy banner đầu tiên bất kỳ
+                    $banner = $activeBanner ?? $campaign->banners->first();
+                    
                     return [
                         'id' => $campaign->id,
                         'name' => $campaign->name ?? 'Chiến dịch #' . $campaign->id,
@@ -73,11 +87,27 @@ class PromotionController extends Controller
                         'product_name' => $productName,
                         'product_count' => $campaign->productVariants->count(),
                         'featured' => $campaign->featured ?? false,
+                        // THÊM BANNER
+                        'banner' => $banner ? [
+                            'id' => $banner->id,
+                            'image' => $banner->image,
+                            'title' => $banner->title,
+                            'link' => $banner->link,
+                            'status' => $banner->status,
+                        ] : null,
+                        // Fallback: dùng banner_url nếu có trong bảng campaigns
+                        'banner_url' => $campaign->banner ?? null,
                     ];
                 });
 
             // Lấy flash sale đang diễn ra
-            $flashCampaigns = Campaign::with(['configs', 'productVariants', 'productVariants.product', 'productVariants.color'])
+            $flashCampaigns = Campaign::with([
+                'configs', 
+                'productVariants', 
+                'productVariants.product', 
+                'productVariants.color',
+                'banners'
+            ])
                 ->where('status', 'active')
                 ->where('type', 'flash_sale')
                 ->latest()
@@ -87,6 +117,11 @@ class PromotionController extends Controller
             foreach ($flashCampaigns as $campaign) {
                 $config = $campaign->configs->first();
                 $discountPercent = $config ? (float) $config->discount_percent : 0;
+                
+                // Lấy banner cho flash sale
+                $banner = $campaign->banners->where('status', Banner::STATUS_ACTIVE)->first() 
+                    ?? $campaign->banners->first();
+                $bannerImage = $banner ? $banner->image : null;
                 
                 foreach ($campaign->productVariants as $variant) {
                     $originalPrice = $variant->price ?? 0;
@@ -103,6 +138,7 @@ class PromotionController extends Controller
                         'campaign_id' => $campaign->id,
                         'campaign_name' => $campaign->name,
                         'color' => $variant->color ? $variant->color->name : null,
+                        'banner_image' => $bannerImage, // Thêm banner cho flash sale
                     ];
                 }
             }
@@ -146,13 +182,14 @@ class PromotionController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Lỗi load trang khuyến mãi: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return Inertia::render('Web/Promotion', [
                 'banners' => [],
                 'activeCampaigns' => [],
                 'flashProducts' => [],
                 'vouchers' => [],
-                'error' => 'Có lỗi xảy ra khi tải dữ liệu'
+                'error' => 'Có lỗi xảy ra khi tải dữ liệu: ' . $e->getMessage()
             ]);
         }
     }

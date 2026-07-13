@@ -3,8 +3,8 @@
     <Head title="Trang chủ - BigBag Premium Utility Carry Gear" />
     <AppHeader />
 
-    <!-- Hero Carousel - Hiển thị banner từ database (chỉ hiển thị banner active) -->
-    <section v-if="banners.length" class="relative group overflow-hidden">
+    <!-- Hero Carousel -->
+    <section v-if="banners && banners.length > 0" class="relative group overflow-hidden">
       <div class="overflow-x-auto snap-x snap-mandatory flex hide-scrollbar" id="hero-carousel">
         <div 
           v-for="(banner, index) in banners" 
@@ -13,19 +13,31 @@
         >
           <div class="h-[585px] w-full relative overflow-hidden">
             <a v-if="banner.link" :href="banner.link" target="_blank" rel="noopener noreferrer">
-              <img :src="banner.image" :alt="'Banner ' + (index + 1)" class="w-full h-full object-cover" />
+              <img 
+                :src="banner.image || getDefaultImage()" 
+                :alt="'Banner ' + (index + 1)" 
+                class="w-full h-full object-cover" 
+                loading="lazy"
+                @error="handleImageError"
+              />
             </a>
-            <img v-else :src="banner.image" :alt="'Banner ' + (index + 1)" class="w-full h-full object-cover" />
+            <img 
+              v-else 
+              :src="banner.image || getDefaultImage()" 
+              :alt="'Banner ' + (index + 1)" 
+              class="w-full h-full object-cover" 
+              loading="lazy"
+              @error="handleImageError"
+            />
           </div>
-          <!-- Hiển thị tên campaign nếu có -->
           <div v-if="banner.campaign" class="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
             {{ banner.campaign }}
           </div>
         </div>
       </div>
 
-      <!-- Nút điều hướng -->
       <button 
+        v-if="banners.length > 1"
         class="absolute left-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" 
         id="prev-hero"
         aria-label="Previous slide"
@@ -33,6 +45,7 @@
         <span class="material-symbols-outlined">chevron_left</span>
       </button>
       <button 
+        v-if="banners.length > 1"
         class="absolute right-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" 
         id="next-hero"
         aria-label="Next slide"
@@ -40,31 +53,18 @@
         <span class="material-symbols-outlined">chevron_right</span>
       </button>
 
-      <!-- Indicators -->
-      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2" id="carousel-indicators"></div>
+      <div v-if="banners.length > 1" class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2" id="carousel-indicators"></div>
     </section>
 
-    <!-- Fallback nếu không có banner (hiển thị ảnh mặc định) -->
     <section v-else class="relative group overflow-hidden">
-      <div class="overflow-x-auto snap-x snap-mandatory flex hide-scrollbar" id="hero-carousel">
-        <div class="flex-none w-full snap-center relative">
-          <div class="h-[585px] w-full relative overflow-hidden">
-            <img alt="Default Banner" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxx0m6cgeB_wFfg7s6Gg9fUlG74LJAjQX52e76-kLKbboHcvdGuP8wLvolaZ2nn44uSU4mSzGcMnWRrxegCgrBQPS_CJCrqTw_lR9qipVD13hl9T_DV9Vwt4PmieoYHWvSuOgDjr4TLs2YpCS6eO_P1Ya4-_gUurI8xgCqtWZq3EvAe9WrB0_PXR8pDs-UdKo5u7vHbg-s3eYwYc1YpaZsyCDVrp1oAxlY5NkvxU8DCvx9sj5PwWBzawIL86tZy9He4cl9TZdngHc">
-          </div>
-        </div>
-        <div class="flex-none w-full snap-center relative">
-          <div class="h-[585px] w-full relative overflow-hidden">
-            <img alt="Default Banner 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c">
+      <div class="relative h-[585px] w-full overflow-hidden bg-gray-200">
+        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600">
+          <div class="text-center text-white">
+            <h2 class="text-4xl font-bold mb-4">BigBag Premium Utility Carry Gear</h2>
+            <p class="text-xl">Trang bị hoàn hảo cho mọi hành trình</p>
           </div>
         </div>
       </div>
-      <button class="absolute left-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" id="prev-hero" aria-label="Previous slide">
-        <span class="material-symbols-outlined">chevron_left</span>
-      </button>
-      <button class="absolute right-8 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md hover:bg-white/50 text-white p-3 rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:block" id="next-hero" aria-label="Next slide">
-        <span class="material-symbols-outlined">chevron_right</span>
-      </button>
-      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2" id="carousel-indicators"></div>
     </section>
 
     <!-- HOT SALE SECTION -->
@@ -85,30 +85,52 @@
           <p class="text-gray-500">Ưu đãi giới hạn chỉ trong hôm nay</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div v-for="product in hotSales" :key="product.id" class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
+          <div 
+            v-for="product in hotSales" 
+            :key="product.id" 
+            class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
+          >
             <Link :href="route('product.detail', { id: product.id })" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
-                <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
-                <span class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                <img 
+                  :src="getProductImage(product)" 
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  :alt="product.name" 
+                  loading="lazy"
+                  @error="handleImageError"
+                />
+                <span 
+                  v-if="product.discount" 
+                  class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+                >
                   -{{ product.discount }}%
+                </span>
+                <span 
+                  v-else 
+                  class="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+                >
+                  Hot
                 </span>
               </div>
               <div class="p-4">
                 <h3 class="font-semibold text-gray-800 mb-1 line-clamp-1">{{ product.name }}</h3>
                 <div class="flex items-baseline space-x-2 mb-2">
-                  <span class="text-xl font-bold text-primary">{{ formatPrice(product.salePrice) }}</span>
-                  <span class="text-sm text-gray-400 line-through">{{ formatPrice(product.originalPrice) }}</span>
+                  <span class="text-xl font-bold text-primary">{{ formatPrice(product.salePrice || product.price) }}</span>
+                  <span v-if="product.originalPrice" class="text-sm text-gray-400 line-through">{{ formatPrice(product.originalPrice) }}</span>
                 </div>
                 <div class="flex items-center gap-1 mb-4">
                   <div class="flex text-amber-400">
-                    <span v-for="i in 5" :key="i" class="text-sm">{{ i <= product.rating ? '★' : '☆' }}</span>
+                    <span v-for="i in 5" :key="i" class="text-sm">{{ i <= (product.rating || 0) ? '★' : '☆' }}</span>
                   </div>
-                  <span class="text-xs text-gray-400">({{ product.reviews }})</span>
+                  <span class="text-xs text-gray-400">({{ product.reviews || 0 }})</span>
                 </div>
               </div>
             </Link>
             <div class="px-4 pb-4">
-              <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors">
+              <button 
+                @click="addToCart(product)" 
+                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
+              >
                 Mua Ngay
               </button>
             </div>
@@ -125,12 +147,22 @@
           <p class="text-gray-500">Sản phẩm yêu thích nhất tháng này</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div v-for="product in trending" :key="product.id" class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
+          <div 
+            v-for="product in trending" 
+            :key="product.id" 
+            class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
+          >
             <Link :href="route('product.detail', { id: product.id })" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
-                <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
+                <img 
+                  :src="getProductImage(product)" 
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  :alt="product.name" 
+                  loading="lazy"
+                  @error="handleImageError"
+                />
                 <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                  <span class="text-white text-sm font-semibold">🔥 Đã bán {{ product.sold }}</span>
+                  <span class="text-white text-sm font-semibold">🔥 Đã bán {{ product.sold || 0 }}</span>
                 </div>
               </div>
               <div class="p-4">
@@ -141,7 +173,10 @@
               </div>
             </Link>
             <div class="px-4 pb-4">
-              <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors">
+              <button 
+                @click="addToCart(product)" 
+                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
+              >
                 Mua Ngay
               </button>
             </div>
@@ -158,10 +193,20 @@
           <p class="text-gray-500">Đón đầu xu hướng cùng bộ sưu tập 2024</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div v-for="product in newProducts" :key="product.id" class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
+          <div 
+            v-for="product in newProducts" 
+            :key="product.id" 
+            class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
+          >
             <Link :href="route('product.detail', { id: product.id })" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
-                <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="product.name">
+                <img 
+                  :src="getProductImage(product)" 
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  :alt="product.name" 
+                  loading="lazy"
+                  @error="handleImageError"
+                />
                 <span class="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-sm uppercase font-bold">Mới</span>
               </div>
               <div class="p-4">
@@ -172,7 +217,10 @@
               </div>
             </Link>
             <div class="px-4 pb-4">
-              <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors">
+              <button 
+                @click="addToCart(product)" 
+                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
+              >
                 Mua Ngay
               </button>
             </div>
@@ -189,10 +237,20 @@
           <p class="text-gray-500">Cập nhật những câu chuyện và ưu đãi mới nhất</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div v-for="article in newsList" :key="article.id" class="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100">
+          <div 
+            v-for="article in newsList" 
+            :key="article.id" 
+            class="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100"
+          >
             <Link :href="route('promotion')" class="block">
               <div class="aspect-[1.5/1] overflow-hidden">
-                <img :src="article.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="article.title">
+                <img 
+                  :src="article.image || getDefaultImage()" 
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  :alt="article.title" 
+                  loading="lazy"
+                  @error="handleImageError"
+                />
               </div>
               <div class="p-5">
                 <div class="flex items-center gap-2 mb-3">
@@ -217,13 +275,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
-// Nhận dữ liệu từ HomeController
+// ==================== PROPS ====================
 const props = defineProps({
   banners: { 
     type: Array, 
@@ -247,54 +305,80 @@ const props = defineProps({
   }
 })
 
-// Gán dữ liệu vào ref (chỉ lấy banner đã được lọc từ controller)
+// ==================== REACTIVE DATA ====================
+// Sử dụng computed để xử lý dữ liệu
 const banners = ref(props.banners || [])
 const hotSales = ref(props.hotSales || [])
 const trending = ref(props.trending || [])
 const newProducts = ref(props.newProducts || [])
-const newsList = ref(props.newsList && props.newsList.length ? props.newsList : [
-  { 
-    id: 1, 
-    title: 'BigBag ra mắt bộ sưu tập Xuân Hè 2024', 
-    excerpt: 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.', 
-    image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop', 
-    category: 'Sự kiện', 
-    date: '15/03/2024' 
-  },
-  { 
-    id: 2, 
-    title: 'Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%', 
-    excerpt: 'Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.', 
-    image: 'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop', 
-    category: 'Khuyến mãi', 
-    date: '10/04/2024' 
-  },
-  { 
-    id: 3, 
-    title: 'Bí quyết chọn balo phù hợp với vóc dáng', 
-    excerpt: 'Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.', 
-    image: 'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop', 
-    category: 'Mẹo hay', 
-    date: '05/04/2024' 
-  }
-])
-
-// Format price
-const formatPrice = (price) => {
-  if (!price && price !== 0) return '0₫'
-  return Number(price).toLocaleString('vi-VN') + '₫'
-}
-
-// Add to cart
-const addToCart = (product) => {
-  router.get(route('product.detail', { id: product.id }))
-}
+const newsList = ref(props.newsList || [])
 
 // Countdown
 const countdown = ref({ hours: '23', minutes: '45', seconds: '12' })
 let countdownInterval = null
 let autoPlayInterval = null
+let carouselInitialized = false
 
+// ==================== DEFAULT IMAGE (BASE64) ====================
+// Sử dụng base64 để không cần file ảnh vật lý
+const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%23f3f4f6"/%3E%3Ctext x="200" y="195" font-family="Arial" font-size="20" text-anchor="middle" fill="%239ca3af"%3ENo Image%3C/text%3E%3Ctext x="200" y="225" font-family="Arial" font-size="14" text-anchor="middle" fill="%23d1d5db"%3EProduct%3C/text%3E%3C/svg%3E'
+
+// ==================== METHODS ====================
+/**
+ * Lấy ảnh mặc định
+ */
+const getDefaultImage = () => {
+  return DEFAULT_IMAGE
+}
+
+/**
+ * Lấy ảnh sản phẩm (có fallback)
+ */
+const getProductImage = (product) => {
+  if (!product) return DEFAULT_IMAGE
+  
+  // Nếu có image và không phải đường dẫn lỗi
+  if (product.image && product.image !== '/images/default-product.jpg') {
+    return product.image
+  }
+  
+  return DEFAULT_IMAGE
+}
+
+/**
+ * Xử lý lỗi ảnh - FIX LỖI 404 VÀ VÒNG LẶP
+ */
+const handleImageError = (e) => {
+  // Ngăn chặn vòng lặp vô tận
+  if (e.target.src === DEFAULT_IMAGE) {
+    e.target.style.display = 'none'
+    return
+  }
+  
+  // Set ảnh mặc định
+  e.target.src = DEFAULT_IMAGE
+  // Ngăn gọi lại event
+  e.target.onerror = null
+}
+
+/**
+ * Format giá tiền
+ */
+const formatPrice = (price) => {
+  if (!price && price !== 0) return '0₫'
+  return Number(price).toLocaleString('vi-VN') + '₫'
+}
+
+/**
+ * Thêm vào giỏ hàng
+ */
+const addToCart = (product) => {
+  router.get(route('product.detail', { id: product.id }))
+}
+
+/**
+ * Bắt đầu đếm ngược
+ */
 const startCountdown = () => {
   let hours = 23, minutes = 45, seconds = 12
   if (countdownInterval) clearInterval(countdownInterval)
@@ -322,12 +406,12 @@ const startCountdown = () => {
   }, 1000)
 }
 
-// Carousel logic
-let carouselInitialized = false
-
+/**
+ * Khởi tạo carousel
+ */
 const initCarousel = () => {
   const carouselEl = document.getElementById('hero-carousel')
-  if (!carouselEl || carouselInitialized) return
+  if (!carouselEl || carouselInitialized || banners.value.length <= 1) return
   carouselInitialized = true
 
   const prevBtn = document.getElementById('prev-hero')
@@ -380,7 +464,9 @@ const initCarousel = () => {
   
   function resetTimer() { 
     if (autoPlayInterval) clearInterval(autoPlayInterval)
-    autoPlayInterval = setInterval(nextSlide, 5000)
+    if (totalSlides > 1) {
+      autoPlayInterval = setInterval(nextSlide, 5000)
+    }
   }
 
   if (prevBtn) {
@@ -420,22 +506,13 @@ const initCarousel = () => {
   resetTimer()
 }
 
-// Lifecycle
+// ==================== LIFECYCLE ====================
 onMounted(() => {
   startCountdown()
   nextTick(() => {
     initCarousel()
   })
 })
-
-// Watch banners change
-watch(() => props.banners, (newVal) => {
-  banners.value = newVal || []
-  carouselInitialized = false
-  nextTick(() => {
-    initCarousel()
-  })
-}, { deep: true })
 
 onUnmounted(() => {
   if (autoPlayInterval) clearInterval(autoPlayInterval)

@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Admin/ProductController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -17,19 +18,13 @@ use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
-    const MAX_MEDIA = 10; // Tối đa số lượng ảnh/video
+    const MAX_MEDIA = 10;
 
-    /**
-     * Thư mục gốc lưu media (bên ngoài public)
-     */
     protected function mediaDir(): string
     {
         return base_path('media');
     }
 
-    /**
-     * Đảm bảo thư mục media tồn tại
-     */
     protected function ensureMediaDir(): void
     {
         $dir = $this->mediaDir();
@@ -38,9 +33,6 @@ class ProductController extends Controller
         }
     }
 
-    /**
-     * Lưu file (ảnh hoặc video) vào thư mục phù hợp
-     */
     protected function saveUploadedFile($file): string
     {
         $this->ensureMediaDir();
@@ -48,7 +40,6 @@ class ProductController extends Controller
         $ext = strtolower($file->getClientOriginalExtension());
         $filename = uniqid() . '.' . $ext;
 
-        // Xác định thư mục con dựa trên loại file
         $videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm', 'ogg'];
         $subDir = in_array($ext, $videoExtensions) ? 'video' : 'image';
 
@@ -61,18 +52,13 @@ class ProductController extends Controller
         return '/' . $subDir . '/' . $filename;
     }
 
-    /**
-     * Xóa file media nếu tồn tại (hỗ trợ cả ảnh và video)
-     */
     protected function deleteMediaIfExists(?string $path): void
     {
         if (empty($path)) return;
 
-        // Loại bỏ query string nếu có
         $parsed = parse_url($path);
         $cleanPath = ltrim($parsed['path'] ?? $path, '/');
 
-        // Chỉ xóa nếu thuộc thư mục media (image/ hoặc video/)
         if (!preg_match('#^(image|video)/#', $cleanPath)) {
             return;
         }
@@ -83,19 +69,87 @@ class ProductController extends Controller
         }
     }
 
-    /**
-     * Xác định thumbnail từ danh sách media
-     */
     protected function determineThumbnail(array $media): ?string
     {
         if (empty($media)) return null;
 
         $first = $media[0];
-        // Nếu là video, trả về null (có thể thay bằng icon mặc định)
         if (str_starts_with($first, '/video/')) {
             return null;
         }
         return $first;
+    }
+
+    /**
+     * Tính giá sale cho variant (tính toán tại chỗ)
+     */
+    private function calculateSalePriceForVariant($variant)
+    {
+        $originalPrice = $variant->price;
+        $salePrice = $originalPrice;
+        $discountPercent = 0;
+        $discountType = null;
+        $campaignId = null;
+        
+        // 1. Kiểm tra campaign (chỉ cho retail - không pre-order)
+        if (!$variant->product || !$variant->product->is_preorder) {
+            $campaign = \App\Models\Campaign::where('status', 'active')
+                ->where('type', '!=', 'voucher')
+                ->where('type', '!=', 'preorder')
+                ->whereHas('productVariants', function($query) use ($variant) {
+                    $query->where('product_variant_id', $variant->id);
+                })
+                ->first();
+            
+            if ($campaign) {
+                $config = $campaign->configs()->first();
+                $discountPercent = $config ? $config->discount_percent : 0;
+                if ($discountPercent > 0) {
+                    $salePrice = $originalPrice * (1 - $discountPercent / 100);
+                    $salePrice = round($salePrice);
+                    $discountType = 'campaign';
+                    $campaignId = $campaign->id;
+                }
+            }
+        }
+        
+        // 2. Kiểm tra pre-order
+        if ($variant->product && $variant->product->is_preorder) {
+            $preorder = \App\Models\Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('product_id', $variant->product_id)
+                ->first();
+            
+            if ($preorder) {
+                $currentBuyers = $preorder->current_buyers ?? 0;
+                $tiers = $preorder->tiers ?? [];
+                
+                foreach ($tiers as $tier) {
+                    $from = $tier['from'] ?? 0;
+                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                        $discountPercent = $tier['discount'] ?? 0;
+                        break;
+                    }
+                }
+                
+                if ($discountPercent > 0) {
+                    $salePrice = $originalPrice * (1 - $discountPercent / 100);
+                    $salePrice = round($salePrice);
+                    $discountType = 'preorder';
+                    $campaignId = $preorder->id;
+                }
+            }
+        }
+        
+        return [
+            'original_price' => $originalPrice,
+            'sale_price' => $salePrice,
+            'discount_percent' => $discountPercent,
+            'discount_type' => $discountType,
+            'campaign_id' => $campaignId,
+            'is_on_sale' => $discountPercent > 0,
+        ];
     }
 
     public function index($type = 'normal')
@@ -109,6 +163,28 @@ class ProductController extends Controller
             ->map(function ($product) {
                 $totalStock = $product->variants->sum('stock');
                 $minPrice = $product->variants->min('price') ?? 0;
+                
+                // Tính sale price cho từng variant
+                $salePrices = [];
+                $isOnSale = false;
+                $salePercent = 0;
+                $saleType = null;
+                $variantSaleInfo = [];
+                
+                foreach ($product->variants as $variant) {
+                    $saleInfo = $this->calculateSalePriceForVariant($variant);
+                    $salePrices[] = $saleInfo['sale_price'];
+                    $variantSaleInfo[$variant->id] = $saleInfo;
+                    
+                    if ($saleInfo['is_on_sale']) {
+                        $isOnSale = true;
+                        $salePercent = max($salePercent, $saleInfo['discount_percent']);
+                        $saleType = $saleInfo['discount_type'];
+                    }
+                }
+                
+                $minSalePrice = !empty($salePrices) ? min($salePrices) : null;
+                $displayPrice = $minSalePrice && $minSalePrice < $minPrice ? $minSalePrice : $minPrice;
 
                 $media = $product->image_url ?? [];
                 if (!is_array($media)) {
@@ -123,21 +199,30 @@ class ProductController extends Controller
                     'brand_id' => $product->brand_id,
                     'brand' => $product->brand->name ?? '',
                     'price' => (int) $minPrice,
-                    'wholesalePrice' => (int) $minPrice,
+                    'sale_price' => $minSalePrice ? (int) $minSalePrice : null,
+                    'display_price' => (int) $displayPrice,
                     'stock' => $totalStock,
                     'type' => $product->is_preorder ? 'preorder' : 'normal',
                     'image_url' => $media,
                     'thumbnail' => $product->thumbnail ?? null,
                     'status' => $product->status,
-                    'variants' => $product->variants->map(fn($v) => [
-                        'id' => $v->id,
-                        'color_id' => $v->color_id,
-                        'color' => $v->color->name ?? '',
-                        'code' => $v->color->code ?? '',
-                        'size_name' => $v->size_name,
-                        'price' => $v->price,
-                        'stock' => $v->stock,
-                    ]),
+                    'is_on_sale' => $isOnSale,
+                    'sale_type' => $saleType,
+                    'sale_percent' => $salePercent,
+                    'variants' => $product->variants->map(function($v) use ($variantSaleInfo) {
+                        $info = $variantSaleInfo[$v->id] ?? $this->calculateSalePriceForVariant($v);
+                        return [
+                            'id' => $v->id,
+                            'color_id' => $v->color_id,
+                            'color' => $v->color->name ?? '',
+                            'code' => $v->color->code ?? '',
+                            'size_name' => $v->size_name,
+                            'price' => $v->price,
+                            'sale_price' => $info['sale_price'],
+                            'is_on_sale' => $info['is_on_sale'],
+                            'stock' => $v->stock,
+                        ];
+                    }),
                 ];
             });
 
@@ -156,7 +241,6 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        // Xử lý image_url nếu gửi dạng JSON string
         if ($request->has('image_url') && is_string($request->input('image_url'))) {
             $request->merge([
                 'image_url' => json_decode($request->input('image_url'), true) ?? []
@@ -171,7 +255,7 @@ class ProductController extends Controller
             'image_url' => 'nullable|array|max:' . self::MAX_MEDIA,
             'image_url.*' => 'nullable|url|max:2048',
             'image_files' => 'nullable|array|max:' . self::MAX_MEDIA,
-            'image_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp,mp4,mov,avi,wmv,flv,mkv|max:20480', // 20MB
+            'image_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp,mp4,mov,avi,wmv,flv,mkv|max:20480',
             'material' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'variants' => 'required|array|min:1',
@@ -183,14 +267,12 @@ class ProductController extends Controller
 
         $media = $validated['image_url'] ?? [];
 
-        // Xử lý file upload
         if ($request->hasFile('image_files')) {
             foreach ($request->file('image_files') as $file) {
                 $media[] = $this->saveUploadedFile($file);
             }
         }
 
-        // Giới hạn số lượng
         $media = array_slice($media, 0, self::MAX_MEDIA);
         $thumbnail = $this->determineThumbnail($media);
 
@@ -226,7 +308,6 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
-        // Xử lý image_url nếu gửi dạng JSON string
         if ($request->has('image_url') && is_string($request->input('image_url'))) {
             $request->merge([
                 'image_url' => json_decode($request->input('image_url'), true) ?? []
@@ -255,12 +336,9 @@ class ProductController extends Controller
             'variants.*.stock' => 'required|integer|min:0',
         ]);
 
-        // Xác định danh sách media cũ để sau xóa file không dùng
         $oldMedia = $product->image_url ?? [];
-
         $media = $validated['image_url'] ?? [];
 
-        // Xử lý file upload mới
         if ($request->hasFile('image_files')) {
             foreach ($request->file('image_files') as $file) {
                 $media[] = $this->saveUploadedFile($file);
@@ -270,7 +348,6 @@ class ProductController extends Controller
         $media = array_slice($media, 0, self::MAX_MEDIA);
         $thumbnail = $this->determineThumbnail($media);
 
-        // Cập nhật sản phẩm
         $product->update([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
@@ -283,14 +360,12 @@ class ProductController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        // Xóa các file media cũ không còn trong danh sách mới
         foreach ($oldMedia as $oldPath) {
             if (!in_array($oldPath, $media)) {
                 $this->deleteMediaIfExists($oldPath);
             }
         }
 
-        // Cập nhật variants
         $existingVariantIds = $product->variants->pluck('id')->toArray();
         $submittedVariantIds = [];
 
@@ -332,7 +407,6 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         try {
-            // Xóa tất cả file media của sản phẩm
             if ($product->image_url) {
                 foreach ($product->image_url as $path) {
                     $this->deleteMediaIfExists($path);

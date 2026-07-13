@@ -14,8 +14,9 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('link')->nullable();
             $table->text('description')->nullable();
-            $table->boolean('status')->default(true);
+            $table->integer('status')->default(1); // Mặc định là Hoạt động
             $table->integer('order')->default(0);
+            $table->foreignId('campaign_id')->nullable()->constrained()->onDelete('set null'); // Đã có ở đây
             $table->timestamps();
         });
     }

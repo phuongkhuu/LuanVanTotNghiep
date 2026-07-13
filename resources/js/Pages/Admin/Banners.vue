@@ -391,21 +391,22 @@ const availableCampaigns = computed(() => {
 
 // Hàm lấy trạng thái badge
 const getStatusBadge = (banner) => {
-    // Nếu campaign đã kết thúc -> Đã khóa
+    // Nếu campaign đã kết thúc -> Đã khóa (-1)
     if (banner.campaign?.status === 'ended') {
         return { text: 'Đã khóa', class: 'bg-red-100 text-red-700' }
     }
-    // Nếu campaign sắp diễn ra -> Đang chờ
+    // Nếu campaign sắp diễn ra -> Đang chờ (0)
     if (banner.campaign?.status === 'scheduled') {
         return { text: 'Đang chờ', class: 'bg-yellow-100 text-yellow-700' }
     }
-    // Nếu campaign đang diễn ra và banner hoạt động -> Hoạt động
-    if (banner.campaign?.status === 'active' && (banner.status === 1 || banner.status === true)) {
+    // Nếu campaign đang diễn ra và banner hoạt động -> Hoạt động (1)
+    if (banner.campaign?.status === 'active' && banner.status === 1) {
         return { text: 'Hoạt động', class: 'bg-green-100 text-green-700' }
     }
     // Mặc định -> Tạm dừng
     return { text: 'Tạm dừng', class: 'bg-gray-100 text-gray-700' }
 }
+
 
 // Hàm lấy text trạng thái campaign
 const getCampaignStatusText = (status) => {

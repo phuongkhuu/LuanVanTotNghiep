@@ -1,4 +1,5 @@
 <?php
+// app/Models/ProductVariant.php
 
 namespace App\Models;
 
@@ -10,7 +11,12 @@ class ProductVariant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_id', 'color_id', 'size_name', 'rating', 'stock', 'price'
+        'product_id', 
+        'color_id', 
+        'size_name', 
+        'rating', 
+        'stock', 
+        'price',
     ];
 
     protected $casts = [
@@ -29,7 +35,6 @@ class ProductVariant extends Model
         return $this->belongsTo(Color::class);
     }
 
-    // Thêm scope để lấy variant có màu
     public function scopeHasColor($query)
     {
         return $query->whereNotNull('color_id');

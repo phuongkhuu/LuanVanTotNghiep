@@ -4,26 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Banner extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'title', 
-        'image', 
-        'link', 
-        'description',
-        'status', 
+        'title',
+        'image',
+        'link',
+        'campaign_id',
         'order',
-        'campaign_id'
+        'status', // -1: Đã khóa, 0: Đang chờ, 1: Hoạt động
     ];
 
-    protected $casts = [
-        'status' => 'boolean',
-        'order' => 'integer',
-    ];
+    // Constants cho trạng thái
+    const STATUS_INACTIVE = -1;   // Đã khóa
+    const STATUS_PENDING = 0;     // Đang chờ
+    const STATUS_ACTIVE = 1;      // Hoạt động
 
     // Quan hệ với Campaign
     public function campaign()
@@ -31,43 +29,59 @@ class Banner extends Model
         return $this->belongsTo(Campaign::class);
     }
 
-    // Scope lấy banner đang hoạt động
+    // Scope: Lấy banner đang hoạt động (chỉ status = 1)
     public function scopeActive($query)
     {
-        return $query->where('status', true);
+        return $query->where('status', self::STATUS_ACTIVE);
     }
 
-    // Scope lấy banner theo campaign đang active hoặc scheduled
-    public function scopeWithValidCampaign($query)
+    // Scope: Lấy banner đang chờ (status = 0)
+    public function scopePending($query)
     {
-        return $query->whereHas('campaign', function($q) {
-            $q->whereIn('status', ['active', 'scheduled']);
-        })->orWhereNull('campaign_id');
+        return $query->where('status', self::STATUS_PENDING);
     }
 
-    // Kiểm tra banner có hợp lệ để hiển thị không
-    public function isValidToShow()
+    // Scope: Lấy banner đã khóa (status = -1)
+    public function scopeInactive($query)
     {
-        if (!$this->status) {
-            return false;
-        }
-
-        if (!$this->campaign_id) {
-            return true;
-        }
-
-        return in_array($this->campaign->status ?? '', ['active', 'scheduled']);
+        return $query->where('status', self::STATUS_INACTIVE);
     }
 
-    // Cập nhật trạng thái banner dựa trên campaign
-    public function updateStatusByCampaign()
+    // Helper methods
+    public function isActive()
     {
-        if ($this->campaign_id && $this->campaign) {
-            if ($this->campaign->status === 'ended') {
-                $this->update(['status' => false]);
-                return true;
-            }
-        }
-        return false;
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isPending()
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isInactive()
+    {
+        return $this->status === self::STATUS_INACTIVE;
+    }
+
+    // Lấy label hiển thị cho status
+    public function getStatusLabelAttribute()
+    {
+        return match($this->status) {
+            self::STATUS_ACTIVE => 'Hoạt động',
+            self::STATUS_PENDING => 'Đang chờ',
+            self::STATUS_INACTIVE => 'Đã khóa',
+            default => 'Không xác định',
+        };
+    }
+
+    // Lấy màu cho status (dùng cho badge)
+    public function getStatusColorAttribute()
+    {
+        return match($this->status) {
+            self::STATUS_ACTIVE => 'success',
+            self::STATUS_PENDING => 'warning',
+            self::STATUS_INACTIVE => 'danger',
+            default => 'secondary',
+        };
     }
 }

@@ -10,7 +10,6 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
 
 class BannerController extends Controller
 {
@@ -30,17 +29,17 @@ class BannerController extends Controller
             ->map(function ($banner) {
                 // Tự động xét trạng thái dựa trên campaign
                 if ($banner->campaign_id && $banner->campaign) {
-                    // Nếu campaign đang diễn ra -> Hoạt động
+                    // Nếu campaign đang diễn ra -> Hoạt động (1)
                     if ($banner->campaign->status === 'active') {
-                        $banner->status = true; // Hoạt động
+                        $banner->status = Banner::STATUS_ACTIVE; // 1
                     } 
-                    // Nếu campaign sắp diễn ra -> Đang chờ
+                    // Nếu campaign sắp diễn ra -> Đang chờ (0)
                     elseif ($banner->campaign->status === 'scheduled') {
-                        $banner->status = true; // Vẫn hoạt động nhưng hiển thị "Đang chờ"
+                        $banner->status = Banner::STATUS_PENDING; // 0
                     }
-                    // Nếu campaign đã kết thúc -> Đã khóa
+                    // Nếu campaign đã kết thúc -> Đã khóa (-1)
                     elseif ($banner->campaign->status === 'ended') {
-                        $banner->status = false; // Đã khóa
+                        $banner->status = Banner::STATUS_INACTIVE; // -1
                     }
                     // Lưu lại để đồng bộ database
                     $banner->save();
@@ -62,11 +61,11 @@ class BannerController extends Controller
             ->map(function ($banner) {
                 if ($banner->campaign_id && $banner->campaign) {
                     if ($banner->campaign->status === 'active') {
-                        $banner->status = true;
+                        $banner->status = Banner::STATUS_ACTIVE; // 1
                     } elseif ($banner->campaign->status === 'scheduled') {
-                        $banner->status = true;
+                        $banner->status = Banner::STATUS_PENDING; // 0
                     } elseif ($banner->campaign->status === 'ended') {
-                        $banner->status = false;
+                        $banner->status = Banner::STATUS_INACTIVE; // -1
                     }
                     $banner->save();
                 }
@@ -139,8 +138,11 @@ class BannerController extends Controller
                 ], 422);
             }
 
-            // Tự động xét trạng thái: active/scheduled -> Hoạt động
-            $status = true;
+            // Tự động xét trạng thái dựa trên campaign
+            // active -> 1 (Hoạt động), scheduled -> 0 (Đang chờ)
+            $status = $campaign->status === 'active' 
+                ? Banner::STATUS_ACTIVE   // 1
+                : Banner::STATUS_PENDING; // 0
 
             $data = [
                 'title' => $validated['title'],
@@ -253,7 +255,6 @@ class BannerController extends Controller
                 ], 404);
             }
 
-            // ✅ Yêu cầu 1: Chiến dịch sắp diễn ra được sửa
             if (!in_array($campaign->status, ['active', 'scheduled'])) {
                 return response()->json([
                     'success' => false,
@@ -268,9 +269,10 @@ class BannerController extends Controller
                 ], 422);
             }
 
-            // ✅ Yêu cầu 2: Trạng thái banner
-            // active -> Hoạt động, scheduled -> Đang chờ, ended -> Đã khóa
-            $status = true; // Mặc định hoạt động
+            // Tự động xét trạng thái dựa trên campaign mới
+            $status = $campaign->status === 'active' 
+                ? Banner::STATUS_ACTIVE   // 1
+                : Banner::STATUS_PENDING; // 0
 
             $data = [
                 'title' => $validated['title'],
@@ -360,7 +362,6 @@ class BannerController extends Controller
         try {
             $banner = Banner::findOrFail($id);
             
-            // ✅ Yêu cầu 1: Vẫn có quyền xóa khi campaign đã kết thúc
             if ($banner->image && Storage::disk('public')->exists(str_replace('/storage/', '', $banner->image))) {
                 Storage::disk('public')->delete(str_replace('/storage/', '', $banner->image));
             }
@@ -389,13 +390,13 @@ class BannerController extends Controller
         ], 422);
     }
 
+    /**
+     * Lấy banner hoạt động để hiển thị lên trang chủ (CHỈ LẤY STATUS = 1)
+     */
     public function getActiveBanners()
     {
-        $banners = Banner::where('status', 1)
+        $banners = Banner::where('status', Banner::STATUS_ACTIVE) // Chỉ lấy status = 1
             ->with('campaign')
-            ->whereHas('campaign', function($query) {
-                $query->where('status', 'active');
-            })
             ->orderBy('order', 'asc')
             ->get()
             ->map(function ($banner) {
@@ -404,6 +405,8 @@ class BannerController extends Controller
                     'image' => $banner->image,
                     'link' => $banner->link,
                     'campaign' => $banner->campaign?->name,
+                    'status' => $banner->status,
+                    'status_label' => $banner->status_label,
                 ];
             });
 
@@ -457,11 +460,14 @@ class BannerController extends Controller
             $updated = 0;
             foreach ($banners as $banner) {
                 if ($banner->campaign) {
-                    // ✅ Yêu cầu 2: Trạng thái banner
-                    // active -> Hoạt động
-                    // scheduled -> Đang chờ (vẫn true nhưng hiển thị khác)
-                    // ended -> Đã khóa
-                    $newStatus = in_array($banner->campaign->status, ['active', 'scheduled']) ? true : false;
+                    // Cập nhật status dựa trên campaign
+                    $newStatus = match($banner->campaign->status) {
+                        'active' => Banner::STATUS_ACTIVE,    // 1
+                        'scheduled' => Banner::STATUS_PENDING, // 0
+                        'ended' => Banner::STATUS_INACTIVE,    // -1
+                        default => $banner->status,
+                    };
+                    
                     if ($banner->status != $newStatus) {
                         $banner->update(['status' => $newStatus]);
                         $updated++;

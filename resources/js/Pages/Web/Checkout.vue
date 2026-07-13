@@ -247,6 +247,34 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Mã khuyến mãi -->
+              <div class="mb-4 border-t border-gray-200 pt-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="material-symbols-outlined text-primary text-sm">local_offer</span>
+                  <span class="text-sm font-medium text-gray-700">Mã khuyến mãi</span>
+                </div>
+                <div class="flex gap-2">
+                  <input 
+                    v-model="promoCode" 
+                    type="text" 
+                    placeholder="Nhập mã giảm giá"
+                    class="flex-1 border border-gray-200 bg-gray-50 p-2.5 rounded-lg text-sm focus:border-primary focus:ring-0"
+                    :disabled="promoApplied"
+                  >
+                  <button 
+                    @click="applyPromoCode" 
+                    :disabled="promoApplied || !promoCode"
+                    class="px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ promoApplied ? 'Đã áp dụng' : 'Áp dụng' }}
+                  </button>
+                </div>
+                <div v-if="promoMessage" class="mt-2 text-sm" :class="promoApplied ? 'text-green-600' : 'text-red-600'">
+                  {{ promoMessage }}
+                </div>
+              </div>
+
               <div class="space-y-4 border-t border-gray-200 pt-4 mb-4">
                 <div class="flex justify-between text-sm text-gray-600">
                   <span>Tạm tính ({{ cartItems.length }} sản phẩm)</span>
@@ -256,14 +284,14 @@
                   <span>Phí vận chuyển</span>
                   <span class="text-green-600 font-semibold">Miễn phí</span>
                 </div>
-                <div class="flex justify-between text-sm text-gray-600">
-                  <span>Mã giảm giá</span>
-                  <span class="text-primary">- 0₫</span>
+                <div v-if="discountAmount > 0" class="flex justify-between text-sm text-green-600">
+                  <span>Giảm giá</span>
+                  <span class="font-semibold">-{{ formatPrice(discountAmount) }}</span>
                 </div>
                 <hr class="border-gray-200">
                 <div class="flex justify-between items-center py-2">
                   <span class="font-semibold text-gray-800">Tổng cộng</span>
-                  <span class="font-display-lg text-2xl text-primary font-bold">{{ formatPrice(total) }}</span>
+                  <span class="font-display-lg text-2xl text-primary font-bold">{{ formatPrice(finalTotal) }}</span>
                 </div>
               </div>
               <button @click="placeOrder" :disabled="loading" class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
@@ -363,9 +391,21 @@ const receiverInfo = ref({
 const sameAsCustomer = ref(false)
 const paymentMethod = ref('cod')
 
+// Mã khuyến mãi
+const promoCode = ref('')
+const promoApplied = ref(false)
+const promoMessage = ref('')
+const discountAmount = ref(0)
+
 // Tính toán lại subtotal và total
 const subtotal = computed(() => props.subtotal || 0)
-const total = computed(() => props.final_total || subtotal.value)
+
+// Tính tổng cuối cùng sau khi áp dụng mã giảm giá
+const finalTotal = computed(() => {
+  const baseTotal = subtotal.value
+  const discount = discountAmount.value || 0
+  return Math.max(0, baseTotal - discount)
+})
 
 // Watch để copy thông tin
 watch(sameAsCustomer, (val) => {
@@ -387,6 +427,61 @@ watch(sameAsCustomer, (val) => {
 const formatPrice = (val) => {
   if (!val) return '0₫'
   return Number(val).toLocaleString('vi-VN') + '₫'
+}
+
+// Áp dụng mã khuyến mãi
+const applyPromoCode = () => {
+  if (!promoCode.value.trim()) {
+    promoMessage.value = 'Vui lòng nhập mã khuyến mãi'
+    return
+  }
+
+  // Giả lập kiểm tra mã khuyến mãi từ server
+  // Trong thực tế, bạn sẽ gọi API để kiểm tra mã
+  const validPromoCodes = {
+    'BIGBAG10': { discount: 10, type: 'percent' }, // Giảm 10%
+    'BIGBAG50': { discount: 50000, type: 'fixed' }, // Giảm 50,000đ
+    'FREESHIP': { discount: 0, type: 'free_shipping' },
+    'PREORDER20': { discount: 20, type: 'percent' }, // Giảm 20% cho pre-order
+  }
+
+  const code = promoCode.value.trim().toUpperCase()
+  const promo = validPromoCodes[code]
+
+  if (promo) {
+    // Kiểm tra mã áp dụng cho pre-order
+    if (code === 'PREORDER20' && !props.is_pre_order) {
+      promoMessage.value = 'Mã này chỉ áp dụng cho đơn hàng Pre-order'
+      promoApplied.value = false
+      discountAmount.value = 0
+      return
+    }
+
+    // Tính giảm giá
+    let discount = 0
+    if (promo.type === 'percent') {
+      discount = (subtotal.value * promo.discount) / 100
+    } else if (promo.type === 'fixed') {
+      discount = Math.min(promo.discount, subtotal.value)
+    } else if (promo.type === 'free_shipping') {
+      // Miễn phí vận chuyển (không tính vào giảm giá)
+      discount = 0
+      promoMessage.value = '✅ Đã áp dụng mã miễn phí vận chuyển!'
+    }
+
+    discountAmount.value = discount
+    promoApplied.value = true
+    promoMessage.value = `✅ Áp dụng thành công! Giảm ${promo.type === 'percent' ? promo.discount + '%' : formatPrice(promo.discount)}`
+    
+    // Reset nếu áp dụng miễn phí vận chuyển
+    if (promo.type === 'free_shipping') {
+      discountAmount.value = 0
+    }
+  } else {
+    promoMessage.value = '❌ Mã khuyến mãi không hợp lệ'
+    promoApplied.value = false
+    discountAmount.value = 0
+  }
 }
 
 // Đặt hàng
@@ -439,8 +534,11 @@ const placeOrder = () => {
       quantity: item.quantity,
       price: item.price,
     })),
-    total_amount: total.value,
-    order_type: props.order_type || 'retail', // ✅ Quan trọng: Truyền order_type
+    total_amount: finalTotal.value,
+    order_type: props.order_type || 'retail',
+    // Thêm thông tin mã giảm giá
+    promo_code: promoApplied.value ? promoCode.value : null,
+    discount_amount: discountAmount.value,
   }
 
   console.log('📦 Order data:', orderData)

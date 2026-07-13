@@ -91,22 +91,51 @@
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-primary mb-6 uppercase">CHIẾN DỊCH ĐANG DIỄN RA</h2>
         <div v-if="activeCampaigns.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div v-for="campaign in activeCampaigns" :key="campaign.id" class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-100 group">
+            <!-- PHẦN BANNER - SỬ DỤNG BANNER TỪ BẢNG BANNERS -->
             <div class="relative h-48 overflow-hidden">
-              <img 
-                :src="campaign.product_image || defaultImage" 
-                :alt="campaign.name"
-                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              >
-              <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              <!-- Hiển thị banner nếu có -->
+              <template v-if="campaign.banner && campaign.banner.image">
+                <img 
+                  :src="campaign.banner.image" 
+                  :alt="campaign.banner.title || campaign.name"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  @error="handleImageError"
+                >
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              </template>
+              <!-- Fallback từ banner_url cũ -->
+              <template v-else-if="campaign.banner_url">
+                <img 
+                  :src="campaign.banner_url" 
+                  :alt="campaign.name"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  @error="handleImageError"
+                >
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              </template>
+              <!-- Fallback: sử dụng product_image -->
+              <template v-else>
+                <img 
+                  :src="campaign.product_image || defaultImage" 
+                  :alt="campaign.name"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                >
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              </template>
+              
+              <!-- Badge trạng thái -->
               <div class="absolute top-4 right-4">
                 <span class="px-3 py-1 rounded-full text-xs font-bold text-white bg-green-500">
                   Đang diễn ra
                 </span>
               </div>
+              
+              <!-- Badge giảm giá -->
               <div v-if="campaign.discount_percent > 0" class="absolute bottom-4 left-4 bg-primary text-white font-bold py-1 px-3 rounded-full text-sm">
                 -{{ campaign.discount_percent }}%
               </div>
             </div>
+            
             <div class="p-5">
               <h3 class="font-bold text-lg text-gray-800 mb-2 line-clamp-1">{{ campaign.name }}</h3>
               <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ campaign.description || 'Chiến dịch khuyến mãi đặc biệt' }}</p>
@@ -220,6 +249,11 @@ const updateFlashTimer = () => {
     minutes: String(minutes).padStart(2, '0'),
     seconds: String(seconds).padStart(2, '0')
   }
+}
+
+// Hàm xử lý lỗi ảnh
+const handleImageError = (e) => {
+  e.target.src = defaultImage
 }
 
 // Sale Categories - Giữ nguyên giao diện

@@ -1,3 +1,51 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom styles của bạn */
+* {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.sidebar-item:hover,
+.sidebar-item-active {
+    background-color: #fff5f2;
+    color: #ff6b00;
+}
+
+.glass-header {
+    backdrop-filter: blur(12px);
+    background-color: rgba(251, 249, 245, 0.95);
+}
+
+.stat-card {
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e4e2de;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ff6b00;
+    border-radius: 10px;
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}

@@ -2,138 +2,267 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use App\Models\News;
 use App\Models\Banner;
+use App\Models\Product;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    private $priceColumn = 'price';
+
     public function index()
     {
-        // Lấy banner active, sắp xếp theo thứ tự
-        $banners = Banner::where('status', 1)
+        $this->detectPriceColumn();
+
+        // ==================== BANNER ====================
+        $banners = Banner::where('status', Banner::STATUS_ACTIVE)
             ->with('campaign')
             ->orderBy('order', 'asc')
             ->get()
             ->map(function ($banner) {
                 return [
                     'id' => $banner->id,
-                    'image' => $banner->image,
+                    'image' => $this->normalizeImagePath($banner->image ?? '/images/default-banner.jpg'),
                     'link' => $banner->link,
                     'campaign' => $banner->campaign?->name,
                 ];
             });
 
-        // Nếu không có banner, dùng mặc định
-        if ($banners->isEmpty()) {
-            $banners = collect([
-                [
-                    'id' => 1,
-                    'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxx0m6cgeB_wFfg7s6Gg9fUlG74LJAjQX52e76-kLKbboHcvdGuP8wLvolaZ2nn44uSU4mSzGcMnWRrxegCgrBQPS_CJCrqTw_lR9qipVD13hl9T_DV9Vwt4PmieoYHWvSuOgDjr4TLs2YpCS6eO_P1Ya4-_gUurI8xgCqtWZq3EvAe9WrB0_PXR8pDs-UdKo5u7vHbg-s3eYwYc1YpaZsyCDVrp1oAxlY5NkvxU8DCvx9sj5PwWBzawIL86tZy9He4cl9TZdngHc',
-                    'link' => null,
-                    'campaign' => null,
-                ],
-                [
-                    'id' => 2,
-                    'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuCp5eQ5SZCwA43e9ZQV6q5AsixqVrngZDfmTBxJnnZZnN9FJ-UksaoW1_6ST0Oc6LoiJEgpvMf4K1zxMWMDQMiSsoVTBNGkDP_gHl8zHBONErOgONG9qdZ1Uj2M143jhRomrMwOr7m_k66Z1qw8Dg6V-3CBkzDQGEdnu4uUQFh56yuIQox-XTGWy1stgcNRm_9bBcHtgvXHSzjDoLZxarh8vh22_7wpoMLjWSTigP2X-laqEhuIKyvDhR7HHBaSrePhkDvbOjOKw9c',
-                    'link' => null,
-                    'campaign' => null,
-                ],
-            ]);
-        }
+        // ==================== HOT SALE ====================
+        $hotSales = $this->getHotSaleProducts();
+        
+        // ==================== TRENDING ====================
+        $trending = $this->getTrendingProducts();
+        
+        // ==================== NEW PRODUCTS ====================
+        $newProducts = $this->getNewProducts();
 
-        // Lấy sản phẩm hot sale
-        $hotSales = Product::where('is_featured', 1)
-            ->with(['variants' => function($q) {
-                $q->select('product_id', 'price');
-            }])
-            ->take(4)
-            ->get()
-            ->map(function ($product) {
-                $minPrice = $product->variants->min('price') ?? 0;
-                $maxPrice = $product->variants->max('price') ?? $minPrice;
-                $discount = $maxPrice > $minPrice ? round((1 - $minPrice / $maxPrice) * 100) : 0;
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'image' => $product->thumbnail ?? 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop',
-                    'discount' => $discount,
-                    'salePrice' => $minPrice,
-                    'originalPrice' => $maxPrice,
-                    'rating' => 5,
-                    'reviews' => 0,
-                ];
-            });
-
-        // Lấy sản phẩm trending
-        $trending = Product::where('is_preorder', 0)
-            ->with(['variants' => function($q) {
-                $q->select('product_id', 'price');
-            }])
-            ->orderBy('id', 'desc')
-            ->take(4)
-            ->get()
-            ->map(function ($product) {
-                $minPrice = $product->variants->min('price') ?? 0;
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'image' => $product->thumbnail ?? 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop',
-                    'price' => $minPrice,
-                    'sold' => 0,
-                ];
-            });
-
-        // Lấy sản phẩm mới
-        $newProducts = Product::where('is_preorder', 0)
-            ->with(['variants' => function($q) {
-                $q->select('product_id', 'price');
-            }])
-            ->orderBy('created_at', 'desc')
-            ->take(4)
-            ->get()
-            ->map(function ($product) {
-                $minPrice = $product->variants->min('price') ?? 0;
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'image' => $product->thumbnail ?? 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop',
-                    'price' => $minPrice,
-                ];
-            });
-
-        // Lấy tin tức
-        $news = News::orderBy('created_at', 'desc')->take(3)->get()->map(function($item) {
-            return [
-                'id' => $item->id,
-                'title' => $item->title,
-                'excerpt' => $item->excerpt,
-                'image' => $item->image ?? 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop',
-                'category' => $item->category ?? 'Tin tức',
-                'date' => $item->created_at->format('d/m/Y'),
-            ];
-        });
-
-        if ($news->isEmpty()) {
-            $news = collect([
-                [
-                    'id' => 1,
-                    'title' => 'BigBag ra mắt bộ sưu tập Xuân Hè 2024',
-                    'excerpt' => 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.',
-                    'image' => 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop',
-                    'category' => 'Sự kiện',
-                    'date' => '15/03/2024'
-                ],
-            ]);
-        }
+        // ==================== NEWS ====================
+        $newsList = [
+            [
+                'id' => 1,
+                'title' => 'BigBag ra mắt bộ sưu tập Xuân Hè 2024',
+                'excerpt' => 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.',
+                'image' => 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop',
+                'category' => 'Sự kiện',
+                'date' => '15/03/2024'
+            ],
+            [
+                'id' => 2,
+                'title' => 'Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%',
+                'excerpt' => 'Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.',
+                'image' => 'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop',
+                'category' => 'Khuyến mãi',
+                'date' => '10/04/2024'
+            ],
+            [
+                'id' => 3,
+                'title' => 'Bí quyết chọn balo phù hợp với vóc dáng',
+                'excerpt' => 'Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.',
+                'image' => 'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop',
+                'category' => 'Mẹo hay',
+                'date' => '05/04/2024'
+            ]
+        ];
 
         return Inertia::render('Web/Welcome', [
             'banners' => $banners,
             'hotSales' => $hotSales,
             'trending' => $trending,
             'newProducts' => $newProducts,
-            'newsList' => $news->toArray(),
+            'newsList' => $newsList,
         ]);
+    }
+
+    private function detectPriceColumn()
+    {
+        $columns = Schema::getColumnListing('products');
+        $possiblePriceColumns = ['price', 'product_price', 'unit_price', 'cost', 'sale_price', 'price_regular'];
+        
+        foreach ($possiblePriceColumns as $col) {
+            if (in_array($col, $columns)) {
+                $this->priceColumn = $col;
+                return $col;
+            }
+        }
+        
+        $this->priceColumn = 'price';
+    }
+
+    private function getHotSaleProducts()
+    {
+        if ($this->columnExists('is_hot_sale')) {
+            $hotSales = Product::where('is_hot_sale', true)->limit(4)->get();
+            if ($hotSales->isNotEmpty()) {
+                return $hotSales->map(fn($product) => $this->formatProductData($product, 'hot_sale'));
+            }
+        }
+
+        if ($this->columnExists('discount')) {
+            $hotSales = Product::where('discount', '>', 0)
+                ->orderBy('discount', 'desc')
+                ->limit(4)
+                ->get();
+            if ($hotSales->isNotEmpty()) {
+                return $hotSales->map(fn($product) => $this->formatProductData($product, 'hot_sale'));
+            }
+        }
+
+        $hotSales = Product::limit(4)->get();
+        return $hotSales->map(fn($product) => $this->formatProductData($product, 'hot_sale'));
+    }
+
+    private function getTrendingProducts()
+    {
+        if ($this->columnExists('is_trending')) {
+            $trending = Product::where('is_trending', true)->limit(4)->get();
+            if ($trending->isNotEmpty()) {
+                return $trending->map(fn($product) => $this->formatProductData($product, 'trending'));
+            }
+        }
+
+        if ($this->columnExists('sold')) {
+            $trending = Product::orderBy('sold', 'desc')->limit(4)->get();
+            if ($trending->isNotEmpty()) {
+                return $trending->map(fn($product) => $this->formatProductData($product, 'trending'));
+            }
+        }
+
+        $trending = Product::orderBy('created_at', 'desc')->limit(4)->get();
+        return $trending->map(fn($product) => $this->formatProductData($product, 'trending'));
+    }
+
+    private function getNewProducts()
+    {
+        $newProducts = Product::orderBy('created_at', 'desc')->limit(4)->get();
+        return $newProducts->map(fn($product) => $this->formatProductData($product, 'new'));
+    }
+
+    private function formatProductData($product, $type = 'default')
+    {
+        $price = $this->getProductPrice($product);
+        $image = $this->getProductImage($product);
+
+        $data = [
+            'id' => $product->id,
+            'name' => $product->name ?? 'Sản phẩm',
+            'image' => $image,
+            'price' => $price,
+        ];
+
+        if ($type === 'hot_sale') {
+            $salePrice = $product->sale_price ?? $price * 0.8;
+            $data['salePrice'] = (float) $salePrice;
+            $data['originalPrice'] = (float) $price;
+            $data['discount'] = (int) ($product->discount ?? $this->calculateDiscount($price, $salePrice));
+            $data['rating'] = (float) ($product->rating ?? rand(4, 5));
+            $data['reviews'] = (int) ($product->reviews ?? rand(10, 100));
+        }
+
+        if ($type === 'trending') {
+            $data['sold'] = (int) ($product->sold ?? rand(50, 500));
+        }
+
+        return $data;
+    }
+
+    private function getProductPrice($product)
+    {
+        if (isset($product->{$this->priceColumn}) && $product->{$this->priceColumn} > 0) {
+            return (float) $product->{$this->priceColumn};
+        }
+        
+        if (isset($product->sale_price) && $product->sale_price > 0) {
+            return (float) $product->sale_price;
+        }
+        
+        $possibleColumns = ['product_price', 'unit_price', 'cost', 'price_regular'];
+        foreach ($possibleColumns as $col) {
+            if (isset($product->$col) && $product->$col > 0) {
+                return (float) $product->$col;
+            }
+        }
+        
+        return 0;
+    }
+
+    private function getProductImage($product)
+    {
+        if (empty($product->image)) {
+            return '/images/default-product.jpg';
+        }
+
+        $image = $product->image;
+
+        if ($this->isJson($image)) {
+            $images = json_decode($image, true);
+            if (is_array($images) && !empty($images)) {
+                return $this->normalizeImagePath($images[0]);
+            }
+            return '/images/default-product.jpg';
+        }
+
+        return $this->normalizeImagePath($image);
+    }
+
+    private function normalizeImagePath($path)
+    {
+        if (empty($path)) {
+            return '/images/default-product.jpg';
+        }
+
+        // Nếu là URL đầy đủ
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        // Nếu đã có /storage/
+        if (strpos($path, '/storage/') === 0) {
+            return $path;
+        }
+
+        // Nếu có storage/ nhưng thiếu /
+        if (strpos($path, 'storage/') === 0) {
+            return '/' . $path;
+        }
+
+        // Nếu đã có /images/
+        if (strpos($path, '/images/') === 0) {
+            return $path;
+        }
+
+        // Nếu có images/ nhưng thiếu /
+        if (strpos($path, 'images/') === 0) {
+            return '/' . $path;
+        }
+
+        // Mặc định: thêm /storage/
+        return '/storage/' . ltrim($path, '/');
+    }
+
+    private function isJson($string)
+    {
+        if (!is_string($string)) {
+            return false;
+        }
+        json_decode($string);
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+
+    private function calculateDiscount($originalPrice, $salePrice)
+    {
+        if ($originalPrice > 0 && $salePrice > 0 && $salePrice < $originalPrice) {
+            $discount = round((($originalPrice - $salePrice) / $originalPrice) * 100);
+            return min(max($discount, 0), 50);
+        }
+        return rand(10, 30);
+    }
+
+    private function columnExists($column)
+    {
+        return Schema::hasColumn('products', $column);
     }
 }
