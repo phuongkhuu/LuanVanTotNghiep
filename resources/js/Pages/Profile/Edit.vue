@@ -131,7 +131,7 @@ const closeDeleteModal = () => {
                                 <Link :href="route('profile.edit')" class="block px-3 py-2 rounded-lg text-sm text-orange-600 bg-orange-50 font-medium">
                                     Thông tin cá nhân
                                 </Link>
-                                <Link :href="route('home')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                                <Link :href="route('orders.history')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                                     Đơn hàng của tôi
                                 </Link>
                                 <Link :href="route('customize')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">

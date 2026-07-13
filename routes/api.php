@@ -14,6 +14,9 @@ use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
+use Illuminate\Http\Request;
+use App\Http\Controllers\OrderHistoryController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes - Version 1
@@ -24,6 +27,19 @@ Route::prefix('v1')->group(function () {
     
     // ==================== PUBLIC ROUTES (No Auth Required) ====================
     
+
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    })->middleware('auth:sanctum');
+
+    // Route lấy lịch sử đơn hàng cho user đã đăng nhập
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/orders/history', [OrderHistoryController::class, 'getOrders'])
+            ->name('api.orders.history');
+    });
+
+
+
     // Products
     Route::prefix('products')->group(function () {
         Route::get('/', [ProductController::class, 'index']);
@@ -34,6 +50,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/{slug}', [ProductController::class, 'show']);
         Route::get('/{id}/related', [ProductController::class, 'getRelated']);
     });
+
+   
+
 
     // Categories
     Route::prefix('categories')->group(function () {

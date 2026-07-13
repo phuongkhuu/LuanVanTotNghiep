@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -65,6 +67,7 @@ class OrderController extends Controller
                 'order_code' => $orderType,
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
+                'customer_email' => $validated['customer_email'],
                 'receiver_name' => $validated['receiver_name'],
                 'receiver_phone' => $validated['receiver_phone'],
                 'shipping_address' => $validated['shipping_address'],
@@ -73,7 +76,7 @@ class OrderController extends Controller
                 'total_amount' => $totalAmount,
                 'discount_amount' => $discountAmount,
                 'final_amount' => $finalAmount,
-                'order_status' => 0, // pending
+                'order_status' => 0,
             ]);
 
             // 3. Tạo chi tiết đơn hàng và cập nhật tồn kho
@@ -88,7 +91,6 @@ class OrderController extends Controller
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                // Cập nhật tồn kho
                 $variant->decrement('stock', $item['quantity']);
             }
 
@@ -107,16 +109,32 @@ class OrderController extends Controller
 
             DB::commit();
 
+            // Tạo mã đơn hàng hiển thị
+            $displayCode = $this->generateOrderDisplayCode($order);
+
+            Log::info('Order created successfully:', [
+                'order_id' => $order->id,
+                'display_code' => $displayCode,
+                'order_type' => $orderType,
+                'created_at' => $order->created_at->format('dmY H:i:s'),
+                'current_time' => now()->format('dmY H:i:s')
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Đặt hàng thành công',
                 'order' => $order,
                 'payment' => $payment,
-                'order_display_code' => $this->generateOrderDisplayCode($orderType),
+                'order_display_code' => $displayCode,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Order creation failed:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             
             return response()->json([
                 'success' => false,
@@ -127,19 +145,34 @@ class OrderController extends Controller
 
     /**
      * Tạo mã đơn hàng hiển thị cho khách
+     * Format: [Loại đơn hàng][Ngày tạo dmY][ID 5 số]
+     * Ví dụ: L1307202600016 (L + 13072026 + 00016)
+     * 
+     * @param Order $order
+     * @return string
      */
-    public function generateOrderDisplayCode($orderType)
+    public function generateOrderDisplayCode($order)
     {
-        $prefix = match($orderType) {
+        // Lấy order object hoặc order_id
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+            if (!$order) {
+                return 'DH' . now()->format('dmY') . '00001';
+            }
+        }
+
+        $prefix = match($order->order_code) {
             'retail' => 'L',
             'wholesale' => 'S',
             'preorder' => 'P',
             default => 'DH'
         };
 
-        $date = now()->format('Ymd');
-        $count = Order::whereDate('created_at', now()->toDateString())->count() + 1;
-        $sequence = str_pad($count, 4, '0', STR_PAD_LEFT);
+        // Dùng ngày hiện tại format dmY (ngày-tháng-năm)
+        $date = now()->format('dmY'); // 13072026
+        
+        // Dùng ID của order làm sequence, format 5 số
+        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
 
         return $prefix . $date . $sequence;
     }
@@ -150,7 +183,7 @@ class OrderController extends Controller
     private function generateTransactionCode()
     {
         $prefix = 'PAY';
-        $date = now()->format('Ymd');
+        $date = now()->format('dmY');
         $random = strtoupper(substr(uniqid(), -6));
         return $prefix . $date . $random;
     }
@@ -174,7 +207,7 @@ class OrderController extends Controller
 
         return response()->json([
             'order' => $order,
-            'order_display_code' => $this->generateOrderDisplayCode($order->order_code),
+            'order_display_code' => $this->generateOrderDisplayCode($order),
             'status_text' => $order->status_text,
             'status_label' => $order->status_label,
         ]);
@@ -198,7 +231,7 @@ class OrderController extends Controller
             ->get();
 
         $orders->each(function ($order) {
-            $order->display_code = $this->generateOrderDisplayCode($order->order_code);
+            $order->display_code = $this->generateOrderDisplayCode($order);
         });
 
         return response()->json([

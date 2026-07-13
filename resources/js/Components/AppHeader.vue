@@ -134,7 +134,7 @@
           </button>
           <div 
             v-if="dropdownOpen" 
-            class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50"
+            class="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg py-1 border border-gray-200 z-50"
           >
             <!-- Mục Dashboard cho admin -->
             <Link 
@@ -146,6 +146,18 @@
               <span class="material-symbols-outlined text-base mr-2 align-middle">dashboard</span>
               Dashboard
             </Link>
+            
+            <!-- LỊCH SỬ ĐƠN HÀNG - THÊM MỚI -->
+            <Link 
+              :href="route('orders.history')" 
+              class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              @click="closeDropdown"
+            >
+              <span class="material-symbols-outlined text-base mr-2 align-middle">receipt_long</span>
+              Lịch sử đơn hàng
+            </Link>
+            
+            <!-- HỒ SƠ -->
             <Link 
               :href="route('profile.edit')" 
               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -154,9 +166,11 @@
               <span class="material-symbols-outlined text-base mr-2 align-middle">person</span>
               Hồ sơ
             </Link>
+            
+            <!-- ĐĂNG XUẤT -->
             <button 
               @click="handleLogout" 
-              class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 border-t border-gray-100 mt-1 pt-2"
             >
               <span class="material-symbols-outlined text-base mr-2 align-middle">logout</span>
               Đăng xuất

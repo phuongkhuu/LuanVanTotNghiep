@@ -57,9 +57,13 @@ class OrderController extends Controller
                     $paymentClass = 'bg-purple-100 text-purple-800';
                 }
 
+                // Sử dụng mã hiển thị mới
+                $displayCode = $this->generateOrderDisplayCode($order);
+
                 return [
                     'id'              => $order->id,
-                    'code'            => '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+                    'code'            => $displayCode, // Thay đổi từ #ORD-xxx thành mã mới
+                    'display_code'    => $displayCode,
                     'customer'        => $order->customer_name ?? $order->receiver_name,
                     'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
                     'receiver'        => $order->receiver_name,
@@ -118,9 +122,13 @@ class OrderController extends Controller
             $payment = 'Ví điện tử';
         }
 
+        // Sử dụng mã hiển thị mới
+        $displayCode = $this->generateOrderDisplayCode($order);
+
         $orderData = [
             'id'              => $order->id,
-            'code'            => '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+            'code'            => $displayCode, // Thay đổi từ #ORD-xxx thành mã mới
+            'display_code'    => $displayCode,
             'customer'        => $order->customer_name ?? $order->receiver_name,
             'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
             'receiver'        => $order->receiver_name,
@@ -268,14 +276,20 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // Tạo mã đơn hàng hiển thị
-            $displayCode = 'ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
+            // QUAN TRỌNG: Tạo mã đơn hàng hiển thị theo format mới
+            $displayCode = $this->generateOrderDisplayCode($order);
+
+            Log::info('✅ Order created successfully:', [
+                'order_id' => $order->id,
+                'display_code' => $displayCode,
+                'order_type' => $orderType,
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Đặt hàng thành công',
                 'order' => $order->load(['details', 'payment']),
-                'order_display_code' => $displayCode,
+                'order_display_code' => $displayCode, // QUAN TRỌNG: Trả về mã mới
             ]);
 
         } catch (\Exception $e) {
@@ -288,6 +302,41 @@ class OrderController extends Controller
                 'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Tạo mã đơn hàng hiển thị - GIỐNG VỚI ORDERHISTORY
+     * Format: [Loại đơn hàng][Ngày tạo dmY][ID 5 số]
+     * Ví dụ: L1307202600019 (L + 13072026 + 00019)
+     * 
+     * @param Order $order
+     * @return string
+     */
+    public function generateOrderDisplayCode($order)
+    {
+        // Nếu truyền vào là ID
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+            if (!$order) {
+                return 'DH' . now()->format('dmY') . '00001';
+            }
+        }
+
+        // Xác định prefix dựa trên loại đơn hàng
+        $prefix = match($order->order_code) {
+            'retail' => 'L',
+            'wholesale' => 'S',
+            'preorder' => 'P',
+            default => 'DH'
+        };
+
+        // Dùng ngày hiện tại format dmY (ngày-tháng-năm)
+        $date = now()->format('dmY'); // Ví dụ: 13072026
+        
+        // Dùng ID của order làm sequence, format 5 số (VD: 00019)
+        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
+
+        return $prefix . $date . $sequence;
     }
 
     /**
@@ -412,9 +461,13 @@ class OrderController extends Controller
             return $item['name'] . ' x' . $item['quantity'] . ' = ' . number_format($item['subtotal']) . 'đ';
         })->implode('; ');
 
+        // Sử dụng mã hiển thị mới
+        $displayCode = $this->generateOrderDisplayCode($order);
+
         return (object) [
             'id' => $order->id,
-            'code' => '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+            'code' => $displayCode, // Thay đổi từ #ORD-xxx thành mã mới
+            'display_code' => $displayCode,
             'type' => $order->order_code ?? 'retail',
             'customer_name' => $order->customer_name ?? $order->receiver_name,
             'customer_phone' => $order->customer_phone ?? $order->receiver_phone,

@@ -487,6 +487,293 @@ class PromotionController extends Controller
         }
     }
 
+     public function checkPromotion(Request $request)
+    {
+        try {
+            $code = $request->input('code');
+            $orderType = $request->input('order_type', 'retail'); // retail, preorder
+            $subtotal = $request->input('subtotal', 0);
+            $productIds = $request->input('product_ids', []); // IDs của sản phẩm trong đơn
+            
+            if (empty($code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng nhập mã khuyến mãi'
+                ], 400);
+            }
+
+            // 1. TÌM MÃ GIẢM GIÁ (VOUCHER)
+            $voucher = Campaign::where('code', strtoupper($code))
+                ->where('type', 'voucher')
+                ->where('status', 'active')
+                ->first();
+
+            if ($voucher) {
+                // Kiểm tra voucher còn hiệu lực
+                if ($voucher->expiry && $voucher->expiry < now()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Mã giảm giá đã hết hạn'
+                    ]);
+                }
+
+                // Kiểm tra số lượng đã dùng
+                if ($voucher->used >= $voucher->limit) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Mã giảm giá đã được sử dụng hết'
+                    ]);
+                }
+
+                // Kiểm tra điều kiện đơn hàng tối thiểu
+                if ($voucher->min_order > 0 && $subtotal < $voucher->min_order) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Đơn hàng tối thiểu ' . number_format($voucher->min_order) . 'đ để áp dụng mã'
+                    ]);
+                }
+
+                // Kiểm tra target_type
+                $targetType = $voucher->target_type;
+                if ($targetType !== 'all' && $targetType !== $orderType) {
+                    $typeLabels = [
+                        'retail' => 'bán lẻ',
+                        'preorder' => 'pre-order',
+                        'wholesale' => 'bán sỉ'
+                    ];
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Mã này chỉ áp dụng cho đơn hàng ' . ($typeLabels[$targetType] ?? $targetType)
+                    ]);
+                }
+
+                // Tính toán giảm giá
+                $discountAmount = 0;
+                $discountType = $voucher->discount_type;
+                $discountValue = $voucher->discount_value;
+
+                if ($discountType === 'percent') {
+                    $discountAmount = ($subtotal * $discountValue) / 100;
+                } elseif ($discountType === 'fixed') {
+                    $discountAmount = min($discountValue, $subtotal);
+                } elseif ($discountType === 'freeship') {
+                    // Miễn phí ship - sẽ xử lý ở phần tính phí ship
+                    $discountAmount = 0;
+                    // Lưu flag freeship để xử lý sau
+                    $voucher->is_freeship = true;
+                }
+
+                // Làm tròn
+                $discountAmount = round($discountAmount);
+
+                return response()->json([
+                    'success' => true,
+                    'code' => $voucher->code,
+                    'type' => 'voucher',
+                    'discount_type' => $discountType,
+                    'discount_value' => $discountValue,
+                    'discount_amount' => $discountAmount,
+                    'is_freeship' => $discountType === 'freeship',
+                    'message' => 'Áp dụng mã giảm giá thành công!',
+                    'campaign_id' => $voucher->id,
+                    'voucher_id' => $voucher->id,
+                ]);
+            }
+
+            // 2. TÌM CHƯƠNG TRÌNH PRE-ORDER
+            $preorder = Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('product_id', $request->input('preorder_product_id'))
+                ->first();
+
+            // Nếu có pre-order và không có product_id cụ thể, tìm theo sản phẩm trong đơn
+            if (!$preorder && !empty($productIds)) {
+                $preorder = Campaign::where('type', 'preorder')
+                    ->where('status', 'active')
+                    ->whereIn('product_id', $productIds)
+                    ->first();
+            }
+
+            if ($preorder) {
+                // Kiểm tra pre-order còn hiệu lực
+                if ($preorder->start_time && $preorder->start_time > now()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Chương trình pre-order chưa bắt đầu'
+                    ]);
+                }
+
+                if ($preorder->end_time && $preorder->end_time < now()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Chương trình pre-order đã kết thúc'
+                    ]);
+                }
+
+                // Tính discount dựa trên tiers
+                $tiers = $preorder->tiers ?? [];
+                $currentBuyers = $preorder->current_buyers ?? 0;
+                $discountPercent = 0;
+
+                // Sắp xếp tiers theo từ nhỏ đến lớn
+                usort($tiers, function($a, $b) {
+                    return ($a['from'] ?? 0) - ($b['from'] ?? 0);
+                });
+
+                // Tìm tier phù hợp
+                foreach ($tiers as $tier) {
+                    $from = $tier['from'] ?? 0;
+                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                        $discountPercent = $tier['discount'] ?? 0;
+                        break;
+                    }
+                }
+
+                // Tính số tiền giảm
+                $discountAmount = 0;
+                if ($discountPercent > 0) {
+                    $discountAmount = ($subtotal * $discountPercent) / 100;
+                    $discountAmount = round($discountAmount);
+                }
+
+                // Kiểm tra điều kiện đơn hàng tối thiểu
+                if ($preorder->min_order > 0 && $subtotal < $preorder->min_order) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Đơn hàng tối thiểu ' . number_format($preorder->min_order) . 'đ để áp dụng pre-order'
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'type' => 'preorder',
+                    'discount_percent' => $discountPercent,
+                    'discount_amount' => $discountAmount,
+                    'current_buyers' => $currentBuyers,
+                    'tiers' => $tiers,
+                    'campaign_id' => $preorder->id,
+                    'preorder_id' => $preorder->id,
+                    'message' => 'Áp dụng giảm giá pre-order ' . $discountPercent . '%!',
+                ]);
+            }
+
+            // Không tìm thấy
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã khuyến mãi không hợp lệ hoặc không áp dụng được'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi kiểm tra khuyến mãi: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy thông tin pre-order của sản phẩm
+     */
+    public function getPreorderInfo(Request $request)
+    {
+        try {
+            $productId = $request->input('product_id');
+            
+            if (!$productId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy sản phẩm'
+                ]);
+            }
+
+            $preorder = Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('product_id', $productId)
+                ->first();
+
+            if (!$preorder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sản phẩm này không có chương trình pre-order'
+                ]);
+            }
+
+            // Kiểm tra thời gian
+            if ($preorder->start_time && $preorder->start_time > now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chương trình pre-order chưa bắt đầu',
+                    'start_time' => $preorder->start_time->format('Y-m-d H:i:s')
+                ]);
+            }
+
+            if ($preorder->end_time && $preorder->end_time < now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chương trình pre-order đã kết thúc',
+                    'end_time' => $preorder->end_time->format('Y-m-d H:i:s')
+                ]);
+            }
+
+            $tiers = $preorder->tiers ?? [];
+            $currentBuyers = $preorder->current_buyers ?? 0;
+            $discountPercent = 0;
+
+            // Sắp xếp tiers
+            usort($tiers, function($a, $b) {
+                return ($a['from'] ?? 0) - ($b['from'] ?? 0);
+            });
+
+            // Tìm tier phù hợp
+            foreach ($tiers as $tier) {
+                $from = $tier['from'] ?? 0;
+                $to = $tier['to'] ?? PHP_INT_MAX;
+                if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                    $discountPercent = $tier['discount'] ?? 0;
+                    break;
+                }
+            }
+
+            // Tìm tier tiếp theo
+            $nextTier = null;
+            $nextCount = 0;
+            foreach ($tiers as $tier) {
+                $from = $tier['from'] ?? 0;
+                if ($currentBuyers < $from) {
+                    $nextTier = $tier;
+                    $nextCount = $from - $currentBuyers;
+                    break;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $preorder->id,
+                    'name' => $preorder->name,
+                    'tiers' => $tiers,
+                    'current_buyers' => $currentBuyers,
+                    'current_discount' => $discountPercent,
+                    'next_tier' => $nextTier,
+                    'next_count' => $nextCount,
+                    'min_order' => $preorder->min_order ?? 0,
+                    'start_time' => $preorder->start_time ? $preorder->start_time->format('Y-m-d H:i:s') : null,
+                    'end_time' => $preorder->end_time ? $preorder->end_time->format('Y-m-d H:i:s') : null,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi lấy thông tin pre-order: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
     public function toggleVoucher($id)
     {
         try {

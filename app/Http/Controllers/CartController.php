@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Log;
 
 class CartController extends Controller
 {
-    /**
-     * Lấy danh sách sản phẩm trong giỏ hàng
-     * CHỈ LẤY SẢN PHẨM THƯỜNG, KHÔNG BAO GỒM PRE-ORDER
-     */
     public function index(Request $request)
     {
         Log::info('CartController@index called');
@@ -22,8 +18,7 @@ class CartController extends Controller
         $filteredCart = [];
         foreach ($cart as $variantId => $item) {
             $variant = ProductVariant::with('product')->find($variantId);
-            // Chỉ giữ lại sản phẩm thường (không phải pre-order)
-            if ($variant && !($variant->product->is_preorder ?? false)) {
+            if ($variant && !($variant->product->is_pre_order ?? false)) {
                 $filteredCart[$variantId] = $item;
             } else {
                 Log::info("Removed pre-order product from cart: {$variantId}");
@@ -54,7 +49,7 @@ class CartController extends Controller
                     'image' => $variant->product->image_url[0] ?? '/images/default-product.jpg',
                     'color' => $variant->color->name ?? 'Đen',
                     'size' => $variant->size_name ?? 'M',
-                    'is_pre_order' => false, // Luôn là false vì đã lọc
+                    'is_pre_order' => $variant->product->is_pre_order ?? false,
                 ];
                 $total += ($item['price'] ?? $variant->price) * $item['quantity'];
                 $count += $item['quantity'];
@@ -69,10 +64,6 @@ class CartController extends Controller
         ]);
     }
 
-    /**
-     * Thêm sản phẩm vào giỏ hàng
-     * CHỈ CHO PHÉP SẢN PHẨM THƯỜNG
-     */
     public function add(Request $request)
     {
         Log::info('CartController@add called', $request->all());
@@ -97,7 +88,7 @@ class CartController extends Controller
         }
 
         // ✅ KIỂM TRA: Không cho thêm sản phẩm pre-order vào giỏ hàng
-        if ($variant->product->is_preorder ?? false) {
+        if ($variant->product->is_pre_order ?? false) {
             Log::warning("Attempted to add pre-order product to cart: {$variant->product->name}");
             return response()->json([
                 'success' => false,
@@ -118,10 +109,10 @@ class CartController extends Controller
         // Lấy giỏ hàng từ session
         $cart = $request->session()->get('cart', []);
         
-        // ✅ Kiểm tra và xóa sản phẩm pre-order nếu có trong giỏ (phòng trường hợp)
+        // ✅ Kiểm tra và xóa sản phẩm pre-order nếu có trong giỏ
         foreach ($cart as $id => $item) {
             $variantCheck = ProductVariant::with('product')->find($id);
-            if ($variantCheck && ($variantCheck->product->is_preorder ?? false)) {
+            if ($variantCheck && ($variantCheck->product->is_pre_order ?? false)) {
                 unset($cart[$id]);
                 Log::info("Removed existing pre-order product from cart: {$id}");
             }
@@ -158,10 +149,6 @@ class CartController extends Controller
         ]);
     }
 
-    /**
-     * Cập nhật số lượng sản phẩm trong giỏ hàng
-     * CHỈ CHO PHÉP SẢN PHẨM THƯỜNG
-     */
     public function update(Request $request)
     {
         Log::info('CartController@update called', $request->all());
@@ -186,7 +173,7 @@ class CartController extends Controller
 
         // ✅ Kiểm tra sản phẩm pre-order khi cập nhật
         $variant = ProductVariant::with('product')->find($variantId);
-        if ($variant && ($variant->product->is_preorder ?? false)) {
+        if ($variant && ($variant->product->is_pre_order ?? false)) {
             Log::warning("Attempted to update pre-order product in cart: {$variant->product->name}");
             // Xóa sản phẩm pre-order khỏi giỏ hàng
             unset($cart[$variantId]);
@@ -216,9 +203,6 @@ class CartController extends Controller
         ]);
     }
 
-    /**
-     * Xóa sản phẩm khỏi giỏ hàng
-     */
     public function remove($variantId, Request $request)
     {
         Log::info("CartController@remove called with variant_id: {$variantId}");
@@ -246,9 +230,6 @@ class CartController extends Controller
         ], 404);
     }
 
-    /**
-     * Xóa toàn bộ giỏ hàng
-     */
     public function clear(Request $request)
     {
         $request->session()->forget('cart');

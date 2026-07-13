@@ -10,11 +10,13 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\BannerController;
+
 use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
@@ -62,6 +64,14 @@ Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotio
 Route::get('/tuy-chinh', function () {
     return Inertia::render('Web/Customize');
 })->name('customize');
+
+// ==================== LỊCH SỬ ĐƠN HÀNG ROUTES (Yêu cầu đăng nhập) ====================
+Route::middleware(['auth'])->group(function () {
+    // Trang lịch sử đơn hàng
+    Route::get('/lich-su-don-hang', [OrderHistoryController::class, 'index'])->name('orders.history');
+    // API lấy dữ liệu lịch sử đơn hàng
+    Route::get('/lich-su-don-hang/data', [OrderHistoryController::class, 'getOrders'])->name('orders.history.data');
+});
 
 // ==================== CART ROUTES (Yêu cầu đăng nhập) ====================
 
@@ -112,7 +122,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('/don-hang', [OrderController::class, 'history'])->name('orders.history');
+    Route::get('/don-hang', [OrderController::class, 'history'])->name('orders.history.old');
     Route::get('/don-hang/{id}', [OrderController::class, 'show'])->name('orders.show');
 });
 
@@ -218,6 +228,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::delete('/campaign/{id}', [AdminPromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
         Route::put('/campaign/{id}/status', [AdminPromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
         Route::get('/campaigns/list', [AdminPromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
+        Route::post('/check', [PromotionController::class, 'checkPromotion']);
+        Route::get('/preorder-info', [PromotionController::class, 'getPreorderInfo']);
         
         Route::put('/preorder/{id}/toggle', [AdminPromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
 
