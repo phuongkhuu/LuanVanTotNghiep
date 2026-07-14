@@ -51,9 +51,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/related', [ProductController::class, 'getRelated']);
     });
 
-   
-
-
     // Categories
     Route::prefix('categories')->group(function () {
         Route::get('/', [CategoryController::class, 'index']);

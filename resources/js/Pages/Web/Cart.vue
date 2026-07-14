@@ -162,13 +162,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
-import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
+import { useCart } from '@/utils/useCart'
 
-// State
-const cartItems = ref([])
+// Sử dụng useCart để quản lý giỏ hàng chung
+const { cartItems, fetchCart, updateCart, removeFromCart, clearCart } = useCart()
+
 const loading = ref(false)
 const couponCode = ref('')
 const discountAmount = ref(0)
@@ -179,7 +180,6 @@ const subtotal = computed(() => {
   return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 })
 
-// ✅ SỬA: Chỉ tính phí vận chuyển khi có sản phẩm
 const total = computed(() => {
   const subtotalValue = subtotal.value
   // Nếu giỏ hàng trống hoặc subtotal = 0, không tính phí vận chuyển
@@ -187,30 +187,20 @@ const total = computed(() => {
   return subtotalValue + shipping - discountAmount.value
 })
 
-// ✅ THÊM: Tính phí vận chuyển hiển thị
 const displayShippingFee = computed(() => {
   return (cartItems.value.length > 0 && subtotal.value > 0) ? shippingFee : 0
-})
-
-const cartCount = computed(() => {
-  return cartItems.value.reduce((sum, item) => sum + item.quantity, 0)
 })
 
 // Methods
 const loadCart = async () => {
   loading.value = true
   try {
-    const response = await axios.get('/api/cart')
-    console.log('📦 Cart data:', response.data)
-    if (response.data.success) {
-      cartItems.value = response.data.items || []
-    }
+    await fetchCart()
   } catch (error) {
-    console.error('❌ Lỗi tải giỏ hàng:', error)
-    // Nếu lỗi 401 (chưa đăng nhập)
     if (error.response && error.response.status === 401) {
       router.get(route('login'))
     }
+    console.error('Lỗi tải giỏ hàng:', error)
   } finally {
     loading.value = false
   }
@@ -227,11 +217,8 @@ const updateQuantity = async (index, delta) => {
   }
 
   try {
-    await axios.put('/api/cart/update', {
-      variant_id: item.id,
-      quantity: newQuantity
-    })
-    await loadCart()
+    await updateCart(item.id, newQuantity)
+    // Không cần gọi loadCart vì updateCart đã tự fetchCart bên trong
   } catch (error) {
     alert(error.response?.data?.message || 'Cập nhật thất bại')
   }
@@ -244,8 +231,7 @@ const removeItem = async (index) => {
   if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
 
   try {
-    await axios.delete(`/api/cart/remove/${item.id}`)
-    await loadCart()
+    await removeFromCart(item.id)
   } catch (error) {
     alert('Xóa sản phẩm thất bại')
   }
@@ -269,7 +255,7 @@ onMounted(() => {
   loadCart()
 })
 
-// Suggested products
+// Suggested products (tạm thời để trống)
 const suggestedProducts = ref([])
 
 // Thêm sản phẩm từ suggested

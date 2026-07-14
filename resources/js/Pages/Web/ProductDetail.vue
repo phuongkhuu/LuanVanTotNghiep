@@ -374,12 +374,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/youtube';
-import { watch } from 'vue'
+import { useCart } from '@/utils/useCart'
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -390,6 +389,7 @@ const props = defineProps({
 
 // Lấy page hiện tại
 const page = usePage()
+const { addToCart: addToCartGlobal, cartCount, fetchCart } = useCart()
 
 // State
 const activeThumb = ref(0)
@@ -630,33 +630,12 @@ const buyNow = async () => {
     }
 
     // ✅ SẢN PHẨM THƯỜNG: Thêm vào giỏ hàng rồi chuyển đến checkout
-    const payload = {
-      variant_id: selectedVariant.value.id,
-      quantity: quantity.value
-    }
-
-    const response = await axios.post('/api/cart/add', payload, {
-      headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    })
-
-    if (response.data.success) {
-      // Cập nhật số lượng giỏ hàng
-      window.dispatchEvent(new CustomEvent('cart-updated', {
-        detail: { count: response.data.cart_count || 0 }
-      }))
-      
-      loading.value = false
-      // CHUYỂN ĐẾN TRANG THANH TOÁN
-      router.get(route('checkout'))
-    } else {
-      showMessage(response.data.message || 'Thêm vào giỏ hàng thất bại', 'error')
-      loading.value = false
-    }
+    await addToCartGlobal(selectedVariant.value.id, quantity.value)
+    
+    loading.value = false
+    // CHUYỂN ĐẾN TRANG THANH TOÁN
+    router.get(route('checkout'))
+    
   } catch (error) {
     if (error.response && error.response.status === 401) {
       showMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error')
@@ -701,31 +680,13 @@ const addToCart = async () => {
 
   loading.value = true
 
-  const payload = {
-    variant_id: selectedVariant.value.id,
-    quantity: quantity.value
-  }
-
   try {
-    const response = await axios.post('/api/cart/add', payload, {
-      headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      withCredentials: true
-    })
-
-    if (response.data.success) {
-      showMessage('✅ Đã thêm vào giỏ hàng thành công!', 'success')
-      
-      window.dispatchEvent(new CustomEvent('cart-updated', {
-        detail: { count: response.data.cart_count || 0 }
-      }))
-      
-    } else {
-      showMessage(response.data.message || 'Thêm vào giỏ hàng thất bại', 'error')
-    }
+    await addToCartGlobal(selectedVariant.value.id, quantity.value)
+    showMessage('✅ Đã thêm vào giỏ hàng thành công!', 'success')
+    
+    // Cập nhật lại số lượng trên header (nếu useCart chưa tự cập nhật)
+    await fetchCart()
+    
   } catch (error) {
     if (error.response && error.response.status === 401) {
       showMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error')

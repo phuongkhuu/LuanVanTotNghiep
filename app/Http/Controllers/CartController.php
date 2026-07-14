@@ -87,7 +87,6 @@ class CartController extends Controller
             ], 404);
         }
 
-        // ✅ KIỂM TRA: Không cho thêm sản phẩm pre-order vào giỏ hàng
         if ($variant->product->is_pre_order ?? false) {
             Log::warning("Attempted to add pre-order product to cart: {$variant->product->name}");
             return response()->json([
@@ -109,7 +108,6 @@ class CartController extends Controller
         // Lấy giỏ hàng từ session
         $cart = $request->session()->get('cart', []);
         
-        // ✅ Kiểm tra và xóa sản phẩm pre-order nếu có trong giỏ
         foreach ($cart as $id => $item) {
             $variantCheck = ProductVariant::with('product')->find($id);
             if ($variantCheck && ($variantCheck->product->is_pre_order ?? false)) {
@@ -137,10 +135,7 @@ class CartController extends Controller
         
         Log::info('Cart after add:', $cart);
 
-        $totalCount = 0;
-        foreach ($cart as $item) {
-            $totalCount += $item['quantity'];
-        }
+        $totalCount = array_sum(array_column($cart, 'quantity'));
 
         return response()->json([
             'success' => true,
@@ -171,18 +166,18 @@ class CartController extends Controller
             ], 404);
         }
 
-        // ✅ Kiểm tra sản phẩm pre-order khi cập nhật
         $variant = ProductVariant::with('product')->find($variantId);
         if ($variant && ($variant->product->is_pre_order ?? false)) {
             Log::warning("Attempted to update pre-order product in cart: {$variant->product->name}");
-            // Xóa sản phẩm pre-order khỏi giỏ hàng
             unset($cart[$variantId]);
             $request->session()->put('cart', $cart);
             $request->session()->save();
             
+            $totalCount = array_sum(array_column($cart, 'quantity'));
             return response()->json([
                 'success' => false,
-                'message' => 'Sản phẩm Pre-order không thể ở trong giỏ hàng, đã xóa'
+                'message' => 'Sản phẩm Pre-order không thể ở trong giỏ hàng, đã xóa',
+                'cart_count' => $totalCount
             ], 400);
         }
 
@@ -197,9 +192,12 @@ class CartController extends Controller
         $request->session()->put('cart', $cart);
         $request->session()->save();
 
+        $totalCount = array_sum(array_column($cart, 'quantity'));
+
         return response()->json([
             'success' => true,
-            'message' => 'Đã cập nhật giỏ hàng'
+            'message' => 'Đã cập nhật giỏ hàng',
+            'cart_count' => $totalCount,
         ]);
     }
 
@@ -216,9 +214,12 @@ class CartController extends Controller
 
             Log::info("Removed variant_id: {$variantId} from cart");
 
+            $totalCount = array_sum(array_column($cart, 'quantity'));
+
             return response()->json([
                 'success' => true,
-                'message' => 'Đã xóa sản phẩm khỏi giỏ hàng'
+                'message' => 'Đã xóa sản phẩm khỏi giỏ hàng',
+                'cart_count' => $totalCount,
             ]);
         }
 
@@ -237,7 +238,8 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã xóa toàn bộ giỏ hàng'
+            'message' => 'Đã xóa toàn bộ giỏ hàng',
+            'cart_count' => 0,
         ]);
     }
 }

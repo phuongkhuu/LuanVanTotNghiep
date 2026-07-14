@@ -147,7 +147,7 @@
               Dashboard
             </Link>
             
-            <!-- LỊCH SỬ ĐƠN HÀNG - THÊM MỚI -->
+            <!-- LỊCH SỬ ĐƠN HÀNG -->
             <Link 
               :href="route('orders.history')" 
               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -181,7 +181,9 @@
         <!-- Giỏ hàng -->
         <Link :href="route('cart')" class="relative p-2 hover:scale-95 duration-200 text-gray-600 hover:text-primary">
           <span class="material-symbols-outlined">shopping_bag</span>
-          <span v-if="cartCount > 0" class="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{{ cartCount }}</span>
+          <span v-if="cartCount > 0" class="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+            {{ cartCount }}
+          </span>
         </Link>
       </div>
     </nav>
@@ -189,8 +191,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
+import { useCart } from '@/utils/useCart'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user || null)
@@ -198,7 +201,9 @@ const categories = computed(() => page.props.categories || [])
 const brands = computed(() => page.props.brands || [])
 
 const searchKeyword = ref('')
-const cartCount = ref(3)
+
+// Sử dụng useCart để quản lý giỏ hàng
+const { cartCount, fetchCart } = useCart()
 
 // Dropdown state
 const dropdownOpen = ref(false)
@@ -290,11 +295,13 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  fetchCart()
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
 </script>
 
 <style scoped>

@@ -276,7 +276,7 @@ const props = defineProps({
 
 // ---------- PHÂN TRANG ----------
 const currentPage = ref(1)
-const perPage = ref(10)
+const perPage = ref(5)
 
 const isServerPaginated = computed(() => {
   return props.products && typeof props.products === 'object' && 
