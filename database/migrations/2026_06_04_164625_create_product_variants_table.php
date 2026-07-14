@@ -1,5 +1,4 @@
 <?php
-// database/migrations/2026_01_13_000000_add_sale_fields_to_product_variants.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,29 +8,30 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::table('product_variants', function (Blueprint $table) {
-            $table->decimal('original_price', 15, 2)->nullable()->after('price');
-            $table->decimal('sale_price', 15, 2)->nullable()->after('original_price');
-            $table->string('sale_type')->nullable()->after('sale_price'); // 'campaign', 'preorder'
-            $table->unsignedBigInteger('sale_campaign_id')->nullable()->after('sale_type');
-            $table->timestamp('sale_start')->nullable()->after('sale_campaign_id');
-            $table->timestamp('sale_end')->nullable()->after('sale_start');
-            $table->boolean('is_on_sale')->default(false)->after('sale_end');
+        Schema::create('product_variants', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('product_id')
+                ->constrained()
+                ->onDelete('cascade');
+
+            $table->foreignId('color_id')
+                ->constrained()
+                ->onDelete('restrict');
+
+
+            $table->string('size_name')->nullable();
+
+            $table->decimal('rating', 2, 1)->default(0);
+            $table->integer('stock')->default(0);
+            $table->decimal('price', 12, 0);
+
+            $table->timestamps();
         });
     }
 
     public function down()
     {
-        Schema::table('product_variants', function (Blueprint $table) {
-            $table->dropColumn([
-                'original_price',
-                'sale_price',
-                'sale_type',
-                'sale_campaign_id',
-                'sale_start',
-                'sale_end',
-                'is_on_sale'
-            ]);
-        });
+        Schema::dropIfExists('product_variants');
     }
 };

@@ -49,7 +49,7 @@ class ProductController extends Controller
         }
 
         $file->move($fullDir, $filename);
-        return '/' . $subDir . '/' . $filename;
+        return '/media/' . $subDir . '/' . $filename;
     }
 
     protected function deleteMediaIfExists(?string $path): void
@@ -59,11 +59,20 @@ class ProductController extends Controller
         $parsed = parse_url($path);
         $cleanPath = ltrim($parsed['path'] ?? $path, '/');
 
-        if (!preg_match('#^(image|video)/#', $cleanPath)) {
+        // Chỉ xóa nếu đường dẫn bắt đầu bằng 'media/'
+        if (!str_starts_with($cleanPath, 'media/')) {
             return;
         }
 
-        $fullPath = base_path($cleanPath);
+        // Lấy phần đường dẫn sau 'media/'
+        $relative = substr($cleanPath, 6); // bỏ 'media/'
+
+        // Kiểm tra thêm nếu cần: chỉ cho phép image/ video/
+        if (!preg_match('#^(image|video)/#', $relative)) {
+            return;
+        }
+
+        $fullPath = base_path('media/' . $relative);
         if (File::exists($fullPath)) {
             File::delete($fullPath);
         }
@@ -198,6 +207,7 @@ class ProductController extends Controller
                     'category' => $product->category->name ?? 'Chưa phân loại',
                     'brand_id' => $product->brand_id,
                     'brand' => $product->brand->name ?? '',
+                    'material' => $product->material,
                     'price' => (int) $minPrice,
                     'sale_price' => $minSalePrice ? (int) $minSalePrice : null,
                     'display_price' => (int) $displayPrice,
@@ -320,7 +330,7 @@ class ProductController extends Controller
             'brand_id' => 'nullable|exists:brands,id',
             'type' => 'required|in:normal,preorder',
             'image_url' => 'nullable|array|max:' . self::MAX_MEDIA,
-            'image_url.*' => 'nullable|url|max:2048',
+            'image_url.*' => 'nullable|string|max:2048',
             'image_files' => 'nullable|array|max:' . self::MAX_MEDIA,
             'image_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp,mp4,mov,avi,wmv,flv,mkv|max:20480',
             'material' => 'nullable|string|max:255',

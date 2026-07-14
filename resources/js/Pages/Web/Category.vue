@@ -172,7 +172,9 @@
         <!-- Product List -->
         <div class="flex-grow">
           <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
-            <span class="text-sm text-gray-500">Hiển thị {{ products?.length || 0 }} sản phẩm</span>
+            <span class="text-sm text-gray-500">
+              Hiển thị {{ productList.length }} / {{ paginationData?.meta?.total || productList.length }} sản phẩm
+            </span>
             <div class="flex items-center gap-2">
               <span class="text-sm text-gray-500">Sắp xếp:</span>
               <select 
@@ -188,9 +190,9 @@
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <template v-if="products && products.length">
-              <div v-for="product in products" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
-                <Link :href="route('product.detail', { id: product.id })" class="block">
+            <template v-if="productList && productList.length">
+              <div v-for="product in productList" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
+                <Link :href="route('product.detail', { slug: product.slug })" class="block">
                   <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                     <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform" :alt="product.name">
                     <span v-if="product.badge" class="absolute top-4 left-4 px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
@@ -221,19 +223,25 @@
             </div>
           </div>
 
-          <!-- Pagination -->
-          <div class="mt-12 flex justify-center space-x-2">
-            <button class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition">
-              <span class="material-symbols-outlined text-sm">chevron_left</span>
-            </button>
-            <button class="w-10 h-10 rounded bg-primary text-white flex items-center justify-center">1</button>
-            <button class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition">2</button>
-            <button class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition">3</button>
-            <span class="px-2 flex items-center">...</span>
-            <button class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition">8</button>
-            <button class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition">
-              <span class="material-symbols-outlined text-sm">chevron_right</span>
-            </button>
+          <!-- Phân trang thật -->
+          <div v-if="paginationData && paginationData.links && paginationData.links.length > 0" class="mt-12 flex justify-center space-x-2">
+            <template v-for="link in paginationData.links" :key="link.label">
+              <button
+                v-if="link.url"
+                @click="goToPage(link.url, link.page)"
+                class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition"
+                :class="{
+                  'bg-primary text-white border-primary': link.active,
+                  'border-gray-300': !link.active
+                }"
+                v-html="link.label"
+              ></button>
+              <span
+                v-else
+                class="w-10 h-10 rounded border flex items-center justify-center text-gray-400"
+                v-html="link.label"
+              ></span>
+            </template>
           </div>
         </div>
       </section>
@@ -245,7 +253,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
@@ -254,7 +262,7 @@ import Chatbot from '@/Components/Chatbot.vue'
 const props = defineProps({
   slug: { type: String, default: '' },
   categoryName: { type: String, default: 'Danh mục' },
-  products: { type: Array, default: () => [] },
+  products: { type: [Array, Object], default: () => [] },
   filters: { type: Object, default: () => ({
     brands: [],
     materials: [],
@@ -266,7 +274,100 @@ const props = defineProps({
   selectedFilters: { type: Object, default: () => ({}) }
 })
 
-// Temporary filter state (chỉ lưu khi chưa áp dụng)
+// ---------- PHÂN TRANG ----------
+const currentPage = ref(1)
+const perPage = ref(10)
+
+const isServerPaginated = computed(() => {
+  return props.products && typeof props.products === 'object' && 
+         'data' in props.products && 'links' in props.products
+})
+
+const totalItems = computed(() => {
+  if (isServerPaginated.value) {
+    return props.products.meta?.total || 0
+  }
+  return Array.isArray(props.products) ? props.products.length : 0
+})
+
+const totalPages = computed(() => {
+  if (isServerPaginated.value) {
+    return props.products.meta?.last_page || 1
+  }
+  return Math.ceil(totalItems.value / perPage.value) || 1
+})
+
+// Danh sách sản phẩm hiển thị (có phân trang client)
+const productList = computed(() => {
+  if (isServerPaginated.value) {
+    return props.products.data || []
+  }
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return (Array.isArray(props.products) ? props.products : []).slice(start, end)
+})
+
+// Dữ liệu phân trang (dùng chung giao diện)
+const paginationData = computed(() => {
+  if (isServerPaginated.value) {
+    return props.products
+  }
+  // Tạo links cho client pagination
+  const links = []
+  // Nút Previous
+  links.push({
+    url: currentPage.value > 1 ? '#' : null,
+    label: '&laquo;',
+    active: false,
+    page: currentPage.value > 1 ? currentPage.value - 1 : null
+  })
+  for (let i = 1; i <= totalPages.value; i++) {
+    links.push({
+      url: '#',
+      label: String(i),
+      active: i === currentPage.value,
+      page: i
+    })
+  }
+  // Nút Next
+  links.push({
+    url: currentPage.value < totalPages.value ? '#' : null,
+    label: '&raquo;',
+    active: false,
+    page: currentPage.value < totalPages.value ? currentPage.value + 1 : null
+  })
+  return {
+    links,
+    meta: {
+      total: totalItems.value,
+      last_page: totalPages.value
+    }
+  }
+})
+
+// Hàm chuyển trang (hỗ trợ cả server và client)
+const goToPage = (url, page) => {
+  if (isServerPaginated.value) {
+    if (url) {
+      router.get(url, {}, { preserveState: true, preserveScroll: true })
+    }
+  } else {
+    if (page && page >= 1 && page <= totalPages.value) {
+      currentPage.value = page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+}
+
+// Reset về trang 1 khi dữ liệu sản phẩm thay đổi (ví dụ sau lọc)
+watch(() => props.products, (newVal) => {
+  if (!isServerPaginated.value && Array.isArray(newVal)) {
+    currentPage.value = 1
+  }
+}, { deep: false })
+// -----------------------------------------------
+
+// Các biến lọc
 const tempBrands = ref([])
 const tempMaterials = ref([])
 const tempCategories = ref([])
@@ -276,7 +377,6 @@ const tempPriceMax = ref(null)
 const tempPriceRange = ref(0)
 const sortBy = ref('newest')
 
-// Actual applied filters (từ URL)
 const appliedBrands = ref([])
 const appliedMaterials = ref([])
 const appliedCategories = ref([])
@@ -291,7 +391,6 @@ const sortOptions = [
   { value: 'popular', label: 'Phổ biến nhất' }
 ]
 
-// Helper functions
 const getColorName = (colorId) => {
   if (!props.filters.colors || props.filters.colors.length === 0) return ''
   const color = props.filters.colors.find(c => c.id === colorId)
@@ -322,7 +421,7 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price) + 'đ'
 }
 
-// Áp dụng bộ lọc - CHỈ GỌI KHI NHẤN NÚT
+// Áp dụng bộ lọc
 const applyFilters = () => {
   const params = new URLSearchParams()
   
@@ -333,6 +432,9 @@ const applyFilters = () => {
   appliedColors.value = [...tempColors.value]
   appliedPriceMin.value = tempPriceMin.value
   appliedPriceMax.value = tempPriceMax.value
+  
+  // Reset page về 1
+  params.set('page', '1')
   
   if (tempBrands.value.length) {
     params.append('brands', tempBrands.value.join(','))
@@ -378,13 +480,14 @@ const resetFilters = () => {
   appliedPriceMin.value = null
   appliedPriceMax.value = null
   
-  // Reload page without filters
-  const url = route('category', { slug: props.slug })
+  const params = new URLSearchParams()
+  params.set('page', '1')
+  const url = route('category', { slug: props.slug }) + '?' + params.toString()
   router.get(url, {}, { preserveState: true, preserveScroll: true })
 }
 
 const addToCart = (product) => {
-  router.get(route('product.detail', { id: product.id }))
+  router.get(route('product.detail', { slug: product.slug }))
 }
 
 // Khởi tạo bộ lọc từ URL
@@ -419,12 +522,13 @@ onMounted(() => {
   if (params.has('price_max')) {
     const val = Number(params.get('price_max'))
     tempPriceMax.value = val
-    appliedPriceMax.value = valm
+    appliedPriceMax.value = val 
   }
   if (params.has('sort')) {
     sortBy.value = params.get('sort')
   }
   
+  // Khởi tạo thanh trượt giá
   if (props.filters.maxPrice) {
     tempPriceRange.value = props.filters.maxPrice
   }

@@ -9,10 +9,15 @@ use Inertia\Inertia;
 
 class ProductController extends Controller
 {
-    public function show($id)
+    public function show($slug)
     {
-        $product = Product::with(['category', 'brand', 'variants.color'])
-            ->where('id', $id)
+        $product = Product::with([
+                'category', 
+                'brand', 
+                'variants.color', 
+                'reviews.user'  
+            ])
+            ->where('slug', $slug)
             ->where('status', 1)
             ->firstOrFail();
 
@@ -33,7 +38,6 @@ class ProductController extends Controller
             return null;
         })->filter()->unique('value')->values();
 
-        // ---- LẤY MẢNG ẢNH ----
         $images = $product->image_url ?? [];
         if (!is_array($images)) {
             $images = [];
@@ -56,6 +60,7 @@ class ProductController extends Controller
                 $price = $item->variants->min('price') ?? 0;
                 return [
                     'id' => $item->id,
+                    'slug' => $item->slug,
                     'name' => $item->name,
                     'brand' => $item->brand?->name ?? '',
                     'price' => number_format($price) . '₫',
@@ -63,40 +68,34 @@ class ProductController extends Controller
                 ];
             });
 
-        $reviews = [
-            [
-                'id' => 1,
-                'author' => 'Nguyễn Văn A',
-                'rating' => 5,
-                'date' => now()->subDays(5)->format('d/m/Y'),
-                'content' => 'Sản phẩm chất lượng, đúng mô tả.'
-            ],
-            [
-                'id' => 2,
-                'author' => 'Trần Thị B',
-                'rating' => 4,
-                'date' => now()->subDays(10)->format('d/m/Y'),
-                'content' => 'Rất hài lòng, sẽ ủng hộ dài dài.'
-            ],
-        ];
-        $totalReviews = 128;
+        $reviews = $product->reviews->map(function ($review) {
+            return [
+                'id' => $review->id,
+                'author' => $review->user?->name ?? 'Khách hàng',
+                'rating' => $review->rating,
+                'date' => $review->created_at->format('d/m/Y'),
+                'content' => $review->comment,
+            ];
+        });
+
+        $totalReviews = $reviews->count();
+        $reviewCount = $totalReviews; 
 
         $productData = [
             'id' => $product->id,
+            'slug' => $product->slug,
             'name' => $product->name,
             'price' => number_format($minPrice) . '₫',
             'oldPrice' => $originalPrice ? number_format($originalPrice) . '₫' : null,
             'discount' => $discount,
-            'reviewCount' => $totalReviews,
+            'reviewCount' => $reviewCount,
             'thumbnails' => $images,
             'sizes' => $sizes,
             'colors' => $colors,
             'features' => $features,
             'description' => $product->description,
             'material' => $product->material,
-            // ⭐ THÊM DÒNG NÀY - truyền is_preorder
             'is_preorder' => (bool) $product->is_preorder,
-            // ⭐ THÊM DÒNG NÀY - truyền variants vào productData
             'variants' => $product->variants->map(function($variant) {
                 return [
                     'id' => $variant->id,
@@ -111,7 +110,7 @@ class ProductController extends Controller
         return Inertia::render('Web/ProductDetail', [
             'product' => $productData,
             'relatedProducts' => $relatedProducts,
-            'reviews' => $reviews,
+            'reviews' => $reviews,       
             'totalReviews' => $totalReviews,
         ]);
     }

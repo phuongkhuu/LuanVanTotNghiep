@@ -90,7 +90,7 @@
             :key="product.id" 
             class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
           >
-            <Link :href="route('product.detail', { id: product.id })" class="block">
+            <Link :href="getProductUrl(product)" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                 <img 
                   :src="getProductImage(product)" 
@@ -152,7 +152,7 @@
             :key="product.id" 
             class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
           >
-            <Link :href="route('product.detail', { id: product.id })" class="block">
+            <Link :href="getProductUrl(product)" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                 <img 
                   :src="getProductImage(product)" 
@@ -198,7 +198,7 @@
             :key="product.id" 
             class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
           >
-            <Link :href="route('product.detail', { id: product.id })" class="block">
+            <Link :href="getProductUrl(product)" class="block">
               <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                 <img 
                   :src="getProductImage(product)" 
@@ -331,17 +331,33 @@ const getDefaultImage = () => {
   return DEFAULT_IMAGE
 }
 
+const getProductUrl = (product) => {
+  if (product && product.slug) {
+    return route('product.detail', { slug: product.slug })
+  }
+  // Fallback: return '#' or a generic page
+  return '#'
+}
+
 /**
  * Lấy ảnh sản phẩm (có fallback)
  */
 const getProductImage = (product) => {
   if (!product) return DEFAULT_IMAGE
-  
-  // Nếu có image và không phải đường dẫn lỗi
-  if (product.image && product.image !== '/images/default-product.jpg') {
-    return product.image
+
+  const image = product.image
+  if (!image) return DEFAULT_IMAGE
+
+  // Nếu là mảng, lấy phần tử đầu tiên
+  if (Array.isArray(image)) {
+    return image[0] || DEFAULT_IMAGE
   }
-  
+
+  // Nếu là chuỗi và không phải default
+  if (typeof image === 'string' && image !== '/images/default-product.jpg') {
+    return image
+  }
+
   return DEFAULT_IMAGE
 }
 
@@ -373,7 +389,7 @@ const formatPrice = (price) => {
  * Thêm vào giỏ hàng
  */
 const addToCart = (product) => {
-  router.get(route('product.detail', { id: product.id }))
+  router.get(route('product.detail', { slug: product.slug }))
 }
 
 /**
@@ -512,6 +528,7 @@ onMounted(() => {
   nextTick(() => {
     initCarousel()
   })
+  console.log('Welcome.vue mounted. Banners:', banners.value, 'HotSales:', hotSales.value, 'Trending:', trending.value, 'NewProducts:', newProducts.value, 'NewsList:', newsList.value)
 })
 
 onUnmounted(() => {

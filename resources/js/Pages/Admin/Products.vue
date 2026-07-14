@@ -457,6 +457,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import ColorSelect from '@/Components/ColorSelect.vue';
 import CKEditor from '@/Components/CKEditor.vue';
+import { isYouTubeUrl, getYouTubeThumbnail } from '@/utils/youtube';
 
 const props = defineProps({
     initialProducts: { type: Array, default: () => [] },
@@ -466,14 +467,12 @@ const props = defineProps({
     colors: { type: Array, default: () => [] }
 });
 
-// Search and filter
 const search = ref('');
 const selectedCategory = ref(null);
 const selectedBrand = ref(null);
 const selectedColor = ref(null);
 const activeType = ref(['normal', 'preorder'].includes(props.type) ? props.type : 'normal');
 
-// Pagination
 const currentPage = ref(1);
 const perPage = ref(5);
 
@@ -484,17 +483,14 @@ const productTypes = [
 
 const products = ref(props.initialProducts);
 
-// Modal
 const showModal = ref(false);
 const editingId = ref(null);
 const isSubmitting = ref(false);
 const modalTitle = computed(() => editingId.value ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới');
 
-// Image handling
 const imageInputMode = ref('url');
 const fileError = ref('');
 
-// Form data
 const form = ref({
     name: '',
     category_id: null,
@@ -507,11 +503,17 @@ const form = ref({
     variants: []
 });
 
-// Computed: hợp nhất URL và file để hiển thị preview
 const allImagePreviews = computed(() => {
     const urls = form.value.imageUrls.map(url => {
-        const isVideo = /\.(mp4|mov|avi|wmv|flv|mkv|webm|ogg)$/i.test(url);
-        return { url, type: 'url', mediaType: isVideo ? 'video' : 'image' };
+        let mediaType = 'image';
+        let thumbnail = null;
+        if (isYouTubeUrl(url)) {
+            mediaType = 'youtube';
+            thumbnail = getYouTubeThumbnail(url);
+        } else if (/\.(mp4|mov|avi|wmv|flv|mkv|webm|ogg)$/i.test(url)) {
+            mediaType = 'video';
+        }
+        return { url, type: 'url', mediaType, thumbnail };
     });
     const files = form.value.imageFiles.map(file => {
         const isVideo = file.type.startsWith('video/');
@@ -519,20 +521,19 @@ const allImagePreviews = computed(() => {
             url: URL.createObjectURL(file),
             type: 'file',
             file,
-            mediaType: isVideo ? 'video' : 'image'
+            mediaType: isVideo ? 'video' : 'image',
+            thumbnail: null // file không có thumbnail
         };
     });
     return [...urls, ...files];
 });
 
-// Hàm ngăn giá trị âm
 const enforceNonNegative = (value) => {
     let num = parseFloat(value);
     if (isNaN(num)) return 0;
     return Math.max(0, num);
 };
 
-// Cập nhật giá trị price
 const updatePrice = (variant, event) => {
     const raw = event.target.value;
     const newVal = enforceNonNegative(raw);
@@ -540,7 +541,6 @@ const updatePrice = (variant, event) => {
     event.target.value = newVal;
 };
 
-// Cập nhật stock
 const updateStock = (variant, event) => {
     const raw = event.target.value;
     const newVal = enforceNonNegative(raw);
@@ -548,7 +548,6 @@ const updateStock = (variant, event) => {
     event.target.value = newVal;
 };
 
-// Thêm dòng variant
 const addVariant = () => {
     form.value.variants.push({
         color_id: null,
@@ -562,7 +561,6 @@ const removeVariant = (index) => {
     form.value.variants.splice(index, 1);
 };
 
-// Lọc sản phẩm
 const filteredProducts = computed(() => {
     if (!products.value.length) return [];
     return products.value.filter(product => {
@@ -582,7 +580,6 @@ const filteredProducts = computed(() => {
     });
 });
 
-// Pagination
 const paginatedProducts = computed(() => {
     const start = (currentPage.value - 1) * perPage.value;
     const end = start + perPage.value;
@@ -624,7 +621,6 @@ const formatPrice = (value) => {
     return value.toLocaleString('vi-VN') + '₫';
 };
 
-// Thêm URL ảnh
 const addImageUrl = () => {
     const input = document.getElementById('imageUrlInput');
     const url = input.value.trim();
@@ -644,7 +640,6 @@ const addImageUrl = () => {
     input.value = '';
 };
 
-// Xóa ảnh
 const removeImage = (index, type) => {
     if (type === 'url') {
         form.value.imageUrls.splice(index, 1);
@@ -653,7 +648,6 @@ const removeImage = (index, type) => {
     }
 };
 
-// Xử lý chọn file
 const handleFileChange = (event) => {
     const files = event.target.files;
     fileError.value = '';
@@ -688,7 +682,6 @@ const clearFiles = () => {
     if (input) input.value = '';
 };
 
-// Mở modal
 const openModal = (product = null) => {
     editingId.value = product?.id || null;
     imageInputMode.value = 'url';
@@ -731,7 +724,6 @@ const openModal = (product = null) => {
 
 const editProduct = (product) => openModal(product);
 
-// Lưu sản phẩm
 const saveProduct = async () => {
     if (!form.value.name.trim()) {
         alert('Vui lòng nhập tên sản phẩm');
@@ -739,8 +731,8 @@ const saveProduct = async () => {
     }
 
     const material = form.value.material.trim();
-    if (material && !/^[a-zA-ZÀ-ỹ\s\-]+$/.test(material)) {
-        alert('Chất liệu chỉ được chứa chữ cái (có dấu), dấu cách và dấu gạch ngang.');
+    if (material && !/^[a-zA-ZÀ-ỹ0-9\s\-]+$/.test(material)) {
+        alert('Chất liệu chỉ được chứa chữ cái (có dấu), chữ số, dấu cách và dấu gạch ngang.');
         return;
     }
 
@@ -866,7 +858,6 @@ const saveProduct = async () => {
     }
 };
 
-// Đổi vị trí ảnh
 const moveImage = (index, type, direction) => {
     if (type === 'url') {
         const arr = form.value.imageUrls;
@@ -881,7 +872,6 @@ const moveImage = (index, type, direction) => {
     }
 };
 
-// Xóa sản phẩm
 const deleteProduct = async (id) => {
     const product = products.value.find(p => p.id === id);
     if (!confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${product?.name}"?`)) return;
@@ -921,7 +911,6 @@ const changeActiveType = (typeValue) => {
     });
 };
 
-// Reset trang khi search hoặc filter thay đổi
 watch([search, activeType, selectedCategory, selectedBrand, selectedColor], () => {
     currentPage.value = 1;
 });

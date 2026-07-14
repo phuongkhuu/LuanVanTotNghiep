@@ -144,6 +144,12 @@ onMounted(() => {
                         </div>
                     </div>
 
+                    <!-- Đánh giá -->
+                    <Link :href="route('admin.reviews.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.reviews.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
+                        <span class="material-symbols-outlined">rate_review</span>
+                        <span class="flex-1 text-sm font-medium">Đánh giá</span>
+                    </Link>
+
                     <!-- Tùy chỉnh -->
                     <Link :href="route('admin.customize.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.customize.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
                         <span class="material-symbols-outlined">palette</span>

@@ -25,7 +25,7 @@ class HomeController extends Controller
             ->map(function ($banner) {
                 return [
                     'id' => $banner->id,
-                    'image' => $this->normalizeImagePath($banner->image ?? '/images/default-banner.jpg'),
+                    'image' => $banner->image,
                     'link' => $banner->link,
                     'campaign' => $banner->campaign?->name,
                 ];
@@ -159,7 +159,8 @@ class HomeController extends Controller
             $data['originalPrice'] = (float) $price;
             $data['discount'] = (int) ($product->discount ?? $this->calculateDiscount($price, $salePrice));
             $data['rating'] = (float) ($product->rating ?? rand(4, 5));
-            $data['reviews'] = (int) ($product->reviews ?? rand(10, 100));
+            $data['reviews'] = (int) ($product::with('reviews')->first()->reviews->count() ?? rand(10, 100));
+            $data['slug'] = $product->slug ?? 'product-' . $product->id;
         }
 
         if ($type === 'trending') {
@@ -171,76 +172,30 @@ class HomeController extends Controller
 
     private function getProductPrice($product)
     {
-        if (isset($product->{$this->priceColumn}) && $product->{$this->priceColumn} > 0) {
-            return (float) $product->{$this->priceColumn};
+        if (!$product->relationLoaded('variants')) {
+            $product->load('variants');
         }
-        
-        if (isset($product->sale_price) && $product->sale_price > 0) {
-            return (float) $product->sale_price;
-        }
-        
-        $possibleColumns = ['product_price', 'unit_price', 'cost', 'price_regular'];
-        foreach ($possibleColumns as $col) {
-            if (isset($product->$col) && $product->$col > 0) {
-                return (float) $product->$col;
-            }
-        }
-        
-        return 0;
+        $minPrice = $product->variants->min('price') ?? 0;
+        return $minPrice;
     }
 
     private function getProductImage($product)
     {
-        if (empty($product->image)) {
+        if (empty($product->image_url)) {
             return '/images/default-product.jpg';
         }
 
-        $image = $product->image;
+        $image = $product->image_url;
 
         if ($this->isJson($image)) {
             $images = json_decode($image, true);
             if (is_array($images) && !empty($images)) {
-                return $this->normalizeImagePath($images[0]);
+                return $images[0];
             }
             return '/images/default-product.jpg';
         }
 
-        return $this->normalizeImagePath($image);
-    }
-
-    private function normalizeImagePath($path)
-    {
-        if (empty($path)) {
-            return '/images/default-product.jpg';
-        }
-
-        // Nếu là URL đầy đủ
-        if (filter_var($path, FILTER_VALIDATE_URL)) {
-            return $path;
-        }
-
-        // Nếu đã có /storage/
-        if (strpos($path, '/storage/') === 0) {
-            return $path;
-        }
-
-        // Nếu có storage/ nhưng thiếu /
-        if (strpos($path, 'storage/') === 0) {
-            return '/' . $path;
-        }
-
-        // Nếu đã có /images/
-        if (strpos($path, '/images/') === 0) {
-            return $path;
-        }
-
-        // Nếu có images/ nhưng thiếu /
-        if (strpos($path, 'images/') === 0) {
-            return '/' . $path;
-        }
-
-        // Mặc định: thêm /storage/
-        return '/storage/' . ltrim($path, '/');
+        return $image;
     }
 
     private function isJson($string)

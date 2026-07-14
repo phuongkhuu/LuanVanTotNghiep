@@ -113,7 +113,7 @@ class ColorController extends Controller
     {
         try {
             $color = Color::findOrFail($id);
-            
+
             $validated = $request->validate([
                 'name' => ['nullable', 'string', 'max:255'],
                 'code' => ['nullable', 'string', 'max:20', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/']
@@ -123,54 +123,67 @@ class ColorController extends Controller
                 'name.max'   => 'Tên màu không được vượt quá 255 ký tự.'
             ]);
 
-            // Xử lý logic nhập liệu
-            if (!empty($validated['name']) && !empty($validated['code'])) {
-                $validated['code'] = $this->normalizeHexCode($validated['code']);
-            } elseif (!empty($validated['name']) && empty($validated['code'])) {
-                $validated['code'] = $this->getColorCodeFromName($validated['name']);
-            } elseif (!empty($validated['code']) && empty($validated['name'])) {
+            // Chuẩn bị dữ liệu cần cập nhật
+            $data = [];
+
+            // Xử lý tên
+            if (!empty($validated['name'])) {
+                $data['name'] = $this->capitalizeName($validated['name']);
+            }
+
+            // Xử lý mã
+            if (!empty($validated['code'])) {
+                $data['code'] = $this->normalizeHexCode($validated['code']);
+            }
+
+            // Nếu chỉ có code mà không có name → tự tạo name từ code
+            if (empty($validated['name']) && !empty($validated['code'])) {
                 $code = $this->normalizeHexCode($validated['code']);
                 $generatedName = $this->getColorNameFromCode($code);
                 if ($generatedName && $generatedName !== 'Màu khác') {
-                    $validated['name'] = $generatedName;
+                    $data['name'] = $this->capitalizeName($generatedName);
                 } else {
-                    $validated['name'] = $color->name; 
+                    // Giữ name cũ nếu không tạo được
+                    $data['name'] = $color->name;
                 }
-                $validated['code'] = $code;
-            } else {
+                $data['code'] = $code;
+            }
+
+            // Nếu chỉ có name mà không có code → giữ nguyên code cũ (không tự tạo)
+            // Nếu cả hai đều rỗng → báo lỗi
+            if (empty($validated['name']) && empty($validated['code'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Vui lòng nhập tên màu hoặc mã hex!'
                 ], 422);
             }
 
-            // Chuẩn hóa tên (viết hoa chữ đầu)
-            $validated['name'] = $this->capitalizeName($validated['name']);
-
-            // Kiểm tra trùng tên (không tính chính nó)
-            if ($validated['name'] !== $color->name && Color::where('name', $validated['name'])->exists()) {
+            // Kiểm tra trùng tên (loại trừ chính nó)
+            if (isset($data['name']) && $data['name'] !== $color->name &&
+                Color::where('name', $data['name'])->where('id', '!=', $color->id)->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tên màu "' . $validated['name'] . '" đã tồn tại!'
+                    'message' => 'Tên màu "' . $data['name'] . '" đã tồn tại!'
                 ], 422);
             }
 
-            // Kiểm tra trùng mã (không tính chính nó)
-            if ($validated['code'] !== $color->code && Color::where('code', $validated['code'])->exists()) {
+            // Kiểm tra trùng mã (loại trừ chính nó)
+            if (isset($data['code']) && $data['code'] !== $color->code &&
+                Color::where('code', $data['code'])->where('id', '!=', $color->id)->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Mã màu "' . $validated['code'] . '" đã tồn tại!'
+                    'message' => 'Mã màu "' . $data['code'] . '" đã tồn tại!'
                 ], 422);
             }
 
-            $color->update($validated);
+            $color->update($data);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cập nhật màu sắc thành công!',
                 'data' => $color
             ]);
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,

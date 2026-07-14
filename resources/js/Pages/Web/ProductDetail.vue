@@ -20,17 +20,37 @@
         <div class="md:col-span-7 flex flex-col-reverse md:flex-row gap-4">
           <!-- Danh sách thumbnail -->
           <div 
-            v-if="thumbnails.length > 0" 
+            v-if="mediaItems.length > 0" 
             class="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[600px] custom-scrollbar"
           >
             <div 
-              v-for="(thumb, idx) in thumbnails" 
+              v-for="(media, idx) in mediaItems" 
               :key="idx" 
-              class="min-w-[80px] w-20 h-20 border-2 rounded-lg overflow-hidden cursor-pointer bg-white flex-shrink-0"
+              class="min-w-[80px] w-20 h-20 border-2 rounded-lg overflow-hidden cursor-pointer bg-white flex-shrink-0 relative"
               :class="idx === activeThumb ? 'border-primary' : 'border-gray-200 hover:border-primary'"
               @click="activeThumb = idx"
             >
-              <img :src="thumb" class="w-full h-full object-cover" :alt="'Hình ảnh ' + (idx + 1)">
+              <!-- Hiển thị ảnh -->
+              <img 
+                v-if="media.type === 'image'" 
+                :src="media.url" 
+                class="w-full h-full object-cover" 
+                :alt="'Hình ảnh ' + (idx + 1)"
+              />
+              <!-- Hiển thị icon video -->
+              <div v-else-if="media.type === 'video'" class="w-full h-full bg-gray-800 flex items-center justify-center text-white text-xs flex-col">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0v8h12V6H4zm1 1v6l5-3-5-3z"/>
+                </svg>
+                <span class="mt-1 text-[10px]">Video</span>
+              </div>
+              <!-- Hiển thị icon YouTube -->
+              <div v-else-if="media.type === 'youtube'" class="w-full h-full bg-red-600 flex items-center justify-center text-white text-xs flex-col">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+                <span class="mt-1 text-[10px]">YouTube</span>
+              </div>
             </div>
           </div>
           <!-- Nếu không có ảnh, hiển thị placeholder -->
@@ -41,16 +61,49 @@
           </div>
 
           <!-- Ảnh chính -->
-          <div class="flex-1 aspect-[4/5] bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-            <img 
-              v-if="thumbnails.length > 0" 
-              :src="thumbnails[activeThumb]" 
-              class="w-full h-full object-cover" 
+          <div
+            class="flex-1 aspect-[4/5] bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 relative image-container"
+            @mouseenter="isMagnifying = true"
+            @mouseleave="isMagnifying = false"
+            @mousemove="(e) => { magnifierPos.x = e.clientX; magnifierPos.y = e.clientY; }"
+          >
+            <!-- Ảnh -->
+            <img
+              v-if="currentMedia.type === 'image'"
+              :src="currentMedia.url"
+              class="w-full h-full object-cover"
               alt="Sản phẩm chính"
-            >
+            />
+            <!-- Video -->
+            <video
+              v-else-if="currentMedia.type === 'video'"
+              :src="currentMedia.url"
+              class="w-full h-full object-contain bg-black"
+              autoplay
+              muted
+              loop
+              playsinline
+              controls
+            ></video>
+            <!-- YouTube -->
+            <iframe
+              v-else-if="currentMedia.type === 'youtube'"
+              :src="currentMedia.embedUrl"
+              class="w-full h-full"
+              frameborder="0"
+              allowfullscreen
+              allow="autoplay; encrypted-media"
+            ></iframe>
+            <!-- Placeholder -->
             <div v-else class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
               Không có ảnh
             </div>
+
+            <!-- Kính lúp (chỉ hiển thị khi là ảnh và đang hover) -->
+            <div
+              v-if="currentMedia.type === 'image'"
+              :style="magnifierStyle"
+            ></div>
           </div>
         </div>
 
@@ -219,42 +272,6 @@
         </div>
       </div>
 
-      <!-- Product Highlights -->
-      <section class="mt-16">
-        <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">Đặc điểm nổi bật</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="md:col-span-2 bg-white rounded-2xl p-8 flex flex-col justify-between group overflow-hidden border border-gray-100 shadow-sm">
-            <div>
-              <h3 class="font-headline-md text-xl font-bold text-gray-800 mb-3">Vật liệu siêu bền</h3>
-              <p class="text-gray-600 max-w-md">Sử dụng vải Nylon 1680D có độ bền kéo cực cao, chống mài mòn và thấm nước tuyệt đối.</p>
-            </div>
-            <img alt="Material" class="w-full h-48 object-cover rounded-xl mt-6 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAXkYc03HJQmTinK1YAQbj736ihy99OstGxMcUxfWyDse1xtCXg628v2N8vSfTXVOHSiaOscLyeVJWCULvAkl2DZNGbcFY61CXOK0Qvc3SDDq5GnTDdUapS_7qmce8NhJ5yu68yhMSt_ejolkow3sghIYvDw_hwUTmAKrrzVQU7SEDxad6b7kyBmB7Rj06_r49-hBFawQJtCo8Q-rYddCiDj_V1vpZWFZMtA9BOH73zqME0z-wW07uXfYHhwQF9j2QON12Tc4CJBKH">
-          </div>
-          <div class="bg-primary text-white rounded-2xl p-8 flex flex-col items-center text-center justify-center shadow-xl shadow-primary/10">
-            <span class="material-symbols-outlined text-6xl mb-4">laptop_mac</span>
-            <h3 class="font-headline-md text-xl font-bold mb-2 text-white">Ngăn Laptop 16"</h3>
-            <p class="text-white/80 text-sm">Đệm chống sốc dạng tổ ong bảo vệ thiết bị tối đa khỏi va đập mạnh từ mọi phía.</p>
-          </div>
-          <div class="bg-white rounded-2xl p-8 text-center flex flex-col items-center border border-gray-100 shadow-sm">
-            <span class="material-symbols-outlined text-6xl mb-4 text-primary">lock</span>
-            <h3 class="font-headline-md text-xl font-bold text-gray-800 mb-2">An toàn tuyệt đối</h3>
-            <p class="text-gray-600 text-sm">Ngăn bí mật mặt lưng để điện thoại và hộ chiếu, cùng dây kéo YKK chống trộm.</p>
-          </div>
-          <div class="md:col-span-2 text-white rounded-2xl p-8 flex flex-col md:flex-row items-center gap-8 bg-gray-800">
-            <div class="flex-1">
-              <h3 class="font-headline-md text-xl font-bold mb-3 text-white">Tùy biến theo chất riêng</h3>
-              <p class="text-sm mb-6 text-white/80">Dịch vụ in/khắc logo doanh nghiệp: Tải lên hình ảnh logo, chọn vị trí in (trước, sau, quai đeo) và để lại lời nhắn chi tiết cho chúng tôi.</p>
-              <Link :href="route('customize')" class="px-8 py-3 bg-white text-primary rounded-xl hover:bg-opacity-90 transition-colors font-bold text-sm">
-                Yêu cầu In Logo & Tùy chỉnh
-              </Link>
-            </div>
-            <div class="w-32 h-32 flex items-center justify-center rounded-full shadow-lg bg-primary">
-              <span class="material-symbols-outlined text-6xl text-white">brush</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Related Products -->
       <section v-if="relatedProducts && relatedProducts.length" class="mt-16">
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">Các sản phẩm liên quan</h2>
@@ -282,24 +299,69 @@
       </section>
 
       <!-- Reviews Section -->
-      <section v-if="reviews && reviews.length" class="mt-16 border-t border-gray-200 pt-16">
-        <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8">Đánh giá từ khách hàng</h2>
-        <div class="space-y-6">
-          <div v-for="review in reviews" :key="review.id" class="p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+      <section class="mt-16 border-t border-gray-200 pt-16">
+        <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8">
+          Đánh giá từ khách hàng
+        </h2>
+
+        <!-- Form đánh giá (chỉ hiển thị khi đã đăng nhập) -->
+        <div v-if="isAuthenticated" class="mb-10 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">Viết đánh giá của bạn</h3>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Đánh giá của bạn</label>
+            <div class="flex gap-2">
+              <button
+                v-for="star in 5"
+                :key="star"
+                @click="newReview.rating = star"
+                class="text-3xl transition-colors"
+                :class="star <= newReview.rating ? 'text-amber-400' : 'text-gray-300 hover:text-amber-200'"
+              >
+                ★
+              </button>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label for="comment" class="block text-sm font-medium text-gray-700 mb-2">Nhận xét (tùy chọn)</label>
+            <textarea
+              id="comment"
+              v-model="newReview.comment"
+              rows="3"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
+            ></textarea>
+          </div>
+          <button
+            @click="submitReview"
+            :disabled="submitting || !newReview.rating"
+            class="px-6 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ submitting ? 'Đang gửi...' : 'Gửi đánh giá' }}
+          </button>
+        </div>
+
+        <!-- Danh sách đánh giá -->
+        <div v-if="reviewList.length > 0" class="space-y-6">
+          <div v-for="review in reviewList" :key="review.id" class="p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div>
                 <div class="flex items-center gap-1 text-amber-400 mb-1">
                   <span v-for="n in 5" :key="n" class="material-symbols-outlined text-sm" :style="{ fontVariationSettings: n <= review.rating ? '\'FILL\' 1' : '\'FILL\' 0' }">star</span>
                 </div>
-                <span class="font-semibold text-gray-800">{{ review.author }}</span>
+                <span class="font-semibold text-gray-800">{{ review.user?.name || review.author || 'Khách hàng' }}</span>
               </div>
-              <span class="text-gray-400 text-sm">{{ review.date }}</span>
+              <span class="text-gray-400 text-sm">{{ review.created_at ? new Date(review.created_at).toLocaleDateString('vi-VN') : review.date || '' }}</span>
             </div>
-            <p class="text-gray-600 text-sm">{{ review.content }}</p>
+            <p class="text-gray-600 text-sm">{{ review.comment || review.content }}</p>
           </div>
         </div>
-        <button class="mt-8 px-8 py-3 border-2 border-primary text-primary rounded-xl font-semibold text-sm hover:bg-primary/5 transition-all">
-          Xem tất cả {{ totalReviews }} đánh giá
+        <div v-else class="text-center text-gray-500 py-8">
+          Chưa có đánh giá nào cho sản phẩm này.
+        </div>
+
+        <!-- Nút xem tất cả (nếu cần) -->
+        <button v-if="reviewList.length > 5" class="mt-8 px-8 py-3 border-2 border-primary text-primary rounded-xl font-semibold text-sm hover:bg-primary/5 transition-all">
+          Xem tất cả {{ reviewList.length }} đánh giá
         </button>
       </section>
     </main>
@@ -316,6 +378,8 @@ import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
+import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/youtube';
+import { watch } from 'vue'
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -337,6 +401,58 @@ const quantity = ref(1)
 const loading = ref(false)
 const message = ref('')
 const messageType = ref('success')
+
+// State cho review
+const newReview = ref({ rating: 0, comment: '' });
+const submitting = ref(false);
+const reviewList = ref([]);
+
+const isMagnifying = ref(false);
+const magnifierPos = ref({ x: 0, y: 0 });
+const magnifierSize = 150; // kích thước kính lúp (px)
+
+// Lấy ảnh hiện tại (chỉ khi là ảnh)
+const currentImageUrl = computed(() => {
+  return currentMedia.value.type === 'image' ? currentMedia.value.url : null;
+});
+
+// Tính toán vị trí của kính lúp (crop theo ảnh gốc)
+const magnifierStyle = computed(() => {
+  if (!isMagnifying.value || !currentImageUrl.value) return {};
+  
+  // Giả sử container ảnh có kích thước cố định (aspect 4/5)
+  // Bạn cần lấy kích thước thực tế bằng ref hoặc getBoundingClientRect
+  const container = document.querySelector('.image-container');
+  if (!container) return {};
+  
+  const rect = container.getBoundingClientRect();
+  const x = magnifierPos.value.x - rect.left;
+  const y = magnifierPos.value.y - rect.top;
+  
+  // Tỷ lệ zoom (ví dụ 2.5x)
+  const scale = 2.5;
+  
+  // Tính vị trí background-position để phóng to
+  const bgX = (x / rect.width) * 100;
+  const bgY = (y / rect.height) * 100;
+  
+  return {
+    backgroundImage: `url(${currentImageUrl.value})`,
+    backgroundSize: `${rect.width * scale}px ${rect.height * scale}px`,
+    backgroundPosition: `${bgX}% ${bgY}%`,
+    width: `${magnifierSize}px`,
+    height: `${magnifierSize}px`,
+    left: `${x + 20}px`,
+    top: `${y - magnifierSize/2}px`,
+    borderRadius: '50%',
+    border: '2px solid #fff',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 10,
+    display: isMagnifying.value ? 'block' : 'none',
+  };
+});
 
 // Kiểm tra đăng nhập
 const isAuthenticated = computed(() => {
@@ -630,8 +746,50 @@ const addToCartSimple = (item) => {
   router.get(route('product.detail', { id: item.id }))
 }
 
-// Lifecycle
+// ===== GỬI ĐÁNH GIÁ =====
+const submitReview = async () => {
+  if (!selectedVariant.value) {
+    showMessage('Vui lòng chọn màu sắc và kích thước trước khi đánh giá', 'error')
+    return
+  }
+  if (newReview.value.rating === 0) {
+    showMessage('Vui lòng chọn số sao đánh giá', 'error')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const response = await axios.post('/reviews', {
+      product_variant_id: selectedVariant.value.id,
+      rating: newReview.value.rating,
+      comment: newReview.value.comment
+    }, {
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true
+    })
+
+    if (response.status === 201) {
+      // Thêm review mới vào đầu danh sách
+      reviewList.value.unshift(response.data.review)
+      // Reset form
+      newReview.value = { rating: 0, comment: '' }
+      showMessage('Cảm ơn bạn đã đánh giá!', 'success')
+    }
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.'
+    showMessage(msg, 'error')
+  } finally {
+    submitting.value = false
+  }
+}
+
 onMounted(() => {
+  reviewList.value = props.reviews || [];
+
   // Khởi tạo màu và size mặc định
   if (props.product.colors && props.product.colors.length > 0) {
     const firstColor = props.product.colors[0]
@@ -645,6 +803,35 @@ onMounted(() => {
 
   findVariant()
 })
+
+// Phân loại media (ảnh/video)
+const mediaItems = computed(() => {
+  const list = thumbnails.value || [];
+  return list.map(url => {
+    if (!url) return null;
+    if (isYouTubeUrl(url)) {
+      return {
+        url,
+        type: 'youtube',
+        embedUrl: getYouTubeEmbedUrl(url)
+      };
+    }
+    const ext = url.split('.').pop().toLowerCase();
+    const videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mkv', 'webm', 'ogg'];
+    return {
+      url,
+      type: videoExtensions.includes(ext) ? 'video' : 'image'
+    };
+  }).filter(Boolean);
+});
+
+// Media đang được chọn
+const currentMedia = computed(() => {
+  if (!mediaItems.value.length) {
+    return { url: '', type: 'image' };
+  }
+  return mediaItems.value[activeThumb.value] || mediaItems.value[0];
+});
 </script>
 
 <style scoped>

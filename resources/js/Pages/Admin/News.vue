@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Head } from '@inertiajs/vue3'
+import CKEditor from '@/Components/CKEditor.vue'
 
 const props = defineProps({
     news: {
@@ -81,7 +82,6 @@ const filteredNews = computed(() => {
     
     let result = newsList.value
     
-    // Filter theo từ khóa tìm kiếm
     if (search.value) {
         const keyword = search.value.toLowerCase().trim()
         result = result.filter(news => {
@@ -91,17 +91,14 @@ const filteredNews = computed(() => {
         })
     }
     
-    // Filter theo tác giả
     if (filterAuthor.value) {
         result = result.filter(news => news.author_name === filterAuthor.value)
     }
     
-    // Filter theo trạng thái
     if (filterStatus.value !== '') {
         result = result.filter(news => news.status === parseInt(filterStatus.value))
     }
     
-    // Filter theo chiến dịch
     if (filterCampaign.value) {
         result = result.filter(news => news.campaign_id === parseInt(filterCampaign.value))
     }
@@ -144,7 +141,6 @@ const displayedPages = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
 
-// Reset về trang 1 khi filter thay đổi
 watch([search, filterAuthor, filterStatus, filterCampaign], () => {
     currentPage.value = 1
 })
@@ -180,7 +176,6 @@ const fetchNews = async () => {
     try {
         const response = await axios.get('/admin/news/data')
         if (response.data && Array.isArray(response.data)) {
-            // Chuẩn hóa status
             newsList.value = response.data.map(item => ({
                 ...item,
                 status: item.status === true || item.status === 1 ? 1 : 0
@@ -227,7 +222,6 @@ const openEditModal = (news) => {
 }
 
 const saveNews = async () => {
-    // Validate
     if (!form.value.title.trim()) {
         errorMessage.value = 'Vui lòng nhập tiêu đề'
         return
@@ -245,7 +239,6 @@ const saveNews = async () => {
         return
     }
 
-    // Tự động tạo slug nếu chưa có
     if (!form.value.slug || form.value.slug === '') {
         form.value.slug = generateSlug(form.value.title)
     }
@@ -263,7 +256,6 @@ const saveNews = async () => {
             status: form.value.status === 1 ? true : false,
             campaign_id: form.value.campaign_id,
             banner_id: form.value.banner_id
-            // author_name sẽ được tự động thêm ở server
         }
         
         if (isEdit.value) {
@@ -277,7 +269,6 @@ const saveNews = async () => {
         }
         
         if (response.data && response.data.success) {
-            // Chuẩn hóa dữ liệu trả về
             const savedData = {
                 ...response.data.data,
                 status: response.data.data.status === true || response.data.data.status === 1 ? 1 : 0
@@ -621,8 +612,8 @@ onMounted(() => {
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung *</label>
-                        <textarea v-model="form.content" rows="8" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500 outline-none resize-none" placeholder="Nội dung bài viết..." :disabled="isSaving"></textarea>
-                        <p class="text-xs text-gray-400 mt-1">Hỗ trợ HTML</p>
+                        <CKEditor v-model="form.content" />
+                        <p class="text-xs text-gray-400 mt-1">Hỗ trợ HTML và định dạng văn bản phong phú</p>
                     </div>
 
                     <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
+use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
@@ -27,6 +28,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Response;
+use App\Http\Controllers\ReviewController;
 
 // ==================== ROUTE ĐỂ PHỤC VỤ ẢNH ====================
 Route::get('/image/{filename}', function ($filename) {
@@ -50,7 +53,7 @@ Route::get('/tim-kiem', function (Request $request) {
 })->name('search');
 
 // Product routes - PUBLIC
-Route::get('/san-pham/{id}', [WebProductController::class, 'show'])->name('product.detail');
+Route::get('/san-pham/{slug}', [WebProductController::class, 'show'])->name('product.detail');
 Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
 // Other public frontend routes
@@ -80,7 +83,6 @@ Route::get('/gio-hang', function () {
     return Inertia::render('Web/Cart');
 })->name('cart')->middleware('auth');
 
-// ⭐ Cart API routes
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/add', [CartController::class, 'add']);
@@ -88,7 +90,6 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::delete('/cart/remove/{variantId}', [CartController::class, 'remove']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
     
-    // ⭐ Thêm route cho Pre-order session
     Route::post('/pre-order/session', function (Request $request) {
         $request->validate([
             'variant_id' => 'required|exists:product_variants,id',
@@ -208,6 +209,12 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::patch('/{id}/status', [NewsController::class, 'updateStatus'])->name('news.update-status');
     });
 
+    // Reviews Management
+    Route::prefix('reviews')->group(function () {
+        Route::get('/', [AdminReviewController::class, 'index'])->name('reviews.index');
+        Route::delete('/{id}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
+    });
+
     // Banner routes
     Route::get('/banners', [BannerController::class, 'index'])->name('banners.index');
     Route::get('/banners/data', [BannerController::class, 'getBanners'])->name('banners.data');
@@ -269,5 +276,18 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::delete('/settings/users/{id}', [SettingController::class, 'destroyUser'])->name('settings.destroyUser');
     Route::patch('/settings/users/{id}/toggle', [SettingController::class, 'toggleUserStatus'])->name('settings.toggleUser');
 });
+
+Route::get('/media/{path}', function ($path) {
+    $fullPath = base_path('media/' . $path);
+    if (!File::exists($fullPath)) {
+        abort(404);
+    }
+    $mime = File::mimeType($fullPath);
+    return Response::file($fullPath, ['Content-Type' => $mime]);
+})->where('path', '.*');
+
+// Review
+Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
+Route::post('/reviews', [ReviewController::class, 'store'])->middleware('auth');
 
 require __DIR__.'/auth.php';
