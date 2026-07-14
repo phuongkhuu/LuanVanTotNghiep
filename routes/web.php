@@ -250,6 +250,13 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::delete('/preorder/{id}', [AdminPromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
         Route::put('/preorder/{id}/toggle', [AdminPromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
         
+        // Discount routes
+        Route::post('/discount', [AdminPromotionController::class, 'storeDiscount'])->name('admin.promotions.discount.store');
+        Route::put('/discount/{id}', [AdminPromotionController::class, 'updateDiscount'])->name('admin.promotions.discount.update');
+        Route::delete('/discount/{id}', [AdminPromotionController::class, 'deleteDiscount'])->name('admin.promotions.discount.delete');
+        Route::put('/discount/{id}/toggle', [AdminPromotionController::class, 'toggleDiscount'])->name('admin.promotions.discount.toggle');
+
+
         // ⭐ THÊM: Route increment buyers cho pre-order
         Route::post('/preorder/{id}/increment-buyers', [AdminPromotionController::class, 'incrementPreorderBuyers'])
             ->name('promotions.preorder.increment');

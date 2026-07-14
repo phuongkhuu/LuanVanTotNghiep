@@ -30,6 +30,12 @@
                         <span class="material-symbols-outlined text-lg">schedule</span>
                         Pre-order
                     </button>
+                    <button @click="openDiscountModal()" class="bg-teal-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-teal-700 transition-colors text-sm">
+                        <span class="material-symbols-outlined text-lg">percent</span>
+                        Chiết khấu
+                    </button>
+
+
                 </div>
             </div>
 
@@ -72,6 +78,14 @@
                     ⏳ Pre-order
                     <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ preorders.length }}</span>
                 </button>
+                <button 
+                    @click="activeTab = 'discounts'" 
+                    class="px-5 py-2.5 text-sm font-medium transition-all whitespace-nowrap"
+                    :class="activeTab === 'discounts' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-gray-500 hover:text-gray-700'"
+                >
+                    📊 Chiết khấu
+                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ discounts.length }}</span>
+                </button>
             </div>
 
             <!-- Status tabs for campaigns -->
@@ -86,6 +100,21 @@
                     {{ status.label }}
                     <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
                         {{ campaignCounts[status.value] }}
+                    </span>
+                </button>
+            </div>
+            <!-- Status tabs for discounts -->
+            <div v-if="activeTab === 'discounts'" class="flex gap-2 mb-6 border-b border-gray-200">
+                <button 
+                    v-for="status in ['all', 'active', 'inactive']" 
+                    :key="status"
+                    @click="activeStatusTab = status"
+                    class="px-4 py-2 text-sm font-medium transition-all"
+                    :class="activeStatusTab === status ? 'text-teal-600 border-b-2 border-teal-600' : 'text-gray-500 hover:text-gray-700'"
+                >
+                    {{ status === 'all' ? 'Tất cả' : status === 'active' ? 'Hoạt động' : 'Không hoạt động' }}
+                    <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+                        {{ status === 'all' ? discountCounts.all : status === 'active' ? discountCounts.active : discountCounts.inactive }}
                     </span>
                 </button>
             </div>
@@ -186,21 +215,13 @@
 
             <!-- ==================== VOUCHERS LIST ==================== -->
             <div v-if="activeTab === 'vouchers'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div v-for="voucher in filteredVouchers" :key="voucher.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
-                    <div class="relative h-28 bg-gradient-to-r from-orange-50 to-orange-100">
-                        <div class="w-full h-full flex items-center justify-center text-orange-300">
-                            <span class="material-symbols-outlined text-4xl">local_offer</span>
-                        </div>
-                        <div class="absolute top-2 right-2">
-                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="voucher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-                                {{ voucher.status === 'active' ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
-                            </span>
-                        </div>
-                    </div>
-
+                <div v-for="voucher in filteredVouchers" :key="voucher.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">                    
                     <div class="p-3">
                         <div class="flex justify-between items-start">
                             <div class="flex-1 min-w-0">
+                                <span class="text-[10px] px-2 py-0.5 rounded-full" :class="voucher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                                {{ voucher.status === 'active' ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
+                                </span>
                                 <h3 class="font-bold text-base text-gray-800 truncate">{{ voucher.code }}</h3>
                                 <p class="text-[10px] text-gray-500">Loại: {{ getDiscountTypeLabel(voucher.discount_type) }}</p>
                             </div>
@@ -346,6 +367,76 @@
                     <p class="text-lg font-medium">Không có chương trình pre-order nào</p>
                     <button @click="openPreorderModal()" class="mt-3 text-purple-600 hover:underline font-medium">Thêm pre-order</button>
                 </div>
+            </div>
+        </div>
+        <!-- ==================== DISCOUNTS LIST ==================== -->
+        <div v-if="activeTab === 'discounts'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="discount in filteredDiscounts" :key="discount.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
+                <div class="relative h-24 bg-gradient-to-r from-teal-50 to-teal-100">
+                    <div class="w-full h-full flex items-center justify-center text-teal-300">
+                        <span class="material-symbols-outlined text-4xl">percent</span>
+                    </div>
+                    <div class="absolute top-2 right-2">
+                        <span class="text-[10px] px-2 py-0.5 rounded-full" :class="discount.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                            {{ discount.is_active ? '🟢 Hoạt động' : '🔴 Đã tắt' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold text-teal-600">{{ discount.discount_percent }}%</span>
+                                <span class="text-xs text-gray-400">|</span>
+                                <span class="text-sm font-semibold text-gray-800">Từ {{ discount.min_quantity }} sản phẩm</span>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-0.5">
+                                Loại: {{ discount.order_code_label || 'Chung' }}
+                                <span v-if="discount.type === 'amount_based' && discount.min_amount" class="ml-1">
+                                    - Tối thiểu {{ formatPrice(discount.min_amount) }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="flex gap-0.5 ml-1 flex-shrink-0">
+                            <button @click="openDiscountModal(discount)" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Sửa">
+                                <span class="material-symbols-outlined text-sm">edit</span>
+                            </button>
+                            <button @click="deleteDiscount(discount.id)" class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Xóa">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                        <span class="bg-teal-50 px-2 py-0.5 rounded-full text-teal-600 font-medium">
+                            {{ discount.discount_percent }}% chiết khấu
+                        </span>
+                        <span class="bg-blue-50 px-2 py-0.5 rounded-full text-blue-600 font-medium">
+                            ≥ {{ discount.min_quantity }} sp
+                        </span>
+                    </div>
+
+                    <div v-if="discount.created_at" class="mt-2 text-[10px] text-gray-400">
+                        Tạo: {{ discount.created_at }}
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-gray-100 flex justify-end">
+                        <button 
+                            @click="toggleDiscount(discount)" 
+                            :class="discount.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                            class="text-[10px] px-3 py-1 rounded-full transition-colors"
+                        >
+                            {{ discount.is_active ? '✅ Kích hoạt' : '🔄 Kích hoạt' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="filteredDiscounts.length === 0" class="col-span-full text-center py-16 text-gray-500">
+                <span class="material-symbols-outlined text-6xl mb-4 block">percent</span>
+                <p class="text-lg font-medium">Không có mức chiết khấu nào</p>
+                <button @click="openDiscountModal()" class="mt-3 text-teal-600 hover:underline font-medium">Thêm chiết khấu</button>
             </div>
         </div>
 
@@ -924,6 +1015,118 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==================== DISCOUNT MODAL ==================== -->
+        <div v-if="showDiscountModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeDiscountModal">
+            <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">
+                        {{ editingDiscount ? 'Sửa chiết khấu' : 'Thêm chiết khấu mới' }}
+                    </h3>
+                    <button @click="closeDiscountModal" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">✕</button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Số lượng tối thiểu *</label>
+                        <input 
+                            v-model.number="discountForm.min_quantity" 
+                            type="number" 
+                            min="1"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                            placeholder="VD: 10"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Áp dụng khi đơn hàng đạt từ số lượng này trở lên</p>
+                    </div>
+
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Phần trăm chiết khấu (%) *</label>
+                        <input 
+                            v-model.number="discountForm.discount_percent" 
+                            type="number" 
+                            min="0" 
+                            max="100"
+                            step="0.5"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                            placeholder="VD: 5"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Phần trăm giảm giá cho đơn hàng đủ điều kiện</p>
+                    </div>
+
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Loại đơn hàng</label>
+                        <select 
+                            v-model="discountForm.order_code" 
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                        >
+                            <option :value="null">Tất cả</option>
+                            <option value="wholesale">🏭 Bán sỉ</option>
+                            <option value="event">🎉 Sự kiện</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Chỉ áp dụng cho loại đơn hàng này (nếu có)</p>
+                    </div>
+
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Loại chiết khấu</label>
+                        <select 
+                            v-model="discountForm.type" 
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                        >
+                            <option value="quantity_based">Theo số lượng</option>
+                            <option value="amount_based">Theo giá trị đơn hàng</option>
+                        </select>
+                    </div>
+
+                    <div v-if="discountForm.type === 'amount_based'">
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Giá trị đơn hàng tối thiểu</label>
+                        <input 
+                            v-model.number="discountForm.min_amount" 
+                            type="number" 
+                            min="0"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                            placeholder="VD: 1000000"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Áp dụng khi đơn hàng đạt từ giá trị này trở lên</p>
+                    </div>
+
+                    <!-- Checkbox kích hoạt -->
+                    <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <input 
+                            type="checkbox" 
+                            v-model="discountForm.is_active" 
+                            id="discount_active"
+                            class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                        >
+                        <label for="discount_active" class="text-sm text-gray-700 cursor-pointer">
+                            Kích hoạt ngay
+                        </label>
+                        <span class="text-xs text-gray-400 ml-2">(Mặc định không kích hoạt)</span>
+                    </div>
+
+                    <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-sm text-red-600">{{ errorMessage }}</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                    <button 
+                        @click="closeDiscountModal" 
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                        :disabled="isSubmitting"
+                    >
+                        Hủy
+                    </button>
+                    <button 
+                        @click="saveDiscount" 
+                        class="px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                        :disabled="isSubmitting"
+                    >
+                        <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        {{ isSubmitting ? 'Đang lưu...' : 'Lưu chiết khấu' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </AdminLayout>
 </template>
 
@@ -946,6 +1149,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    discounts: {
+        type: Array,
+        default: () => []
+    }, 
     banners: {
         type: Array,
         default: () => []
@@ -986,12 +1193,15 @@ const successMessage = ref('');
 const campaigns = ref(props.campaigns || []);
 const vouchers = ref(props.vouchers || []);
 const preorders = ref(props.preorders || []);
+const discounts = ref(props.discounts || []);
 const banners = ref(props.banners || []);
 const products = ref(props.products || []);
 const productVariants = ref(props.productVariants || []);
 const preorderProducts = ref(props.preorderProducts || []);
 const brands = ref(props.brands || []);
 const categories = ref(props.categories || []);
+
+
 
 // Search & Filter
 const searchQuery = ref('');
@@ -1007,9 +1217,11 @@ const filterSearchProduct = ref('');
 const showModal = ref(false);
 const showVoucherModal = ref(false);
 const showPreorderModal = ref(false);
+const showDiscountModal = ref(false); 
 const editingCampaign = ref(null);
 const editingVoucher = ref(null);
 const editingPreorder = ref(null);
+const editingDiscount = ref(null); 
 const isSubmitting = ref(false);
 const errorMessage = ref('');
 
@@ -1065,6 +1277,42 @@ const preorderForm = ref({
     end_date: '',
     active: true,
     min_order: 0
+});
+
+// Discount Form
+const discountForm = ref({
+    id: null,
+    min_quantity: 10,
+    discount_percent: 5,
+    order_code: 'wholesale',
+    type: 'quantity_based',
+    min_amount: null,
+    is_active: false
+});
+
+// Discount computed
+const filteredDiscounts = computed(() => {
+    let filtered = discounts.value || [];
+    
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter(d => 
+            String(d.min_quantity).includes(query) ||
+            String(d.discount_percent).includes(query) ||
+            (d.order_code_label && d.order_code_label.toLowerCase().includes(query))
+        );
+    }
+    
+    return filtered;
+});
+
+const discountCounts = computed(() => {
+    const discountsData = discounts.value || [];
+    return {
+        all: discountsData.length,
+        active: discountsData.filter(d => d.is_active).length,
+        inactive: discountsData.filter(d => !d.is_active).length
+    };
 });
 
 // ==================== HELPER FUNCTIONS FOR BANNER ====================
@@ -1142,6 +1390,34 @@ const resetProductFilters = () => {
     filterBrand.value = '';
     filterCategory.value = '';
     filterSearchProduct.value = '';
+};
+
+// ==================== TAB MANAGEMENT ====================
+
+// Lưu tab hiện tại vào sessionStorage
+const saveCurrentTab = () => {
+    sessionStorage.setItem('promotion_tab', activeTab.value);
+    sessionStorage.setItem('promotion_status_tab', activeStatusTab.value);
+};
+
+// Khôi phục tab từ sessionStorage
+const restoreTab = () => {
+    const savedTab = sessionStorage.getItem('promotion_tab');
+    const savedStatusTab = sessionStorage.getItem('promotion_status_tab');
+    
+    if (savedTab && ['campaigns', 'vouchers', 'preorder', 'discounts'].includes(savedTab)) {
+        activeTab.value = savedTab;
+    }
+    
+    if (savedStatusTab) {
+        activeStatusTab.value = savedStatusTab;
+    }
+};
+
+// Hàm chuyển tab có lưu
+const switchTab = (tab) => {
+    activeTab.value = tab;
+    saveCurrentTab();
 };
 
 // ==================== HELPER FUNCTIONS ====================
@@ -1277,6 +1553,7 @@ watch(() => campaignForm.value.endDate, updateStatusFromDates);
 // ==================== RELOAD FUNCTION ====================
 
 const reloadPage = () => {
+    saveCurrentTab(); // Lưu tab trước khi reload
     window.location.reload();
 };
 
@@ -1651,6 +1928,115 @@ const removeTier = (index) => {
     }
 };
 
+// ==================== DISCOUNT FUNCTIONS ====================
+
+const openDiscountModal = (discount = null) => {
+    editingDiscount.value = discount;
+    errorMessage.value = '';
+    
+    if (discount) {
+        discountForm.value = {
+            id: discount.id,
+            min_quantity: discount.min_quantity || 10,
+            discount_percent: discount.discount_percent || 5,
+            order_code: discount.order_code || 'wholesale',
+            type: discount.type || 'quantity_based',
+            min_amount: discount.min_amount || null,
+            is_active: discount.is_active === true
+        };
+    } else {
+        discountForm.value = {
+            id: null,
+            min_quantity: 10,
+            discount_percent: 5,
+            order_code: 'wholesale',
+            type: 'quantity_based',
+            min_amount: null,
+            is_active: false
+        };
+    }
+    showDiscountModal.value = true;
+};
+
+const saveDiscount = async () => {
+    if (!discountForm.value.min_quantity || discountForm.value.min_quantity <= 0) {
+        errorMessage.value = 'Số lượng tối thiểu phải lớn hơn 0';
+        return;
+    }
+    
+    if (discountForm.value.discount_percent < 0 || discountForm.value.discount_percent > 100) {
+        errorMessage.value = 'Phần trăm chiết khấu phải từ 0% đến 100%';
+        return;
+    }
+    
+    isSubmitting.value = true;
+    errorMessage.value = '';
+    
+    try {
+        const data = {
+            min_quantity: parseInt(discountForm.value.min_quantity),
+            discount_percent: parseFloat(discountForm.value.discount_percent),
+            order_code: discountForm.value.order_code || null,
+            type: discountForm.value.type || 'quantity_based',
+            min_amount: discountForm.value.min_amount ? parseFloat(discountForm.value.min_amount) : null,
+            is_active: discountForm.value.is_active === true
+        };
+        
+        console.log('Sending data:', data);
+        
+        if (editingDiscount.value) {
+            await router.put(`/admin/promotions/discount/${editingDiscount.value.id}`, data);
+        } else {
+            await router.post('/admin/promotions/discount', data);
+        }
+        closeDiscountModal();
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        if (error.response?.data?.message) {
+            errorMessage.value = error.response.data.message;
+        } else if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage.value = Object.values(errors).flat().join(', ');
+        } else {
+            errorMessage.value = 'Có lỗi xảy ra khi lưu';
+        }
+        isSubmitting.value = false;
+    }
+};
+
+const deleteDiscount = async (id) => {
+    const discount = discounts.value.find(d => d.id === id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa mức chiết khấu "${discount?.min_quantity} sản phẩm - ${discount?.discount_percent}%"?`)) {
+        return;
+    }
+    
+    try {
+        await router.delete(`/admin/promotions/discount/${id}`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Có lỗi xảy ra khi xóa');
+    }
+};
+
+const toggleDiscount = async (discount) => {
+    try {
+        await router.put(`/admin/promotions/discount/${discount.id}/toggle`);
+        reloadPage();
+    } catch (error) {
+        console.error('Lỗi toggle discount:', error);
+        alert('Có lỗi xảy ra khi cập nhật trạng thái');
+    }
+};
+
+const closeDiscountModal = () => {
+    showDiscountModal.value = false;
+    editingDiscount.value = null;
+    errorMessage.value = '';
+    isSubmitting.value = false;
+};
+
 // ==================== MODAL FUNCTIONS ====================
 
 const closeModal = () => {
@@ -1783,6 +2169,7 @@ const preorderCounts = computed(() => {
 });
 
 onMounted(() => {
+    restoreTab();
     showFlashMessage();
 });
 </script>
