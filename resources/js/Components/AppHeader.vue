@@ -194,6 +194,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { useCart } from '@/utils/useCart'
+import { CartEvents } from '@/events/CartEvents'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user || null)
@@ -201,13 +202,11 @@ const categories = computed(() => page.props.categories || [])
 const brands = computed(() => page.props.brands || [])
 
 const searchKeyword = ref('')
-
-// Sử dụng useCart để quản lý giỏ hàng
-const { cartCount, fetchCart } = useCart()
-
-// Dropdown state
 const dropdownOpen = ref(false)
 const userDropdownRef = ref(null)
+
+// Sử dụng useCart
+const { cartCount, fetchCart, reloadCart, getUserId } = useCart()
 
 // Lọc danh mục Balo
 const laptopCategories = computed(() => {
@@ -271,12 +270,26 @@ const closeDropdown = () => {
 }
 
 // Xử lý logout
-const handleLogout = () => {
-  router.post(route('logout'), {}, {
-    onSuccess: () => {
-      window.location.href = route('home')
-    }
-  })
+const handleLogout = async () => {
+  try {
+    const userId = getUserId()
+    console.log(`Logging out user: ${userId}`)
+    
+    closeDropdown()
+    
+    router.post(route('logout'), {}, {
+      onSuccess: () => {
+        window.user = null
+        CartEvents.emitUserChanged('guest')
+        setTimeout(() => {
+          reloadCart()
+        }, 100)
+      }
+    })
+  } catch (error) {
+    console.error('Logout error:', error)
+    router.post(route('logout'))
+  }
 }
 
 // Xử lý tìm kiếm
@@ -293,15 +306,61 @@ const handleClickOutside = (event) => {
   }
 }
 
+// Xử lý sự kiện cart-updated
+const handleCartUpdated = (event) => {
+  console.log('📦 AppHeader received cart-updated event:', event.detail)
+  // cartCount đã được cập nhật trong useCart
+}
+
+// Xử lý sự kiện user-changed
+const handleUserChanged = (event) => {
+  console.log('👤 AppHeader received user-changed event:', event.detail)
+  reloadCart()
+}
+
+// Khi user thay đổi
+watch(() => user.value, (newUser, oldUser) => {
+  const newId = newUser?.id || 'guest'
+  const oldId = oldUser?.id || 'guest'
+  
+  if (newId !== oldId) {
+    console.log(`User changed from ${oldId} to ${newId}`)
+    window.user = newUser
+    reloadCart()
+    CartEvents.emitUserChanged(newId)
+  }
+}, { immediate: true })
+
+// Lưu trữ các handler để cleanup
+let cartUpdatedHandler = null
+let userChangedHandler = null
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  
+  // Fetch cart lần đầu
   fetchCart()
+  
+  // Lắng nghe sự kiện cart-updated
+  cartUpdatedHandler = handleCartUpdated
+  CartEvents.onUpdated(cartUpdatedHandler)
+  
+  // Lắng nghe sự kiện user-changed
+  userChangedHandler = handleUserChanged
+  CartEvents.onUserChanged(userChangedHandler)
+  
+  console.log('AppHeader mounted, user:', user.value, 'cartCount:', cartCount.value)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (cartUpdatedHandler) {
+    CartEvents.offUpdated(cartUpdatedHandler)
+  }
+  if (userChangedHandler) {
+    CartEvents.offUserChanged(userChangedHandler)
+  }
 })
-
 </script>
 
 <style scoped>
@@ -310,5 +369,20 @@ onUnmounted(() => {
 }
 .dropdown-menu {
   display: none;
+}
+
+.dropdown-menu {
+  animation: fadeDown 0.2s ease;
+}
+
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

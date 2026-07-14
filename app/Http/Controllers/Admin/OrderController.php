@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\ProductVariant;
+use App\Models\Campaign; // <-- THÊM IMPORT
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Exports\OrdersExport;
@@ -17,6 +18,161 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
+    /**
+     * Tạo đơn hàng mới (từ PaymentController gọi)
+     */
+    public function store(Request $request)
+    {
+        Log::info('Admin\OrderController@store called', $request->all());
+        
+        try {
+            $validated = $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:20',
+                'customer_email' => 'required|email|max:255',
+                'receiver_name' => 'required|string|max:255',
+                'receiver_phone' => 'required|string|max:20',
+                'shipping_address' => 'required|string|max:500',
+                'note' => 'nullable|string|max:500',
+                'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+                'items' => 'required|array|min:1',
+                'items.*.id' => 'required|exists:product_variants,id',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.price' => 'required|numeric|min:0',
+                'total_amount' => 'required|numeric|min:0',
+                'order_type' => 'required|in:retail,preorder',
+                'promo_code' => 'nullable|string',
+                'discount_amount' => 'nullable|numeric|min:0',
+            ]);
+
+            $orderType = $validated['order_type'];
+            $userId = Auth::id();
+            
+            // ============ LẤY DISCOUNT AMOUNT ============
+            $discountAmount = (int) ($validated['discount_amount'] ?? 0);
+            $totalAmount = (int) $validated['total_amount'];
+            $shippingFee = 0;
+            $finalAmount = $totalAmount + $shippingFee - $discountAmount;
+            $promoCode = $validated['promo_code'] ?? null;
+
+            Log::info('Creating order with type: ' . $orderType, [
+                'total_amount' => $totalAmount,
+                'discount_amount' => $discountAmount,
+                'final_amount' => $finalAmount,
+                'promo_code' => $promoCode,
+            ]);
+
+            DB::beginTransaction();
+
+            // Tạo đơn hàng
+            $order = Order::create([
+                'user_id' => $userId,
+                'order_code' => $orderType,
+                'customer_name' => $validated['customer_name'],
+                'customer_phone' => $validated['customer_phone'],
+                'customer_email' => $validated['customer_email'],
+                'receiver_name' => $validated['receiver_name'],
+                'receiver_phone' => $validated['receiver_phone'],
+                'shipping_address' => $validated['shipping_address'],
+                'note' => $validated['note'],
+                'shipping_fee' => $shippingFee,
+                'total_amount' => $totalAmount,
+                'discount_amount' => $discountAmount, // <-- LƯU DISCOUNT
+                'promo_code' => $promoCode, // <-- LƯU PROMO CODE
+                'final_amount' => $finalAmount,
+                'order_status' => 0, // Pending
+            ]);
+
+            Log::info('Order created:', [
+                'order_id' => $order->id,
+                'discount_amount' => $discountAmount,
+                'promo_code' => $promoCode,
+            ]);
+
+            // ============ CẬP NHẬT SỐ LƯỢNG ĐÃ SỬ DỤNG VOUCHER ============
+            if ($promoCode) {
+                $voucher = Campaign::where('code', $promoCode)
+                    ->where('type', 'voucher')
+                    ->first();
+                
+                if ($voucher) {
+                    $voucher->increment('used');
+                    Log::info('Voucher used count updated:', [
+                        'code' => $promoCode,
+                        'used' => $voucher->used,
+                    ]);
+                } else {
+                    Log::warning('Voucher not found for update:', ['code' => $promoCode]);
+                }
+            }
+
+            // Tạo chi tiết đơn hàng
+            foreach ($validated['items'] as $item) {
+                $variant = ProductVariant::find($item['id']);
+                $quantity = (int) $item['quantity'];
+                $price = (int) $item['price'];
+                $subtotal = $price * $quantity;
+
+                OrderDetail::create([
+                    'order_id' => $order->id,
+                    'product_variant_id' => $variant->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $price,
+                    'subtotal' => $subtotal,
+                ]);
+
+                // Cập nhật stock cho retail
+                if ($orderType === 'retail') {
+                    if ($variant->stock < $quantity) {
+                        throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
+                    }
+                    $variant->stock -= $quantity;
+                    $variant->save();
+                }
+            }
+
+            // Tạo thanh toán
+            Payment::create([
+                'order_id' => $order->id,
+                'transaction_code' => 'PAY-' . $order->id . '-' . time(),
+                'payment_method' => $validated['payment_method'],
+                'amount' => $finalAmount,
+                'payment_date' => now(),
+                'status' => 'pending',
+            ]);
+
+            DB::commit();
+
+            $displayCode = $this->generateOrderDisplayCode($order);
+
+            Log::info('✅ Order created successfully:', [
+                'order_id' => $order->id,
+                'display_code' => $displayCode,
+                'discount_amount' => $discountAmount,
+                'promo_code' => $promoCode,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đặt hàng thành công',
+                'order' => $order->load(['details', 'payment']),
+                'order_display_code' => $displayCode,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order creation error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
     /**
      * Hiển thị danh sách đơn hàng theo loại
      */
@@ -179,130 +335,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Tạo đơn hàng mới (từ PaymentController gọi)
-     */
-    public function store(Request $request)
-    {
-        Log::info('Admin\OrderController@store called', $request->all());
-        
-        try {
-            $validated = $request->validate([
-                'customer_name' => 'required|string|max:255',
-                'customer_phone' => 'required|string|max:20',
-                'customer_email' => 'required|email|max:255',
-                'receiver_name' => 'required|string|max:255',
-                'receiver_phone' => 'required|string|max:20',
-                'shipping_address' => 'required|string|max:500',
-                'note' => 'nullable|string|max:500',
-                'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
-                'items' => 'required|array|min:1',
-                'items.*.id' => 'required|exists:product_variants,id',
-                'items.*.quantity' => 'required|integer|min:1',
-                'items.*.price' => 'required|numeric|min:0',
-                'total_amount' => 'required|numeric|min:0',
-                'order_type' => 'required|in:retail,preorder',
-            ]);
 
-            $orderType = $validated['order_type'];
-            $userId = Auth::id();
-            $totalAmount = (int) $validated['total_amount'];
-            $shippingFee = 0;
-            $discountAmount = 0;
-
-            Log::info('Creating order with type: ' . $orderType . ' for user: ' . $userId);
-
-            // Bắt đầu transaction
-            DB::beginTransaction();
-
-            // Tạo đơn hàng với order_code đúng loại
-            $order = Order::create([
-                'user_id' => $userId,
-                'order_code' => $orderType, // 'retail' hoặc 'preorder'
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'],
-                'customer_email' => $validated['customer_email'],
-                'receiver_name' => $validated['receiver_name'],
-                'receiver_phone' => $validated['receiver_phone'],
-                'shipping_address' => $validated['shipping_address'],
-                'note' => $validated['note'],
-                'shipping_fee' => $shippingFee,
-                'total_amount' => $totalAmount,
-                'discount_amount' => $discountAmount,
-                'final_amount' => $totalAmount + $shippingFee - $discountAmount,
-                'order_status' => 0, // Pending
-            ]);
-
-            Log::info('Order created:', ['order_id' => $order->id, 'type' => $orderType]);
-
-            // Tạo chi tiết đơn hàng và cập nhật stock
-            foreach ($validated['items'] as $item) {
-                $variant = ProductVariant::find($item['id']);
-                $quantity = (int) $item['quantity'];
-                $price = (int) $item['price'];
-                $subtotal = $price * $quantity;
-
-                // Tạo order detail
-                OrderDetail::create([
-                    'order_id' => $order->id,
-                    'product_variant_id' => $variant->id,
-                    'quantity' => $quantity,
-                    'unit_price' => $price,
-                    'subtotal' => $subtotal,
-                ]);
-
-                // Cập nhật stock: CHỈ GIẢM STOCK CHO RETAIL
-                // Pre-order KHÔNG giảm stock vì chưa có hàng
-                if ($orderType === 'retail') {
-                    if ($variant->stock < $quantity) {
-                        throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
-                    }
-                    $variant->stock -= $quantity;
-                    $variant->save();
-                    Log::info("Stock updated for variant {$variant->id}: new stock {$variant->stock}");
-                } else {
-                    Log::info("Pre-order: Stock not reduced for variant {$variant->id}");
-                }
-            }
-
-            // Tạo thanh toán
-            Payment::create([
-                'order_id' => $order->id,
-                'transaction_code' => 'PAY-' . $order->id . '-' . time(),
-                'payment_method' => $validated['payment_method'],
-                'amount' => $totalAmount + $shippingFee - $discountAmount,
-                'payment_date' => now(),
-                'status' => 'pending',
-            ]);
-
-            DB::commit();
-
-            // QUAN TRỌNG: Tạo mã đơn hàng hiển thị theo format mới
-            $displayCode = $this->generateOrderDisplayCode($order);
-
-            Log::info('✅ Order created successfully:', [
-                'order_id' => $order->id,
-                'display_code' => $displayCode,
-                'order_type' => $orderType,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đặt hàng thành công',
-                'order' => $order->load(['details', 'payment']),
-                'order_display_code' => $displayCode, // QUAN TRỌNG: Trả về mã mới
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Order creation error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
-            ], 500);
-        }
-    }
 
     /**
      * Tạo mã đơn hàng hiển thị - GIỐNG VỚI ORDERHISTORY

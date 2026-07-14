@@ -38,7 +38,7 @@
                 <img class="w-full h-full object-cover" :src="item.image || '/images/default-product.jpg'" :alt="item.name">
               </div>
               <div>
-                <Link :href="route('product.detail', { id: item.id })" class="font-semibold text-gray-800 hover:text-primary">
+                <Link :href="route('product.detail', { slug: item.slug || '#' })" class="font-semibold text-gray-800 hover:text-primary">
                   {{ item.name }}
                 </Link>
                 <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color || 'Đen' }} | Size: {{ item.size || 'M' }}</p>
@@ -49,7 +49,9 @@
             </div>
             <div class="col-span-4 md:col-span-2 text-left md:text-center">
               <span class="md:hidden font-semibold text-gray-500 block text-sm">Giá:</span>
-              <span class="font-semibold text-gray-800">{{ formatPrice(item.price) }}</span>
+              <span v-if="item.is_on_sale" class="font-semibold text-red-500">{{ formatPrice(item.price) }}</span>
+              <span v-else class="font-semibold text-gray-800">{{ formatPrice(item.price) }}</span>
+              <span v-if="item.is_on_sale" class="text-xs text-gray-400 line-through block">{{ formatPrice(item.original_price) }}</span>
             </div>
             <div class="col-span-4 md:col-span-2 flex justify-center">
               <div class="flex items-center border border-gray-200 rounded-full px-2 py-1">
@@ -68,13 +70,40 @@
             </div>
           </div>
 
+          <!-- Coupon Section -->
           <div class="flex flex-col md:flex-row gap-4 mt-6 items-center">
             <div class="w-full md:w-auto flex-grow">
-              <input v-model="couponCode" class="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-gray-700 focus:border-primary focus:ring-0" placeholder="Nhập mã giảm giá..." type="text">
+              <input 
+                v-model="couponCode" 
+                class="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-gray-700 focus:border-primary focus:ring-0" 
+                placeholder="Nhập mã giảm giá..." 
+                type="text"
+                :disabled="appliedCoupon !== null"
+              >
             </div>
-            <button @click="applyCoupon" class="w-full md:w-auto bg-primary text-white font-semibold py-3 px-8 rounded-lg hover:bg-primary-dark transition-colors">
+            <button 
+              v-if="appliedCoupon === null"
+              @click="handleApplyCoupon" 
+              class="w-full md:w-auto bg-primary text-white font-semibold py-3 px-8 rounded-lg hover:bg-primary-dark transition-colors"
+            >
               Áp dụng
             </button>
+            <button 
+              v-else
+              @click="handleRemoveCoupon" 
+              class="w-full md:w-auto bg-red-500 text-white font-semibold py-3 px-8 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Xóa mã
+            </button>
+          </div>
+          
+          <!-- Coupon message -->
+          <div v-if="appliedCoupon" class="mt-2 text-sm text-green-600 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+            Đã áp dụng mã: <strong>{{ appliedCoupon.code }}</strong> (giảm {{ formatPrice(discountAmount) }})
+          </div>
+          <div v-else-if="couponError" class="mt-2 text-sm text-red-500">
+            {{ couponError }}
           </div>
         </div>
 
@@ -89,8 +118,7 @@
               </div>
               <div class="flex justify-between text-gray-600">
                 <span>Phí vận chuyển</span>
-                <span v-if="displayShippingFee > 0" class="font-semibold text-gray-800">{{ formatPrice(displayShippingFee) }}</span>
-                <span v-else class="font-semibold text-green-600">Miễn phí</span>
+                <span class="font-semibold text-green-600">Miễn phí</span>
               </div>
               <div v-if="discountAmount > 0" class="flex justify-between text-gray-600">
                 <span>Mã giảm giá</span>
@@ -102,9 +130,15 @@
                 <span class="font-display-lg text-2xl text-primary font-bold">{{ formatPrice(total) }}</span>
               </div>
             </div>
-            <Link :href="route('checkout')" class="w-full bg-primary text-white py-5 rounded-lg mt-6 hover:bg-primary-dark transition-colors uppercase font-bold text-center block">
+            
+            <!-- SỬA: Link thanh toán gửi cart qua URL -->
+            <Link 
+              :href="route('checkout', { cart: JSON.stringify(cartDataForCheckout) })" 
+              class="w-full bg-primary text-white py-5 rounded-lg mt-6 hover:bg-primary-dark transition-colors uppercase font-bold text-center block"
+            >
               Tiến hành thanh toán
             </Link>
+            
             <div class="mt-6 space-y-3">
               <div class="flex items-center gap-2 text-gray-500 text-sm">
                 <span class="material-symbols-outlined text-green-600">verified_user</span> Thanh toán an toàn 100%
@@ -119,39 +153,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Suggested Products -->
-      <section v-if="cartItems.length > 0" class="mt-16">
-        <div class="flex justify-between items-end mb-6">
-          <div>
-            <span class="text-primary font-semibold text-xs uppercase tracking-widest">Phối hợp hoàn hảo</span>
-            <h2 class="font-headline-lg text-2xl font-bold text-gray-800">Có thể bạn sẽ thích</h2>
-          </div>
-          <Link :href="route('category', { slug: 'tat-ca' })" class="text-gray-500 hover:text-primary flex items-center gap-1 text-sm">
-            Xem tất cả <span class="material-symbols-outlined text-sm">chevron_right</span>
-          </Link>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div v-for="product in suggestedProducts" :key="product.id" class="group bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-            <Link :href="route('product.detail', { id: product.id })" class="block">
-              <div class="aspect-[4/5] bg-gray-100 overflow-hidden relative">
-                <img class="w-full h-full object-cover group-hover:scale-110 transition-transform" :src="product.image" :alt="product.name">
-                <span v-if="product.badge" class="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs">{{ product.badge }}</span>
-              </div>
-              <div class="p-4">
-                <h4 class="font-semibold text-base line-clamp-1 text-gray-800">{{ product.name }}</h4>
-                <p class="text-gray-500 text-sm mb-2">{{ product.category }}</p>
-                <div class="flex justify-between items-center">
-                  <span class="font-bold text-primary text-lg">{{ formatPrice(product.price) }}</span>
-                  <button @click="addToCartProduct(product)" class="bg-gray-100 p-2 rounded-full hover:bg-primary/10 transition-colors">
-                    <span class="material-symbols-outlined text-gray-600">add_shopping_cart</span>
-                  </button>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
     </main>
 
     <Chatbot />
@@ -160,49 +161,87 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 import { useCart } from '@/utils/useCart'
+import { CartEvents } from '@/events/CartEvents'
 
-// Sử dụng useCart để quản lý giỏ hàng chung
-const { cartItems, fetchCart, updateCart, removeFromCart, clearCart } = useCart()
+const { 
+  cartItems, 
+  fetchCart, 
+  updateCart, 
+  removeFromCart,
+  subtotal,
+  total,
+  couponCode,
+  discountAmount,
+  appliedCoupon,
+  couponError,
+  applyCoupon,
+  removeCoupon,
+  loading,
+  cartCount,
+  setVoucherFromSession,
+  restoreVoucher,
+  clearVoucherStorage
+} = useCart()
 
-const loading = ref(false)
-const couponCode = ref('')
-const discountAmount = ref(0)
-const shippingFee = 30000 // Phí vận chuyển cố định
+const page = usePage()
 
-// Computed
-const subtotal = computed(() => {
-  return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+// Tạo dữ liệu cart để gửi qua URL
+const cartDataForCheckout = computed(() => {
+  const data = {}
+  cartItems.value.forEach(item => {
+    data[item.id] = {
+      quantity: item.quantity,
+      price: item.price
+    }
+  })
+  return data
 })
 
-const total = computed(() => {
-  const subtotalValue = subtotal.value
-  // Nếu giỏ hàng trống hoặc subtotal = 0, không tính phí vận chuyển
-  const shipping = (cartItems.value.length > 0 && subtotalValue > 0) ? shippingFee : 0
-  return subtotalValue + shipping - discountAmount.value
-})
+// ============ LẮNG NGHE SỰ KIỆN XÓA VOUCHER TỪ CHECKOUT ============
+const handleVoucherCleared = () => {
+  // Xóa voucher khỏi state
+  discountAmount.value = 0
+  appliedCoupon.value = null
+  couponCode.value = ''
+  couponError.value = ''
+  
+  // Xóa localStorage
+  clearVoucherStorage()
+  
+  console.log('🗑️ Voucher cleared by event from Checkout')
+}
 
-const displayShippingFee = computed(() => {
-  return (cartItems.value.length > 0 && subtotal.value > 0) ? shippingFee : 0
-})
+// Watch cartItems
+watch(cartItems, (newItems, oldItems) => {
+  const newCount = newItems.reduce((sum, item) => sum + item.quantity, 0)
+  const oldCount = oldItems ? oldItems.reduce((sum, item) => sum + item.quantity, 0) : 0
+  
+  if (newCount !== oldCount) {
+    CartEvents.emitUpdated(newCount)
+    console.log('📦 Cart.vue: Cart changed - Dispatch event, count:', newCount)
+  }
+}, { deep: true })
 
 // Methods
 const loadCart = async () => {
-  loading.value = true
-  try {
-    await fetchCart()
-  } catch (error) {
-    if (error.response && error.response.status === 401) {
-      router.get(route('login'))
-    }
-    console.error('Lỗi tải giỏ hàng:', error)
-  } finally {
-    loading.value = false
+  await fetchCart()
+}
+
+const loadVoucherFromSession = () => {
+  const voucherCode = page.props.voucher_code || null
+  const voucherDiscount = page.props.voucher_discount || 0
+  
+  if (voucherCode && voucherDiscount > 0) {
+    setVoucherFromSession(voucherCode, voucherDiscount)
+    console.log('📦 Cart.vue: Loaded voucher from session:', voucherCode, voucherDiscount)
+  } else {
+    restoreVoucher()
   }
 }
 
@@ -218,7 +257,6 @@ const updateQuantity = async (index, delta) => {
 
   try {
     await updateCart(item.id, newQuantity)
-    // Không cần gọi loadCart vì updateCart đã tự fetchCart bên trong
   } catch (error) {
     alert(error.response?.data?.message || 'Cập nhật thất bại')
   }
@@ -237,31 +275,45 @@ const removeItem = async (index) => {
   }
 }
 
-const applyCoupon = () => {
-  if (couponCode.value === 'SALE10') {
-    discountAmount.value = subtotal.value * 0.1
-  } else {
-    discountAmount.value = 0
-    alert('Mã giảm giá không hợp lệ')
+const handleApplyCoupon = async () => {
+  if (!couponCode.value.trim()) {
+    return
+  }
+  try {
+    await applyCoupon(couponCode.value.trim())
+  } catch (error) {
+    // Error handled in composable
+  }
+}
+
+const handleRemoveCoupon = async () => {
+  try {
+    await removeCoupon()
+    console.log('✅ Voucher removed successfully')
+  } catch (error) {
+    console.error('❌ Failed to remove voucher:', error)
   }
 }
 
 const formatPrice = (val) => {
-  return (val || 0).toLocaleString('vi-VN') + '₫'
+  if (!val && val !== 0) return '0₫'
+  return Number(val).toLocaleString('vi-VN') + '₫'
 }
 
 // Lifecycle
 onMounted(() => {
   loadCart()
+  loadVoucherFromSession()
+  
+  // Lắng nghe sự kiện xóa voucher từ Checkout
+  window.addEventListener('voucher:cleared', handleVoucherCleared)
 })
 
-// Suggested products (tạm thời để trống)
-const suggestedProducts = ref([])
+onBeforeUnmount(() => {
+  window.removeEventListener('voucher:cleared', handleVoucherCleared)
+})
 
-// Thêm sản phẩm từ suggested
-const addToCartProduct = (product) => {
-  router.get(route('product.detail', { id: product.id }))
-}
+const suggestedProducts = ref([])
 </script>
 
 <style scoped>

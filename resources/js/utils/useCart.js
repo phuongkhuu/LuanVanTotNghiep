@@ -1,179 +1,364 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import axios from 'axios'
-
-// Cấu hình axios
-axios.defaults.withCredentials = true
-axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
-
-const cartCount = ref(0)
-const cartItems = ref([])
-const loading = ref(false)
+import { CartEvents } from '@/events/CartEvents'
 
 export function useCart() {
-    // Hàm lấy URL route, fallback sang đường dẫn không prefix /api
-    const getRoute = (name, params = {}) => {
+    const cartItems = ref([])
+    const cartCount = ref(0)
+    const cartTotal = ref(0)
+    const loading = ref(false)
+    const couponCode = ref('')
+    const discountAmount = ref(0)
+    const appliedCoupon = ref(null)
+    const couponError = ref('')
+    let isFetching = false
+
+    const getUserId = () => {
+        if (window.user && window.user.id) {
+            return String(window.user.id)
+        }
+        return 'guest'
+    }
+
+    const getStorageKey = () => {
+        return `bigbag_cart_${getUserId()}`
+    }
+
+    const saveToLocalStorage = (items) => {
         try {
-            // Nếu Ziggy có sẵn, dùng route helper
-            return route(name, params)
+            const key = getStorageKey()
+            localStorage.setItem(key, JSON.stringify(items))
         } catch (e) {
-            // Fallback URLs (không có /api)
-            const fallbacks = {
-                'cart.index': '/api/cart',
-                'cart.add': '/api/cart/add',
-                'cart.update': '/api/cart/update',
-                'cart.remove': '/api/cart/remove',
-                'cart.clear': '/api/cart/clear',
-            }
-            let url = fallbacks[name]
-            if (url && params.id) {
-                url = `${url}/${params.id}`
-            }
-            return url || `/${name.replace('.', '/')}`
+            console.error('Error saving cart:', e)
         }
     }
 
-    // Lấy giỏ hàng
-    const fetchCart = async () => {
-        loading.value = true
+    const loadFromLocalStorage = () => {
         try {
-            const url = getRoute('cart.index')
-            const response = await axios.get(url)
-            cartItems.value = response.data.items || []
-            cartCount.value = response.data.count || 0
-            return response.data
-        } catch (error) {
-            console.error('Lỗi lấy giỏ hàng:', error)
-            // Thử fallback URL nếu lỗi 404
-            if (error.response?.status === 404) {
-                try {
-                    const fallbackResponse = await axios.get('/api/cart')
-                    cartItems.value = fallbackResponse.data.items || []
-                    cartCount.value = fallbackResponse.data.count || 0
-                    return fallbackResponse.data
-                } catch (e) {
-                    console.error('Fallback vẫn lỗi:', e)
-                    throw e
-                }
+            const key = getStorageKey()
+            const data = localStorage.getItem(key)
+            if (data) {
+                return JSON.parse(data)
             }
-            throw error
+        } catch (e) {
+            console.error('Error loading cart:', e)
+        }
+        return []
+    }
+
+    const subtotal = computed(() => {
+        return cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    })
+
+    const total = computed(() => {
+        return subtotal.value - discountAmount.value
+    })
+
+    const updateCounts = () => {
+        const newCount = cartItems.value.reduce((sum, item) => sum + item.quantity, 0)
+        cartCount.value = newCount
+        cartTotal.value = cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        
+        CartEvents.emitUpdated(newCount)
+        console.log('🔄 Cart updated - Count:', cartCount.value, 'Items:', cartItems.value.length)
+    }
+
+    const setVoucherFromSession = (code, discount) => {
+        if (code && discount > 0) {
+            couponCode.value = code
+            discountAmount.value = discount
+            appliedCoupon.value = {
+                code: code,
+                discount_type: 'fixed',
+                discount_value: discount
+            }
+            couponError.value = ''
+            console.log('✅ Voucher set from session:', code, discount)
+            return true
+        }
+        return false
+    }
+
+    const getVoucherFromStorage = () => {
+        try {
+            const key = `bigbag_voucher_${getUserId()}`
+            const data = localStorage.getItem(key)
+            if (data) {
+                return JSON.parse(data)
+            }
+        } catch (e) {
+            console.error('Error loading voucher:', e)
+        }
+        return null
+    }
+
+    const saveVoucherToStorage = (code, discount) => {
+        try {
+            const key = `bigbag_voucher_${getUserId()}`
+            localStorage.setItem(key, JSON.stringify({ code, discount }))
+        } catch (e) {
+            console.error('Error saving voucher:', e)
+        }
+    }
+
+    const clearVoucherStorage = () => {
+        try {
+            const key = `bigbag_voucher_${getUserId()}`
+            localStorage.removeItem(key)
+            console.log('🗑️ Voucher cleared from localStorage')
+        } catch (e) {
+            console.error('Error clearing voucher:', e)
+        }
+    }
+
+    const fetchCart = async () => {
+        if (isFetching) return
+        isFetching = true
+        loading.value = true
+        
+        try {
+            const localItems = loadFromLocalStorage()
+            
+            if (localItems.length === 0) {
+                cartItems.value = []
+                updateCounts()
+                isFetching = false
+                loading.value = false
+                return
+            }
+
+            const cartData = {}
+            localItems.forEach(item => {
+                cartData[item.id] = {
+                    quantity: item.quantity,
+                    price: item.price
+                }
+            })
+
+            const response = await axios.get('/api/cart', {
+                params: {
+                    cart: JSON.stringify(cartData)
+                },
+                timeout: 10000
+            })
+
+            if (response.data.success) {
+                cartItems.value = response.data.items || []
+                updateCounts()
+                saveToLocalStorage(cartItems.value)
+            } else {
+                cartItems.value = localItems
+                updateCounts()
+            }
+        } catch (error) {
+            console.error('Error fetching cart:', error)
+            const localItems = loadFromLocalStorage()
+            cartItems.value = localItems
+            updateCounts()
         } finally {
             loading.value = false
+            isFetching = false
         }
     }
 
-    // Thêm vào giỏ
     const addToCart = async (variantId, quantity = 1) => {
         try {
-            const url = getRoute('cart.add')
-            const response = await axios.post(url, {
+            const response = await axios.post('/api/cart/add', {
                 variant_id: variantId,
                 quantity: quantity
+            }, {
+                timeout: 10000
             })
+
             if (response.data.success) {
-                cartCount.value = response.data.cart_count
-                await fetchCart()
+                const currentCart = loadFromLocalStorage()
+                const existingIndex = currentCart.findIndex(item => item.id === variantId)
+                
+                if (existingIndex > -1) {
+                    currentCart[existingIndex].quantity += quantity
+                } else {
+                    currentCart.push({
+                        ...response.data.item,
+                        quantity: quantity
+                    })
+                }
+                
+                saveToLocalStorage(currentCart)
+                cartItems.value = currentCart
+                updateCounts()
+                
+                setTimeout(() => {
+                    fetchCart()
+                }, 500)
+                
+                return response.data
             }
-            return response.data
         } catch (error) {
-            console.error('Lỗi thêm giỏ hàng:', error)
+            console.error('Error adding to cart:', error)
             throw error
         }
     }
 
-    // Cập nhật số lượng
     const updateCart = async (variantId, quantity) => {
         try {
-            const url = getRoute('cart.update')
-            const response = await axios.put(url, {
+            await axios.put('/api/cart/update', {
                 variant_id: variantId,
                 quantity: quantity
             })
-            if (response.data.success) {
-                cartCount.value = response.data.cart_count
-                await fetchCart()
+            
+            const currentCart = loadFromLocalStorage()
+            const index = currentCart.findIndex(item => item.id === variantId)
+            if (index > -1) {
+                if (quantity <= 0) {
+                    currentCart.splice(index, 1)
+                } else {
+                    currentCart[index].quantity = quantity
+                }
+                saveToLocalStorage(currentCart)
+                cartItems.value = currentCart
+                updateCounts()
+                
+                setTimeout(() => {
+                    fetchCart()
+                }, 500)
             }
-            return response.data
+            return { success: true }
         } catch (error) {
-            console.error('Lỗi cập nhật giỏ hàng:', error)
+            console.error('Error updating cart:', error)
             throw error
         }
     }
 
-    // Xóa sản phẩm khỏi giỏ (có fallback và optimistic update)
     const removeFromCart = async (variantId) => {
         try {
-            // URL chính
-            const url = getRoute('cart.remove', { id: variantId })
-            const response = await axios.delete(url)
-            if (response.data.success) {
-                // Optimistic update: xóa ngay lập tức khỏi UI
-                cartItems.value = cartItems.value.filter(item => item.id !== variantId)
-                cartCount.value = response.data.cart_count ?? cartCount.value - 1
-                // Đồng bộ lại từ server (có thể bỏ qua nếu lỗi)
-                try {
-                    await fetchCart()
-                } catch (e) {
-                    // Nếu fetch lỗi, vẫn giữ state local
-                    console.warn('Không thể đồng bộ giỏ hàng sau khi xóa, vẫn giữ state local')
-                }
+            await axios.delete(`/api/cart/remove/${variantId}`)
+            
+            const currentCart = loadFromLocalStorage()
+            const index = currentCart.findIndex(item => item.id === variantId)
+            if (index > -1) {
+                currentCart.splice(index, 1)
+                saveToLocalStorage(currentCart)
+                cartItems.value = currentCart
+                updateCounts()
+                
+                setTimeout(() => {
+                    fetchCart()
+                }, 500)
             }
-            return response.data
+            return { success: true }
         } catch (error) {
-            console.error('Lỗi xóa giỏ hàng:', error)
-            // Nếu lỗi 404, thử fallback URL (không có /api)
-            if (error.response?.status === 404) {
-                try {
-                    const fallbackUrl = `/api/cart/remove/${variantId}`
-                    const response = await axios.delete(fallbackUrl)
-                    if (response.data.success) {
-                        cartItems.value = cartItems.value.filter(item => item.id !== variantId)
-                        cartCount.value = response.data.cart_count ?? cartCount.value - 1
-                        try {
-                            await fetchCart()
-                        } catch (e) {
-                            // bỏ qua
-                        }
-                    }
-                    return response.data
-                } catch (e) {
-                    console.error('Fallback xóa vẫn lỗi:', e)
-                    throw e
-                }
-            }
+            console.error('Error removing from cart:', error)
             throw error
         }
     }
 
-    // Xóa toàn bộ giỏ hàng
     const clearCart = async () => {
         try {
-            const url = getRoute('cart.clear')
-            const response = await axios.delete(url)
-            if (response.data.success) {
-                cartCount.value = 0
-                cartItems.value = []
-            }
-            return response.data
+            await axios.delete('/api/cart/clear')
+            cartItems.value = []
+            updateCounts()
+            const key = getStorageKey()
+            localStorage.removeItem(key)
+            clearVoucherStorage()
+            console.log('🗑️ Cart cleared')
+            return { success: true }
         } catch (error) {
-            console.error('Lỗi xóa giỏ hàng:', error)
+            console.error('Error clearing cart:', error)
             throw error
         }
     }
 
-    // Refresh giỏ hàng (đồng bộ)
-    const refreshCart = async () => {
-        await fetchCart()
+    const applyCoupon = async (code) => {
+        couponError.value = ''
+        try {
+            const response = await axios.post('/api/cart/apply-coupon', {
+                code: code,
+                subtotal: subtotal.value
+            })
+            if (response.data.success) {
+                discountAmount.value = response.data.discount_amount || 0
+                appliedCoupon.value = response.data.coupon
+                couponError.value = ''
+                saveVoucherToStorage(code, discountAmount.value)
+                return response.data
+            }
+        } catch (error) {
+            couponError.value = error.response?.data?.message || 'Có lỗi xảy ra khi áp dụng mã'
+            throw error
+        }
+    }
+
+    // ============ SỬA: Xóa coupon ============
+    const removeCoupon = async () => {
+        try {
+            // Gọi API xóa session
+            const response = await axios.post('/api/cart/remove-coupon')
+            
+            // Reset state
+            discountAmount.value = 0
+            appliedCoupon.value = null
+            couponCode.value = ''
+            couponError.value = ''
+            
+            // Xóa localStorage
+            clearVoucherStorage()
+            
+            console.log('🗑️ Voucher removed from session and storage')
+            return { success: true }
+        } catch (error) {
+            console.error('Error removing coupon:', error)
+            // Vẫn reset state dù API fail
+            discountAmount.value = 0
+            appliedCoupon.value = null
+            couponCode.value = ''
+            couponError.value = ''
+            clearVoucherStorage()
+            throw error
+        }
+    }
+
+    const reloadCart = () => {
+        console.log('🔄 Reloading cart...')
+        fetchCart()
+    }
+
+    const restoreVoucher = () => {
+        const voucher = getVoucherFromStorage()
+        if (voucher) {
+            couponCode.value = voucher.code
+            discountAmount.value = voucher.discount
+            appliedCoupon.value = {
+                code: voucher.code,
+                discount_type: 'fixed',
+                discount_value: voucher.discount
+            }
+            console.log('✅ Voucher restored from storage:', voucher.code, voucher.discount)
+            return true
+        }
+        return false
     }
 
     return {
-        cartCount,   
-        cartItems,      
-        loading,     
+        cartItems,
+        cartCount,
+        cartTotal,
+        loading,
+        subtotal,
+        total,
+        couponCode,
+        discountAmount,
+        appliedCoupon,
+        couponError,
         fetchCart,
         addToCart,
         updateCart,
         removeFromCart,
         clearCart,
-        refreshCart
+        applyCoupon,
+        removeCoupon,
+        reloadCart,
+        getUserId,
+        setVoucherFromSession,
+        restoreVoucher,
     }
 }

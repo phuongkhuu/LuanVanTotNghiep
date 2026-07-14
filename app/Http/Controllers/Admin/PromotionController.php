@@ -422,6 +422,8 @@ class PromotionController extends Controller
     {
         try {
             DB::beginTransaction();
+            Log::info('=== STORE CAMPAIGN ===');
+            Log::info('Request data:', $request->all());
 
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
@@ -457,15 +459,24 @@ class PromotionController extends Controller
                 'priority' => $validated['priority'] ?? 0,
                 'featured' => $validated['featured'] ?? false,
             ]);
+            Log::info('Campaign created:', ['id' => $campaign->id]);
 
-            CampaignConfig::create([
+            $config = CampaignConfig::create([
                 'campaign_id' => $campaign->id,
                 'quantity' => 0,
                 'discount_percent' => $validated['discountPercent'] ?? 0,
             ]);
+            Log::info('CampaignConfig created:', [
+            'campaign_id' => $campaign->id,
+            'discount_percent' => $config->discount_percent
+            ]);
 
             if (!empty($validated['products']) && is_array($validated['products'])) {
                 $campaign->productVariants()->attach($validated['products']);
+                Log::info('Products attached to campaign:', [
+                'campaign_id' => $campaign->id,
+                'variant_ids' => $validated['products']
+            ]);
             }
 
             DB::commit();
@@ -478,6 +489,7 @@ class PromotionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Lỗi tạo chiến dịch: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return redirect()->back()->with([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()

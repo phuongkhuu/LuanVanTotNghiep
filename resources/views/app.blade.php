@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="user-id" content="{{ Auth::id() ?? 'guest' }}">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
-        
         <!-- Fonts: Montserrat + Material Icons -->
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
         
@@ -31,9 +31,6 @@
             .sidebar-item-active {
                 background-color: #fff5f2;
                 color: #ff6b00;
-            }
-            
-            .sidebar-item-active {
             }
             
             .glass-header {
@@ -69,8 +66,19 @@
                 transform: rotate(180deg);
             }
         </style>
-
+        
         <!-- Scripts -->
+        <script>
+            // Đảm bảo window.user được set đúng
+            window.user = @json(Auth::user());
+            console.log('User set in window:', window.user);
+            
+            // Nếu không có user, set là null
+            if (!window.user) {
+                window.user = null;
+            }
+        </script>
+
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead

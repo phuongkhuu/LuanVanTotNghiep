@@ -25,6 +25,7 @@ class Order extends Model
         'shipping_fee',
         'total_amount',
         'discount_amount',
+        'promo_code', 
         'final_amount',
         'order_status',         // int (0,1,2,... tùy loại)
     ];

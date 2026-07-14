@@ -99,24 +99,41 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
+                <!-- Hiển thị phần trăm giảm giá -->
                 <span 
-                  v-if="product.discount" 
+                  v-if="product.discount_percent && product.discount_percent > 0" 
                   class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold"
                 >
-                  -{{ product.discount }}%
+                  -{{ product.discount_percent }}%
                 </span>
                 <span 
-                  v-else 
+                  v-else-if="product.is_on_sale" 
                   class="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold"
                 >
                   Hot
+                </span>
+                <!-- Badge loại khuyến mãi -->
+                <span 
+                  v-if="product.discount_type === 'preorder'" 
+                  class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
+                >
+                  Pre-Order
                 </span>
               </div>
               <div class="p-4">
                 <h3 class="font-semibold text-gray-800 mb-1 line-clamp-1">{{ product.name }}</h3>
                 <div class="flex items-baseline space-x-2 mb-2">
-                  <span class="text-xl font-bold text-primary">{{ formatPrice(product.salePrice || product.price) }}</span>
-                  <span v-if="product.originalPrice" class="text-sm text-gray-400 line-through">{{ formatPrice(product.originalPrice) }}</span>
+                  <!-- Giá sale -->
+                  <span v-if="product.is_on_sale" class="text-xl font-bold text-red-500">
+                    {{ formatPrice(product.sale_price || product.price) }}
+                  </span>
+                  <span v-else class="text-xl font-bold text-primary">
+                    {{ formatPrice(product.price) }}
+                  </span>
+                  <!-- Giá gốc (có gạch) -->
+                  <span v-if="product.is_on_sale && product.original_price" class="text-sm text-gray-400 line-through">
+                    {{ formatPrice(product.original_price) }}
+                  </span>
                 </div>
                 <div class="flex items-center gap-1 mb-4">
                   <div class="flex text-amber-400">
@@ -161,6 +178,13 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
+                <!-- Hiển thị phần trăm giảm giá cho trending -->
+                <span 
+                  v-if="product.discount_percent && product.discount_percent > 0" 
+                  class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+                >
+                  -{{ product.discount_percent }}%
+                </span>
                 <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
                   <span class="text-white text-sm font-semibold">🔥 Đã bán {{ product.sold || 0 }}</span>
                 </div>
@@ -168,7 +192,15 @@
               <div class="p-4">
                 <h3 class="font-semibold text-gray-800 mb-1 line-clamp-1">{{ product.name }}</h3>
                 <div class="flex items-baseline space-x-2 mb-4">
-                  <span class="text-xl font-bold text-primary">{{ formatPrice(product.price) }}</span>
+                  <span v-if="product.is_on_sale" class="text-xl font-bold text-red-500">
+                    {{ formatPrice(product.sale_price || product.price) }}
+                  </span>
+                  <span v-else class="text-xl font-bold text-primary">
+                    {{ formatPrice(product.price) }}
+                  </span>
+                  <span v-if="product.is_on_sale && product.original_price" class="text-sm text-gray-400 line-through">
+                    {{ formatPrice(product.original_price) }}
+                  </span>
                 </div>
               </div>
             </Link>
@@ -207,12 +239,39 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
+                <!-- Badge Mới -->
                 <span class="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-sm uppercase font-bold">Mới</span>
+                
+                <!-- Hiển thị sale cho sản phẩm mới nếu có -->
+                <span 
+                  v-if="product.discount_percent && product.discount_percent > 0" 
+                  class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold"
+                >
+                  -{{ product.discount_percent }}%
+                </span>
+                
+                <!-- Badge Pre-Order nếu có -->
+                <span 
+                  v-if="product.discount_type === 'preorder'" 
+                  class="absolute bottom-4 left-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
+                >
+                  Pre-Order
+                </span>
               </div>
               <div class="p-4">
                 <h3 class="font-semibold text-gray-800 mb-1 line-clamp-1">{{ product.name }}</h3>
                 <div class="flex items-baseline space-x-2 mb-4">
-                  <span class="text-xl font-bold text-primary">{{ formatPrice(product.price) }}</span>
+                  <!-- Hiển thị giá sale nếu có -->
+                  <span v-if="product.is_on_sale" class="text-xl font-bold text-red-500">
+                    {{ formatPrice(product.sale_price || product.price) }}
+                  </span>
+                  <span v-else class="text-xl font-bold text-primary">
+                    {{ formatPrice(product.price) }}
+                  </span>
+                  <!-- Giá gốc có gạch ngang -->
+                  <span v-if="product.is_on_sale && product.original_price" class="text-sm text-gray-400 line-through">
+                    {{ formatPrice(product.original_price) }}
+                  </span>
                 </div>
               </div>
             </Link>
@@ -275,7 +334,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
@@ -306,7 +365,6 @@ const props = defineProps({
 })
 
 // ==================== REACTIVE DATA ====================
-// Sử dụng computed để xử lý dữ liệu
 const banners = ref(props.banners || [])
 const hotSales = ref(props.hotSales || [])
 const trending = ref(props.trending || [])
@@ -320,40 +378,28 @@ let autoPlayInterval = null
 let carouselInitialized = false
 
 // ==================== DEFAULT IMAGE (BASE64) ====================
-// Sử dụng base64 để không cần file ảnh vật lý
 const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%23f3f4f6"/%3E%3Ctext x="200" y="195" font-family="Arial" font-size="20" text-anchor="middle" fill="%239ca3af"%3ENo Image%3C/text%3E%3Ctext x="200" y="225" font-family="Arial" font-size="14" text-anchor="middle" fill="%23d1d5db"%3EProduct%3C/text%3E%3C/svg%3E'
 
 // ==================== METHODS ====================
-/**
- * Lấy ảnh mặc định
- */
-const getDefaultImage = () => {
-  return DEFAULT_IMAGE
-}
+const getDefaultImage = () => DEFAULT_IMAGE
 
 const getProductUrl = (product) => {
   if (product && product.slug) {
     return route('product.detail', { slug: product.slug })
   }
-  // Fallback: return '#' or a generic page
   return '#'
 }
 
-/**
- * Lấy ảnh sản phẩm (có fallback)
- */
 const getProductImage = (product) => {
   if (!product) return DEFAULT_IMAGE
 
   const image = product.image
   if (!image) return DEFAULT_IMAGE
 
-  // Nếu là mảng, lấy phần tử đầu tiên
   if (Array.isArray(image)) {
     return image[0] || DEFAULT_IMAGE
   }
 
-  // Nếu là chuỗi và không phải default
   if (typeof image === 'string' && image !== '/images/default-product.jpg') {
     return image
   }
@@ -361,40 +407,24 @@ const getProductImage = (product) => {
   return DEFAULT_IMAGE
 }
 
-/**
- * Xử lý lỗi ảnh - FIX LỖI 404 VÀ VÒNG LẶP
- */
 const handleImageError = (e) => {
-  // Ngăn chặn vòng lặp vô tận
   if (e.target.src === DEFAULT_IMAGE) {
     e.target.style.display = 'none'
     return
   }
-  
-  // Set ảnh mặc định
   e.target.src = DEFAULT_IMAGE
-  // Ngăn gọi lại event
   e.target.onerror = null
 }
 
-/**
- * Format giá tiền
- */
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0₫'
   return Number(price).toLocaleString('vi-VN') + '₫'
 }
 
-/**
- * Thêm vào giỏ hàng
- */
 const addToCart = (product) => {
   router.get(route('product.detail', { slug: product.slug }))
 }
 
-/**
- * Bắt đầu đếm ngược
- */
 const startCountdown = () => {
   let hours = 23, minutes = 45, seconds = 12
   if (countdownInterval) clearInterval(countdownInterval)
@@ -422,9 +452,6 @@ const startCountdown = () => {
   }, 1000)
 }
 
-/**
- * Khởi tạo carousel
- */
 const initCarousel = () => {
   const carouselEl = document.getElementById('hero-carousel')
   if (!carouselEl || carouselInitialized || banners.value.length <= 1) return
@@ -528,7 +555,27 @@ onMounted(() => {
   nextTick(() => {
     initCarousel()
   })
-  console.log('Welcome.vue mounted. Banners:', banners.value, 'HotSales:', hotSales.value, 'Trending:', trending.value, 'NewProducts:', newProducts.value, 'NewsList:', newsList.value)
+  
+  // Debug: In ra dữ liệu sản phẩm mới
+  console.log('=== WELCOME.VUE DEBUG ===')
+  console.log('Banners:', banners.value)
+  console.log('HotSales:', hotSales.value)
+  console.log('Trending:', trending.value)
+  console.log('New Products:', newProducts.value)
+  
+  // Kiểm tra từng sản phẩm mới có sale không
+  if (newProducts.value && newProducts.value.length > 0) {
+    newProducts.value.forEach((product, index) => {
+      console.log(`New Product ${index + 1}:`, {
+        name: product.name,
+        price: product.price,
+        is_on_sale: product.is_on_sale,
+        sale_price: product.sale_price,
+        original_price: product.original_price,
+        discount_percent: product.discount_percent
+      })
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -560,12 +607,9 @@ onUnmounted(() => {
   -webkit-box-orient: vertical; 
   overflow: hidden; 
 }
-
-/* Transition animations */
 .group:hover .group-hover\:scale-105 {
   transform: scale(1.05);
 }
-
 .group-hover\:gap-2 {
   gap: 0.5rem;
 }

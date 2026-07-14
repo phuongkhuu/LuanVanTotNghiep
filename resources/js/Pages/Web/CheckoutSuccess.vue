@@ -25,6 +25,7 @@
         <div class="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-4 border-b border-gray-100">
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary">receipt_long</span>
               <h2 class="text-xl font-semibold text-gray-800">Chi tiết đơn hàng</h2>
             </div>
             <div class="flex items-center gap-2">
@@ -33,6 +34,12 @@
                 class="inline-block px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full"
               >
                 Pre-order
+              </span>
+              <span 
+                class="inline-block px-3 py-1 text-xs font-bold rounded-full"
+                :class="getOrderStatusBadge(order?.status)"
+              >
+                {{ order?.status || 'Đang xử lý' }}
               </span>
             </div>
           </div>
@@ -44,6 +51,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">person</span>
                 Thông tin người đặt
               </h3>
               <div class="space-y-2 text-sm">
@@ -54,6 +62,7 @@
             </div>
             <div>
               <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">local_shipping</span>
                 Thông tin người nhận
               </h3>
               <div class="space-y-2 text-sm">
@@ -67,6 +76,7 @@
           <!-- Note -->
           <div v-if="order?.note" class="bg-gray-50 rounded-lg p-4">
             <p class="text-sm text-gray-500 flex items-start gap-2">
+              <span class="material-symbols-outlined text-sm">note</span>
               <span><span class="font-medium text-gray-600">Ghi chú:</span> {{ order.note }}</span>
             </p>
           </div>
@@ -74,6 +84,7 @@
           <!-- Products List -->
           <div>
             <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">shopping_bag</span>
               Sản phẩm đã đặt
             </h3>
             <div class="border border-gray-100 rounded-xl overflow-hidden">
@@ -122,13 +133,26 @@
                     <td colspan="3" class="text-right px-4 py-3 text-gray-600">Phí vận chuyển</td>
                     <td class="text-right px-4 py-3 font-medium">{{ formatPrice(orderSummary.shipping_fee) }}</td>
                   </tr>
-                  <tr v-if="orderSummary.discount_amount > 0">
-                    <td colspan="3" class="text-right px-4 py-3 text-gray-600">Giảm giá</td>
-                    <td class="text-right px-4 py-3 font-medium text-red-500">-{{ formatPrice(orderSummary.discount_amount) }}</td>
+                  <!-- ============ HIỂN THỊ GIẢM GIÁ ============ -->
+                  <tr v-if="orderSummary.discount_amount > 0" class="bg-green-50">
+                    <td colspan="3" class="text-right px-4 py-3 text-green-600 font-medium">
+                      <span class="flex items-center justify-end gap-2">
+                        <span class="material-symbols-outlined text-sm">local_offer</span>
+                        Giảm giá
+                      </span>
+                    </td>
+                    <td class="text-right px-4 py-3 font-medium text-red-500">
+                      -{{ formatPrice(orderSummary.discount_amount) }}
+                    </td>
                   </tr>
+                  <!-- ========================================= -->
                   <tr class="bg-primary/5">
-                    <td colspan="3" class="text-right px-4 py-3 font-bold text-gray-800">Tổng cộng</td>
-                    <td class="text-right px-4 py-3 font-bold text-2xl text-primary">{{ formatPrice(orderSummary.final_amount) }}</td>
+                    <td colspan="3" class="text-right px-4 py-3 font-bold text-gray-800">
+                      <span class="text-lg">Tổng cộng</span>
+                    </td>
+                    <td class="text-right px-4 py-3 font-bold text-2xl text-primary">
+                      {{ formatPrice(orderSummary.final_amount) }}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -168,12 +192,14 @@
           :href="route('home')" 
           class="inline-flex items-center justify-center gap-2 bg-primary text-white px-8 py-3 rounded-xl hover:bg-primary-dark transition-all font-semibold shadow-sm hover:shadow-md"
         >
+          <span class="material-symbols-outlined">shopping_cart</span>
           Tiếp tục mua sắm
         </a>
         <a 
           :href="route('orders.history')" 
           class="inline-flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-8 py-3 rounded-xl hover:bg-gray-50 transition-all font-semibold"
         >
+          <span class="material-symbols-outlined">history</span>
           Xem lịch sử đơn hàng
         </a>
         <button 
@@ -181,6 +207,7 @@
           @click="printOrder" 
           class="inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-8 py-3 rounded-xl hover:bg-gray-200 transition-all font-semibold"
         >
+          <span class="material-symbols-outlined">print</span>
           In đơn hàng
         </button>
       </div>
@@ -215,41 +242,29 @@ const props = defineProps({
   }
 })
 
-// Debug: Log toàn bộ props để kiểm tra
+// Debug
 onMounted(() => {
-  console.log('📦 Full props:', props)
-  console.log('📦 Order object:', props.order)
-  console.log('📦 Order display code from props.order_display_code:', props.order_display_code)
-  console.log('📦 Order display code from order.order_display_code:', props.order?.order_display_code)
-  console.log('📦 Order display_code from order.display_code:', props.order?.display_code)
+  console.log('📦 CheckoutSuccess - Full props:', props)
+  console.log('📦 CheckoutSuccess - Order:', props.order)
+  console.log('📦 CheckoutSuccess - Order discount_amount:', props.order?.discount_amount)
+  console.log('📦 CheckoutSuccess - Order final_amount:', props.order?.final_amount)
 })
 
-// QUAN TRỌNG: Lấy mã đơn hàng hiển thị
+// Lấy mã đơn hàng
 const orderDisplayCode = computed(() => {
-  // Ưu tiên 1: Lấy từ props.order_display_code (được truyền từ backend)
   if (props.order_display_code) {
-    console.log('✅ Using order_display_code from props:', props.order_display_code)
     return props.order_display_code
   }
-  
-  // Ưu tiên 2: Lấy từ order.order_display_code
   if (props.order?.order_display_code) {
-    console.log('✅ Using order.order_display_code:', props.order.order_display_code)
     return props.order.order_display_code
   }
-  
-  // Ưu tiên 3: Lấy từ order.display_code (giống OrderHistory)
   if (props.order?.display_code) {
-    console.log('✅ Using order.display_code:', props.order.display_code)
     return props.order.display_code
   }
-  
-  // Nếu không có, hiển thị N/A
-  console.warn('⚠️ No display code found!')
   return 'N/A'
 })
 
-// Lấy email từ nhiều nguồn khác nhau
+// Lấy email
 const customerEmail = computed(() => {
   if (props.order?.customer_email && props.order.customer_email !== 'N/A') {
     return props.order.customer_email
@@ -260,7 +275,7 @@ const customerEmail = computed(() => {
   return 'N/A'
 })
 
-// Compute order details from order
+// Chi tiết sản phẩm
 const orderDetails = computed(() => {
   if (props.order?.details) {
     return props.order.details.map(detail => ({
@@ -274,14 +289,27 @@ const orderDetails = computed(() => {
   return []
 })
 
-// Compute order summary
+// ============ QUAN TRỌNG: Tổng hợp đơn hàng ============
 const orderSummary = computed(() => {
   if (props.order) {
+    const subtotal = props.order.total_amount || 0
+    const shippingFee = props.order.shipping_fee || 0
+    const discountAmount = props.order.discount_amount || 0
+    const finalAmount = props.order.final_amount || (subtotal + shippingFee - discountAmount)
+    
+    console.log('💰 Order Summary:', {
+      subtotal,
+      shippingFee,
+      discountAmount,
+      finalAmount,
+      raw: props.order
+    })
+    
     return {
-      subtotal: props.order.total_amount || 0,
-      shipping_fee: props.order.shipping_fee || 0,
-      discount_amount: props.order.discount_amount || 0,
-      final_amount: props.order.final_amount || props.order.total_amount || 0,
+      subtotal,
+      shipping_fee: shippingFee,
+      discount_amount: discountAmount,
+      final_amount: finalAmount,
     }
   }
   return {
@@ -307,6 +335,22 @@ const formatDate = (date) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getOrderStatusBadge = (status) => {
+  const map = {
+    'pending': 'bg-yellow-100 text-yellow-800',
+    'processing': 'bg-blue-100 text-blue-800',
+    'shipping': 'bg-purple-100 text-purple-800',
+    'completed': 'bg-green-100 text-green-800',
+    'cancelled': 'bg-red-100 text-red-800',
+    'Đang xử lý': 'bg-yellow-100 text-yellow-800',
+    'Đã xác nhận': 'bg-blue-100 text-blue-800',
+    'Đang giao hàng': 'bg-purple-100 text-purple-800',
+    'Đã giao hàng': 'bg-green-100 text-green-800',
+    'Đã hủy': 'bg-red-100 text-red-800',
+  }
+  return map[status] || 'bg-gray-100 text-gray-800'
 }
 
 const getPaymentLabel = (method) => {
@@ -351,13 +395,14 @@ const getPaymentStatusLabel = (status) => {
   return map[status] || status || 'Chưa xác định'
 }
 
-// Hàm in đơn hàng
+// In đơn hàng
 const printOrder = () => {
   if (!props.order) return
   
   const order = props.order
   const details = orderDetails.value
   const displayCode = orderDisplayCode.value
+  const summary = orderSummary.value
   
   const printWindow = window.open('', '_blank')
   if (!printWindow) {
@@ -373,6 +418,13 @@ const printOrder = () => {
       <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: right;">${formatPrice(item.subtotal)}</td>
     </tr>
   `).join('')
+
+  const discountHtml = summary.discount_amount > 0 ? `
+    <tr>
+      <td colspan="3" style="text-align: right; padding: 8px 12px; border: 1px solid #ddd;">Giảm giá</td>
+      <td style="text-align: right; padding: 8px 12px; border: 1px solid #ddd; color: red;">-${formatPrice(summary.discount_amount)}</td>
+    </tr>
+  ` : ''
 
   const content = `
     <!DOCTYPE html>
@@ -391,6 +443,7 @@ const printOrder = () => {
         td { padding: 8px 12px; border: 1px solid #ddd; }
         .total { font-size: 20px; font-weight: bold; color: #1a56db; text-align: right; }
         .footer { margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
+        .discount-row { background-color: #f0fdf4; }
       </style>
     </head>
     <body>
@@ -428,24 +481,19 @@ const printOrder = () => {
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3" style="text-align: right; font-weight: bold;">Tạm tính</td>
-            <td style="text-align: right;">${formatPrice(order.total_amount)}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 8px 12px; border: 1px solid #ddd;">Tạm tính</td>
+            <td style="text-align: right; padding: 8px 12px; border: 1px solid #ddd;">${formatPrice(summary.subtotal)}</td>
           </tr>
-          ${order.shipping_fee > 0 ? `
+          ${summary.shipping_fee > 0 ? `
             <tr>
-              <td colspan="3" style="text-align: right;">Phí vận chuyển</td>
-              <td style="text-align: right;">${formatPrice(order.shipping_fee)}</td>
+              <td colspan="3" style="text-align: right; padding: 8px 12px; border: 1px solid #ddd;">Phí vận chuyển</td>
+              <td style="text-align: right; padding: 8px 12px; border: 1px solid #ddd;">${formatPrice(summary.shipping_fee)}</td>
             </tr>
           ` : ''}
-          ${order.discount_amount > 0 ? `
-            <tr>
-              <td colspan="3" style="text-align: right;">Giảm giá</td>
-              <td style="text-align: right; color: red;">-${formatPrice(order.discount_amount)}</td>
-            </tr>
-          ` : ''}
-          <tr>
-            <td colspan="3" style="text-align: right; font-weight: bold; font-size: 18px;">Tổng cộng</td>
-            <td style="text-align: right; font-weight: bold; font-size: 18px; color: #1a56db;">${formatPrice(order.final_amount)}</td>
+          ${discountHtml}
+          <tr style="background-color: #f0f7ff;">
+            <td colspan="3" style="text-align: right; font-weight: bold; font-size: 18px; padding: 12px; border: 1px solid #ddd;">Tổng cộng</td>
+            <td style="text-align: right; font-weight: bold; font-size: 18px; color: #1a56db; padding: 12px; border: 1px solid #ddd;">${formatPrice(summary.final_amount)}</td>
           </tr>
         </tfoot>
       </table>
@@ -519,10 +567,6 @@ const printOrder = () => {
   
   .bg-primary\/5 {
     background-color: #f0f4ff !important;
-  }
-  
-  .bg-primary\/10 {
-    background-color: #e8edf8 !important;
   }
   
   .bg-gray-50 {

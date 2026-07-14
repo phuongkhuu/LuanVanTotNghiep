@@ -170,78 +170,53 @@
         </aside>
 
         <!-- Product List -->
-        <div class="flex-grow">
-          <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
-            <span class="text-sm text-gray-500">
-              Hiển thị {{ productList.length }} / {{ paginationData?.meta?.total || productList.length }} sản phẩm
-            </span>
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-500">Sắp xếp:</span>
-              <select 
-                v-model="sortBy" 
-                @change="applyFilters"
-                class="border rounded-lg px-3 py-1.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <template v-if="productList && productList.length">
-              <div v-for="product in productList" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
-                <Link :href="route('product.detail', { slug: product.slug })" class="block">
-                  <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
-                    <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform" :alt="product.name">
-                    <span v-if="product.badge" class="absolute top-4 left-4 px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
-                      {{ product.badge }}
-                    </span>
-                    <button class="absolute top-4 right-4 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span class="material-symbols-outlined text-sm">favorite</span>
-                    </button>
-                  </div>
-                  <div class="p-4 flex flex-col flex-grow">
-                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ product.brandCategory }}</p>
-                    <h3 class="font-semibold text-base mb-1 line-clamp-1">{{ product.name }}</h3>
-                    <div class="flex items-baseline space-x-2 mt-auto">
-                      <span class="font-bold text-primary">{{ product.price }}</span>
-                      <span v-if="product.oldPrice" class="text-sm line-through text-gray-400">{{ product.oldPrice }}</span>
-                    </div>
-                  </div>
-                </Link>
-                <div class="px-4 pb-4">
-                  <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm">
-                    Thêm vào giỏ hàng
+        <!-- Phần Product List trong Category.vue -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <template v-if="productList && productList.length">
+            <div v-for="product in productList" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
+              <Link :href="route('product.detail', { slug: product.slug })" class="block">
+                <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                  <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform" :alt="product.name">
+                  
+                  <!-- Badge giảm giá -->
+                  <span v-if="product.badge" class="absolute top-4 left-4 px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
+                    {{ product.badge }}
+                  </span>
+                  
+                  <!-- Badge Pre-order -->
+                  <span v-if="product.is_preorder" class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
+                    Pre-Order
+                  </span>
+                  
+                  <button class="absolute top-4 right-4 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="material-symbols-outlined text-sm">favorite</span>
                   </button>
                 </div>
+                <div class="p-4 flex flex-col flex-grow">
+                  <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ product.brandCategory }}</p>
+                  <h3 class="font-semibold text-base mb-1 line-clamp-1">{{ product.name }}</h3>
+                  <div class="flex items-baseline space-x-2 mt-auto">
+                    <!-- Hiển thị giá sale nếu có -->
+                    <span v-if="product.is_on_sale" class="font-bold text-red-500">
+                      {{ product.sale_price || product.price }}
+                    </span>
+                    <span v-else class="font-bold text-primary">
+                      {{ product.price }}
+                    </span>
+                    <!-- Giá gốc có gạch ngang -->
+                    <span v-if="product.oldPrice" class="text-sm line-through text-gray-400">{{ product.oldPrice }}</span>
+                  </div>
+                </div>
+              </Link>
+              <div class="px-4 pb-4">
+                <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm">
+                  Thêm vào giỏ hàng
+                </button>
               </div>
-            </template>
-            <div v-else class="col-span-full text-center py-12 text-gray-500">
-              Không có sản phẩm nào phù hợp với bộ lọc.
             </div>
-          </div>
-
-          <!-- Phân trang thật -->
-          <div v-if="paginationData && paginationData.links && paginationData.links.length > 0" class="mt-12 flex justify-center space-x-2">
-            <template v-for="link in paginationData.links" :key="link.label">
-              <button
-                v-if="link.url"
-                @click="goToPage(link.url, link.page)"
-                class="w-10 h-10 rounded border flex items-center justify-center hover:bg-gray-50 transition"
-                :class="{
-                  'bg-primary text-white border-primary': link.active,
-                  'border-gray-300': !link.active
-                }"
-                v-html="link.label"
-              ></button>
-              <span
-                v-else
-                class="w-10 h-10 rounded border flex items-center justify-center text-gray-400"
-                v-html="link.label"
-              ></span>
-            </template>
+          </template>
+          <div v-else class="col-span-full text-center py-12 text-gray-500">
+            Không có sản phẩm nào phù hợp với bộ lọc.
           </div>
         </div>
       </section>
@@ -297,7 +272,6 @@ const totalPages = computed(() => {
   return Math.ceil(totalItems.value / perPage.value) || 1
 })
 
-// Danh sách sản phẩm hiển thị (có phân trang client)
 const productList = computed(() => {
   if (isServerPaginated.value) {
     return props.products.data || []
@@ -307,14 +281,11 @@ const productList = computed(() => {
   return (Array.isArray(props.products) ? props.products : []).slice(start, end)
 })
 
-// Dữ liệu phân trang (dùng chung giao diện)
 const paginationData = computed(() => {
   if (isServerPaginated.value) {
     return props.products
   }
-  // Tạo links cho client pagination
   const links = []
-  // Nút Previous
   links.push({
     url: currentPage.value > 1 ? '#' : null,
     label: '&laquo;',
@@ -329,7 +300,6 @@ const paginationData = computed(() => {
       page: i
     })
   }
-  // Nút Next
   links.push({
     url: currentPage.value < totalPages.value ? '#' : null,
     label: '&raquo;',
@@ -345,7 +315,6 @@ const paginationData = computed(() => {
   }
 })
 
-// Hàm chuyển trang (hỗ trợ cả server và client)
 const goToPage = (url, page) => {
   if (isServerPaginated.value) {
     if (url) {
@@ -359,15 +328,13 @@ const goToPage = (url, page) => {
   }
 }
 
-// Reset về trang 1 khi dữ liệu sản phẩm thay đổi (ví dụ sau lọc)
 watch(() => props.products, (newVal) => {
   if (!isServerPaginated.value && Array.isArray(newVal)) {
     currentPage.value = 1
   }
 }, { deep: false })
-// -----------------------------------------------
 
-// Các biến lọc
+// ---------- BỘ LỌC ----------
 const tempBrands = ref([])
 const tempMaterials = ref([])
 const tempCategories = ref([])
@@ -421,11 +388,9 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(price) + 'đ'
 }
 
-// Áp dụng bộ lọc
 const applyFilters = () => {
   const params = new URLSearchParams()
   
-  // Lưu các giá trị đã chọn vào applied
   appliedBrands.value = [...tempBrands.value]
   appliedMaterials.value = [...tempMaterials.value]
   appliedCategories.value = [...tempCategories.value]
@@ -433,7 +398,6 @@ const applyFilters = () => {
   appliedPriceMin.value = tempPriceMin.value
   appliedPriceMax.value = tempPriceMax.value
   
-  // Reset page về 1
   params.set('page', '1')
   
   if (tempBrands.value.length) {
@@ -462,7 +426,6 @@ const applyFilters = () => {
   router.get(url, {}, { preserveState: true, preserveScroll: true })
 }
 
-// Reset bộ lọc
 const resetFilters = () => {
   tempBrands.value = []
   tempMaterials.value = []
@@ -490,7 +453,6 @@ const addToCart = (product) => {
   router.get(route('product.detail', { slug: product.slug }))
 }
 
-// Khởi tạo bộ lọc từ URL
 onMounted(() => {
   const params = new URLSearchParams(window.location.search)
   
@@ -528,7 +490,6 @@ onMounted(() => {
     sortBy.value = params.get('sort')
   }
   
-  // Khởi tạo thanh trượt giá
   if (props.filters.maxPrice) {
     tempPriceRange.value = props.filters.maxPrice
   }

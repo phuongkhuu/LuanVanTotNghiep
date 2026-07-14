@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/CategoryController.php
 
 namespace App\Http\Controllers;
 
@@ -7,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Brand;
 use App\Models\Color;
+use App\Models\Campaign;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -56,14 +58,12 @@ class CategoryController extends Controller
         $query = Product::with(['category', 'brand', 'variants.color'])
             ->where('status', 1);
         
-        // Áp dụng bộ lọc từ URL
         $query = $this->applyFilters($query, $request);
         
         $products = $query->latest()->get();
         
         $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
 
-        // Lấy dữ liệu cho bộ lọc (luôn lấy từ tất cả sản phẩm, không bị ảnh hưởng bởi filter)
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->where('status', 1)
             ->get();
@@ -92,7 +92,6 @@ class CategoryController extends Controller
         
         $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
 
-        // Lấy dữ liệu cho bộ lọc từ tất cả sản phẩm trong danh mục
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->where('category_id', $category->id)
             ->where('status', 1)
@@ -124,7 +123,6 @@ class CategoryController extends Controller
         
         $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
 
-        // Lấy dữ liệu cho bộ lọc
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->whereIn('category_id', $categoryIds)
             ->where('status', 1)
@@ -154,7 +152,6 @@ class CategoryController extends Controller
         
         $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
 
-        // Lấy dữ liệu cho bộ lọc
         $allProducts = Product::with(['category', 'brand', 'variants.color'])
             ->where('brand_id', $brand->id)
             ->where('status', 1)
@@ -227,14 +224,11 @@ class CategoryController extends Controller
 
     private function getFilterData($products)
     {
-        // Lấy danh sách thương hiệu
         $brandIds = $products->pluck('brand_id')->unique()->filter();
         $brands = Brand::whereIn('id', $brandIds)->orderBy('name')->get(['id', 'name']);
 
-        // Lấy danh sách chất liệu
         $materials = $products->pluck('material')->unique()->filter()->values();
 
-        // Lấy danh sách màu sắc - QUAN TRỌNG
         $colorIds = collect();
         foreach ($products as $product) {
             if ($product->variants) {
@@ -244,7 +238,6 @@ class CategoryController extends Controller
         }
         $colorIds = $colorIds->unique()->filter()->values();
         
-        // Lấy thông tin màu sắc từ database
         $colors = collect();
         if ($colorIds->isNotEmpty()) {
             $colors = Color::whereIn('id', $colorIds)
@@ -252,13 +245,11 @@ class CategoryController extends Controller
                 ->get(['id', 'name', 'code']);
         }
 
-        // Lấy danh sách danh mục
         $categoryIds = $products->pluck('category_id')->unique()->filter();
         $categories = Category::whereIn('id', $categoryIds)
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        // Lấy khoảng giá
         $prices = [];
         foreach ($products as $product) {
             if ($product->variants) {
@@ -290,25 +281,123 @@ class CategoryController extends Controller
         ];
     }
 
+    /**
+     * Tính giá sale cho sản phẩm
+     */
+    private function calculateSalePrice($product)
+    {
+        $minPrice = $product->variants->min('price') ?? 0;
+        $salePrice = $minPrice;
+        $discountPercent = 0;
+        $isOnSale = false;
+        $now = now();
+
+        $variantIds = $product->variants->pluck('id')->toArray();
+
+        if (!empty($variantIds)) {
+            // Kiểm tra campaign
+            $campaigns = Campaign::where('status', 'active')
+                ->where('type', '!=', 'voucher')
+                ->where('type', '!=', 'preorder')
+                ->where(function($query) use ($now) {
+                    $query->where(function($q) use ($now) {
+                        $q->where('start_time', '<=', $now)
+                          ->where('end_time', '>=', $now);
+                    })->orWhere(function($q) {
+                        $q->whereNull('start_time')
+                          ->whereNull('end_time');
+                    });
+                })
+                ->whereHas('productVariants', function($query) use ($variantIds) {
+                    $query->whereIn('product_variant_id', $variantIds);
+                })
+                ->with('configs')
+                ->get();
+
+            foreach ($campaigns as $campaign) {
+                $config = $campaign->configs()->first();
+                $currentDiscount = $config ? (float) $config->discount_percent : 0;
+                if ($currentDiscount > $discountPercent) {
+                    $discountPercent = $currentDiscount;
+                }
+            }
+
+            // Kiểm tra pre-order
+            if ($product->is_preorder) {
+                $preorder = Campaign::where('type', 'preorder')
+                    ->where('status', 'active')
+                    ->where('product_id', $product->id)
+                    ->where(function($query) use ($now) {
+                        $query->where(function($q) use ($now) {
+                            $q->where('start_time', '<=', $now)
+                              ->where('end_time', '>=', $now);
+                        })->orWhere(function($q) {
+                            $q->whereNull('start_time')
+                              ->whereNull('end_time');
+                        });
+                    })
+                    ->first();
+
+                if ($preorder) {
+                    $currentBuyers = $preorder->current_buyers ?? 0;
+                    $tiers = $preorder->tiers ?? [];
+                    foreach ($tiers as $tier) {
+                        $from = $tier['from'] ?? 0;
+                        $to = $tier['to'] ?? PHP_INT_MAX;
+                        if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                            $preorderDiscount = $tier['discount'] ?? 0;
+                            if ($preorderDiscount > $discountPercent) {
+                                $discountPercent = $preorderDiscount;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($discountPercent > 0) {
+                $salePrice = $minPrice * (1 - $discountPercent / 100);
+                $salePrice = round($salePrice);
+                $isOnSale = true;
+            }
+        }
+
+        return [
+            'original_price' => $minPrice,
+            'sale_price' => $salePrice,
+            'discount_percent' => $discountPercent,
+            'is_on_sale' => $isOnSale,
+        ];
+    }
+
     private function mapProduct($product)
     {
         $minPrice = $product->variants->min('price') ?? 0;
         $maxPrice = $product->variants->max('price') ?? $minPrice;
-        $originalPrice = $maxPrice > $minPrice ? $maxPrice : null;
-        $discount = $originalPrice ? round((1 - $minPrice / $originalPrice) * 100) . '%' : null;
+        
+        // Tính sale price
+        $saleInfo = $this->calculateSalePrice($product);
+        
+        $displayPrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $minPrice;
+        $originalPrice = $saleInfo['is_on_sale'] ? $minPrice : ($maxPrice > $minPrice ? $maxPrice : null);
+        $discount = $saleInfo['is_on_sale'] ? $saleInfo['discount_percent'] . '%' : null;
 
         return [
             'id' => $product->id,
             'name' => $product->name,
             'slug' => $product->slug,
             'image' => $product->thumbnail ?? 'https://picsum.photos/400/500',
-            'price' => number_format($minPrice) . 'đ',
+            'price' => number_format($displayPrice) . 'đ',
             'oldPrice' => $originalPrice ? number_format($originalPrice) . 'đ' : null,
             'badge' => $discount ? "-$discount" : ($product->is_preorder ? 'Pre-order' : null),
             'badgeClass' => $discount ? 'bg-primary text-white' : ($product->is_preorder ? 'bg-amber-600 text-white' : ''),
             'brandCategory' => $product->brand?->name ?? $product->category?->name ?? '',
             'brand_id' => $product->brand_id,
             'category_id' => $product->category_id,
+            // Thêm thông tin sale
+            'is_on_sale' => $saleInfo['is_on_sale'],
+            'discount_percent' => $saleInfo['discount_percent'],
+            'sale_price' => $saleInfo['is_on_sale'] ? number_format($saleInfo['sale_price']) . 'đ' : null,
         ];
     }
 }

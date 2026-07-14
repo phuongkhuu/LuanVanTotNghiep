@@ -10,145 +10,16 @@ use App\Models\OrderDetail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use App\Models\Campaign;
 
 class PaymentController extends Controller
 {
     protected $orderController;
 
-    public function __construct()
-    {
-        $this->orderController = app(\App\Http\Controllers\Admin\OrderController::class);
-    }
-
-    /**
-     * Hiển thị trang thanh toán
-     */
-    public function index(Request $request)
-    {
-        $isPreOrder = $request->session()->get('pre_order_checkout', false);
-        $preOrderVariantId = $request->session()->get('pre_order_variant_id', null);
-        
-        $products = [];
-        $subtotal = 0;
-        $orderType = 'retail';
-
-        if ($isPreOrder && $preOrderVariantId) {
-            Log::info('Processing pre-order checkout for variant: ' . $preOrderVariantId);
-            
-            $variant = ProductVariant::with('product', 'color')->find($preOrderVariantId);
-            if ($variant && ($variant->product->is_preorder ?? false)) {
-                $quantity = $request->session()->get('pre_order_quantity', 1);
-                $price = $variant->price;
-                $total = $price * $quantity;
-                $subtotal = $total;
-                
-                $images = $variant->product->image_url ?? [];
-                if (!is_array($images)) {
-                    $images = [];
-                }
-                if (empty($images) && $variant->product->thumbnail) {
-                    $images = [$variant->product->thumbnail];
-                }
-                
-                $products[] = [
-                    'id'          => $variant->id,
-                    'name'        => $variant->product->name,
-                    'variant_name'=> $variant->name ?? '',
-                    'price'       => $price,
-                    'quantity'    => $quantity,
-                    'total'       => $total,
-                    'image'       => $images[0] ?? '/images/default-product.jpg',
-                    'color'       => $variant->color->name ?? 'Đen',
-                    'size'        => $variant->size_name ?? 'M',
-                    'is_pre_order' => true,
-                ];
-                
-                $orderType = 'preorder';
-            } else {
-                Log::warning('Pre-order variant not found or invalid: ' . $preOrderVariantId);
-                $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
-                return redirect()->route('cart')->with('error', 'Sản phẩm Pre-order không hợp lệ');
-            }
-        } else {
-            Log::info('Processing retail checkout from cart');
-            $cartItems = Session::get('cart', []);
-            
-            $filteredCart = [];
-            foreach ($cartItems as $variantId => $item) {
-                $variant = ProductVariant::with('product')->find($variantId);
-                if ($variant && !($variant->product->is_preorder ?? false)) {
-                    $filteredCart[$variantId] = $item;
-                }
-            }
-            
-            foreach ($filteredCart as $variantId => $item) {
-                $variant = ProductVariant::with('product', 'color')->find($variantId);
-                if ($variant) {
-                    $price = $item['price'] ?? $variant->price;
-                    $quantity = $item['quantity'];
-                    $total = $price * $quantity;
-                    $subtotal += $total;
-                    
-                    $images = $variant->product->image_url ?? [];
-                    if (!is_array($images)) {
-                        $images = [];
-                    }
-                    if (empty($images) && $variant->product->thumbnail) {
-                        $images = [$variant->product->thumbnail];
-                    }
-                    
-                    $products[] = [
-                        'id'          => $variant->id,
-                        'name'        => $variant->product->name,
-                        'variant_name'=> $variant->name ?? '',
-                        'price'       => $price,
-                        'quantity'    => $quantity,
-                        'total'       => $total,
-                        'image'       => $images[0] ?? '/images/default-product.jpg',
-                        'color'       => $variant->color->name ?? 'Đen',
-                        'size'        => $variant->size_name ?? 'M',
-                        'is_pre_order' => false,
-                    ];
-                }
-            }
-            
-            if (empty($products)) {
-                return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
-            }
-            
-            $orderType = 'retail';
-        }
-
-        $shippingFee = 0;
-        $discount = 0;
-        $finalTotal = $subtotal + $shippingFee - $discount;
-
-        $user = Auth::user();
-        $userData = $user ? [
-            'name'  => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone ?? '',
-        ] : null;
-
-        return Inertia::render('Web/Checkout', [
-            'user' => $userData,
-            'products' => $products,
-            'subtotal' => $subtotal,
-            'shipping_fee' => $shippingFee,
-            'discount' => $discount,
-            'final_total' => $finalTotal,
-            'order_type' => $orderType,
-            'is_pre_order' => $isPreOrder,
-        ]);
-    }
-
-    /**
-     * Xử lý tạo đơn hàng
-     */
     public function store(Request $request)
     {
         Log::info('PaymentController@store called', $request->all());
-        
+    
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -164,11 +35,19 @@ class PaymentController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
             'order_type' => 'required|in:retail,preorder',
+            'promo_code' => 'nullable|string', // <-- NHẬN PROMO_CODE
+            'discount_amount' => 'nullable|numeric|min:0', // <-- NHẬN DISCOUNT_AMOUNT
         ]);
 
         $orderType = $validated['order_type'];
-        Log::info('Creating order with type: ' . $orderType);
+        
+        Log::info('Order data:', [
+            'promo_code' => $validated['promo_code'] ?? null,
+            'discount_amount' => $validated['discount_amount'] ?? 0,
+            'total_amount' => $validated['total_amount'],
+        ]);
 
+        // Tạo request mới với đầy đủ dữ liệu
         $orderRequest = new Request([
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
@@ -181,6 +60,8 @@ class PaymentController extends Controller
             'items' => $validated['items'],
             'total_amount' => $validated['total_amount'],
             'order_type' => $orderType,
+            'promo_code' => $validated['promo_code'] ?? null, // <-- TRUYỀN PROMO_CODE
+            'discount_amount' => $validated['discount_amount'] ?? 0, // <-- TRUYỀN DISCOUNT_AMOUNT
         ]);
 
         try {
@@ -188,26 +69,22 @@ class PaymentController extends Controller
             $responseData = $response->getData();
 
             if ($responseData->success) {
+                // Xóa session
                 if ($orderType === 'retail') {
                     $request->session()->forget('cart');
-                    Log::info('Cart cleared after retail order');
                 } else {
                     $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
-                    Log::info('Pre-order session cleared');
                 }
                 
-                // Lưu order_id vào session
+                $request->session()->forget(['voucher_code', 'voucher_discount']);
+                
                 session(['last_order_id' => $responseData->order->id]);
                 
-                // Lấy order_display_code từ response, nếu không có thì tự tạo
                 if (isset($responseData->order_display_code) && !empty($responseData->order_display_code)) {
                     session(['last_order_display_code' => $responseData->order_display_code]);
-                    Log::info('Display code from response: ' . $responseData->order_display_code);
                 } else {
-                    // Tạo display code từ order
                     $displayCode = $this->generateOrderDisplayCode($responseData->order);
                     session(['last_order_display_code' => $displayCode]);
-                    Log::info('Generated display code: ' . $displayCode);
                 }
 
                 return redirect()->route('checkout.success');
@@ -218,6 +95,317 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             Log::error('Payment store error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+        }
+    }
+
+
+    public function __construct()
+    {
+        $this->orderController = app(\App\Http\Controllers\Admin\OrderController::class);
+    }
+
+    /**
+     * Tính giá sale cho variant
+     */
+    private function calculateSalePrice($variant)
+    {
+        $originalPrice = $variant->price;
+        $salePrice = $originalPrice;
+        $discountPercent = 0;
+        $now = now();
+
+        $campaigns = Campaign::where('status', 'active')
+            ->where('type', '!=', 'voucher')
+            ->where('type', '!=', 'preorder')
+            ->where(function($query) use ($now) {
+                $query->where(function($q) use ($now) {
+                    $q->where('start_time', '<=', $now)
+                      ->where('end_time', '>=', $now);
+                })->orWhere(function($q) {
+                    $q->whereNull('start_time')
+                      ->whereNull('end_time');
+                });
+            })
+            ->whereHas('productVariants', function($query) use ($variant) {
+                $query->where('product_variant_id', $variant->id);
+            })
+            ->with('configs')
+            ->get();
+
+        foreach ($campaigns as $campaign) {
+            $config = $campaign->configs()->first();
+            $currentDiscount = $config ? (float) $config->discount_percent : 0;
+            if ($currentDiscount > $discountPercent) {
+                $discountPercent = $currentDiscount;
+            }
+        }
+
+        if ($discountPercent > 0) {
+            $salePrice = $originalPrice * (1 - $discountPercent / 100);
+            $salePrice = round($salePrice);
+        }
+
+        return [
+            'original_price' => $originalPrice,
+            'sale_price' => $salePrice,
+            'discount_percent' => $discountPercent,
+            'is_on_sale' => $discountPercent > 0,
+        ];
+    }
+
+    /**
+     * Hiển thị trang thanh toán
+     */
+    public function index(Request $request)
+    {
+        // Lấy voucher từ session
+        $voucherCode = $request->session()->get('voucher_code', null);
+        $voucherDiscount = $request->session()->get('voucher_discount', 0);
+
+        // Lấy cart từ request
+        $cartItems = [];
+        if ($request->has('cart')) {
+            $cartJson = $request->query('cart', '{}');
+            $cartItems = json_decode($cartJson, true) ?: [];
+        }
+
+        if (empty($cartItems)) {
+            $cartItems = Session::get('cart', []);
+        }
+
+        Log::info('Checkout - Cart from request:', ['cart' => $cartItems]);
+        Log::info('Checkout - Voucher from session:', [
+            'code' => $voucherCode,
+            'discount' => $voucherDiscount
+        ]);
+
+        $products = [];
+        $subtotal = 0;
+        $orderType = 'retail';
+        $isPreOrder = false;
+
+        if (!empty($cartItems)) {
+            foreach ($cartItems as $variantId => $item) {
+                $variant = ProductVariant::with('product', 'color')->find($variantId);
+                if (!$variant) {
+                    Log::warning("Variant not found: {$variantId}");
+                    continue;
+                }
+
+                if ($variant->product && ($variant->product->is_preorder ?? false)) {
+                    continue;
+                }
+
+                $saleInfo = $this->calculateSalePrice($variant);
+                $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                $quantity = $item['quantity'] ?? 1;
+                $total = $price * $quantity;
+                $subtotal += $total;
+
+                $images = $variant->product->image_url ?? [];
+                if (!is_array($images)) {
+                    $images = [];
+                }
+                if (empty($images) && $variant->product->thumbnail) {
+                    $images = [$variant->product->thumbnail];
+                }
+
+                $products[] = [
+                    'id' => $variant->id,
+                    'name' => $variant->product->name,
+                    'variant_name' => $variant->name ?? '',
+                    'price' => $price,
+                    'quantity' => $quantity,
+                    'total' => $total,
+                    'image' => $images[0] ?? '/images/default-product.jpg',
+                    'color' => $variant->color->name ?? 'Đen',
+                    'size' => $variant->size_name ?? 'M',
+                    'is_pre_order' => false,
+                    'is_on_sale' => $saleInfo['is_on_sale'],
+                    'original_price' => $variant->price,
+                    'discount_percent' => $saleInfo['discount_percent'],
+                ];
+            }
+            $orderType = 'retail';
+            $isPreOrder = false;
+        }
+
+        if (empty($products)) {
+            $preOrderVariantId = Session::get('pre_order_variant_id');
+            if ($preOrderVariantId) {
+                $variant = ProductVariant::with('product', 'color')->find($preOrderVariantId);
+                if ($variant && ($variant->product->is_preorder ?? false)) {
+                    $quantity = Session::get('pre_order_quantity', 1);
+                    $price = $variant->price;
+                    $total = $price * $quantity;
+                    $subtotal = $total;
+
+                    $images = $variant->product->image_url ?? [];
+                    if (!is_array($images)) {
+                        $images = [];
+                    }
+                    if (empty($images) && $variant->product->thumbnail) {
+                        $images = [$variant->product->thumbnail];
+                    }
+
+                    $products[] = [
+                        'id' => $variant->id,
+                        'name' => $variant->product->name,
+                        'variant_name' => $variant->name ?? '',
+                        'price' => $price,
+                        'quantity' => $quantity,
+                        'total' => $total,
+                        'image' => $images[0] ?? '/images/default-product.jpg',
+                        'color' => $variant->color->name ?? 'Đen',
+                        'size' => $variant->size_name ?? 'M',
+                        'is_pre_order' => true,
+                        'is_on_sale' => false,
+                        'original_price' => $variant->price,
+                        'discount_percent' => 0,
+                    ];
+
+                    $orderType = 'preorder';
+                    $isPreOrder = true;
+                    Log::info('Checkout - Pre-order mode');
+                }
+            }
+        }
+
+        if (empty($products)) {
+            Log::warning('Checkout - No products found');
+            return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
+        }
+
+        $discount = $voucherDiscount ?? 0;
+        $shippingFee = 0;
+        $finalTotal = $subtotal + $shippingFee - $discount;
+
+        $user = Auth::user();
+        $userData = $user ? [
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone ?? '',
+        ] : null;
+
+        return Inertia::render('Web/Checkout', [
+            'user' => $userData,
+            'products' => $products,
+            'subtotal' => $subtotal,
+            'shipping_fee' => $shippingFee,
+            'discount' => $discount,
+            'final_total' => $finalTotal,
+            'order_type' => $orderType,
+            'is_pre_order' => $isPreOrder,
+            'voucher_code' => $voucherCode,
+            'voucher_discount' => $voucherDiscount,
+        ]);
+    }
+
+    /**
+   
+    
+     * Áp dụng voucher từ checkout
+     */
+    public function applyVoucher(Request $request)
+    {
+        try {
+            $request->validate([
+                'code' => 'required|string',
+                'subtotal' => 'required|numeric|min:0'
+            ]);
+
+            $code = strtoupper($request->code);
+            $subtotal = $request->subtotal;
+
+            $voucher = Campaign::where('code', $code)
+                ->where('type', 'voucher')
+                ->where('status', 'active')
+                ->first();
+
+            if (!$voucher) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá không hợp lệ'
+                ]);
+            }
+
+            if ($voucher->expiry && $voucher->expiry < now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá đã hết hạn'
+                ]);
+            }
+
+            if ($voucher->limit && $voucher->used >= $voucher->limit) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá đã được sử dụng hết'
+                ]);
+            }
+
+            if ($voucher->min_order > 0 && $subtotal < $voucher->min_order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đơn hàng tối thiểu ' . number_format($voucher->min_order) . 'đ để áp dụng mã'
+                ]);
+            }
+
+            $discountAmount = 0;
+            $discountType = $voucher->discount_type;
+            $discountValue = $voucher->discount_value;
+
+            if ($discountType === 'percent') {
+                $discountAmount = ($subtotal * $discountValue) / 100;
+            } elseif ($discountType === 'fixed') {
+                $discountAmount = min($discountValue, $subtotal);
+            }
+
+            $discountAmount = round($discountAmount);
+
+            session([
+                'voucher_code' => $voucher->code,
+                'voucher_discount' => $discountAmount,
+            ]);
+            session()->save();
+
+            return response()->json([
+                'success' => true,
+                'code' => $voucher->code,
+                'discount_amount' => $discountAmount,
+                'message' => 'Áp dụng mã giảm giá thành công!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Apply voucher error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Xóa voucher khỏi session - SỬA: Trả về signal để xóa localStorage
+     */
+    public function removeVoucher(Request $request)
+    {
+        try {
+            // Xóa session
+            $request->session()->forget(['voucher_code', 'voucher_discount']);
+            $request->session()->save();
+
+            Log::info('Voucher removed from session');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã xóa mã giảm giá',
+                'clear_local' => true // Signal để xóa localStorage
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Remove voucher error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -246,13 +434,10 @@ class PaymentController extends Controller
             return redirect()->route('home')->with('error', 'Không tìm thấy đơn hàng');
         }
 
-        // Nếu không có displayCode trong session, tạo mới
         if (empty($displayCode)) {
             $displayCode = $this->generateOrderDisplayCode($order);
-            Log::info('Generated new display code: ' . $displayCode);
         }
 
-        // Lấy email từ order, nếu không có thì lấy từ user
         $customerEmail = $order->customer_email;
         if (empty($customerEmail) || $customerEmail === 'N/A') {
             $customerEmail = $order->user?->email ?? 'N/A';
@@ -301,7 +486,6 @@ class PaymentController extends Controller
             $payment->save();
         }
 
-        // Tạo dữ liệu order để gửi lên view
         $orderData = [
             'id' => $order->id,
             'customer_name' => $order->customer_name,
@@ -326,15 +510,6 @@ class PaymentController extends Controller
             'order_display_code' => $displayCode,
         ];
 
-        Log::info('Order data sent to view:', [
-            'customer_email' => $orderData['customer_email'],
-            'order_display_code' => $displayCode,
-            'display_code' => $displayCode,
-            'created_at' => $orderData['created_at'],
-            'details_count' => count($orderDetails),
-        ]);
-
-        // Xóa session sau khi đã lấy dữ liệu
         session()->forget(['last_order_id', 'last_order_display_code']);
 
         return Inertia::render('Web/CheckoutSuccess', [
@@ -343,14 +518,8 @@ class PaymentController extends Controller
         ]);
     }
 
-    /**
-     * Tạo mã đơn hàng hiển thị - GIỐNG VỚI ORDERHISTORY
-     * Format: [Loại đơn hàng][Ngày tạo dmY][STT 5 số]
-     * Ví dụ: L1307202600019 (L + 13072026 + 00019)
-     */
     private function generateOrderDisplayCode($order)
     {
-        // Xác định prefix dựa trên loại đơn hàng
         $prefix = match($order->order_code) {
             'retail' => 'L',
             'wholesale' => 'S',
@@ -358,10 +527,7 @@ class PaymentController extends Controller
             default => 'DH'
         };
 
-        // Dùng ngày hiện tại format dmY (ngày-tháng-năm)
-        $date = now()->format('dmY'); // 13072026
-        
-        // Dùng ID của order làm sequence, format 5 số (VD: 00019)
+        $date = now()->format('dmY');
         $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
 
         return $prefix . $date . $sequence;

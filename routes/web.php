@@ -11,7 +11,6 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\BannerController;
-
 use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\PromotionController;
@@ -30,6 +29,8 @@ use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\ReviewController;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 // ==================== ROUTE ĐỂ PHỤC VỤ ẢNH ====================
 Route::get('/image/{filename}', function ($filename) {
@@ -70,25 +71,37 @@ Route::get('/tuy-chinh', function () {
 
 // ==================== LỊCH SỬ ĐƠN HÀNG ROUTES (Yêu cầu đăng nhập) ====================
 Route::middleware(['auth'])->group(function () {
-    // Trang lịch sử đơn hàng
     Route::get('/lich-su-don-hang', [OrderHistoryController::class, 'index'])->name('orders.history');
-    // API lấy dữ liệu lịch sử đơn hàng
     Route::get('/lich-su-don-hang/data', [OrderHistoryController::class, 'getOrders'])->name('orders.history.data');
 });
 
-// ==================== CART ROUTES (Yêu cầu đăng nhập) ====================
-
-// Cart page
-Route::get('/gio-hang', function () {
-    return Inertia::render('Web/Cart');
+// ==================== CART ROUTES ====================
+Route::get('/gio-hang', function (Request $request) {
+    $voucherCode = $request->session()->get('voucher_code', null);
+    $voucherDiscount = $request->session()->get('voucher_discount', 0);
+    
+    return Inertia::render('Web/Cart', [
+        'voucher_code' => $voucherCode,
+        'voucher_discount' => $voucherDiscount,
+    ]);
 })->name('cart')->middleware('auth');
 
-Route::middleware(['auth'])->prefix('api')->group(function () {
+Route::prefix('api')->group(function () {
+    // Cart routes
     Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart', [CartController::class, 'index']);
     Route::post('/cart/add', [CartController::class, 'add']);
     Route::put('/cart/update', [CartController::class, 'update']);
     Route::delete('/cart/remove/{variantId}', [CartController::class, 'remove']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
+    Route::post('/cart/apply-coupon', [CartController::class, 'applyCoupon']);
+    Route::get('/cart/get-coupon', [CartController::class, 'getCoupon']);
+    Route::post('/cart/remove-coupon', [CartController::class, 'removeCoupon']); // <-- ROUTE NÀY
+
+    Route::post('/campaigns/clear-cache', function() {
+        Cache::forget('active_campaigns_with_configs');
+        return response()->json(['success' => true]);
+    });
     
     Route::post('/pre-order/session', function (Request $request) {
         $request->validate([
@@ -96,7 +109,6 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
             'quantity' => 'required|integer|min:1'
         ]);
         
-        // Lưu thông tin pre-order vào session
         session([
             'pre_order_checkout' => true,
             'pre_order_variant_id' => $request->variant_id,
@@ -111,11 +123,13 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     });
 });
 
-// ==================== CHECKOUT ROUTES (Yêu cầu đăng nhập) ====================
+// ==================== CHECKOUT ROUTES ====================
 Route::middleware(['auth'])->group(function () {
     Route::get('/thanh-toan', [PaymentController::class, 'index'])->name('checkout');
     Route::post('/thanh-toan', [PaymentController::class, 'store'])->name('checkout.store');
     Route::get('/thanh-toan/thanh-cong', [PaymentController::class, 'success'])->name('checkout.success');
+    Route::post('/checkout/apply-voucher', [PaymentController::class, 'applyVoucher']);
+    Route::post('/checkout/remove-voucher', [PaymentController::class, 'removeVoucher']);
 });
 
 // ==================== AUTHENTICATED WEB ROUTES ====================
@@ -129,11 +143,9 @@ Route::middleware('auth')->group(function () {
 
 // ==================== ADMIN ROUTES ====================
 Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(function () {
-    // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     
-    // Orders Management
     Route::prefix('orders')->group(function () {
         Route::get('/{type?}', [AdminOrderController::class, 'index'])
             ->where('type', 'retail|wholesale|preorder')
@@ -146,7 +158,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
     });
     
-    // Products Management
     Route::prefix('products')->group(function () {
         Route::get('/{type?}', [AdminProductController::class, 'index'])
             ->where('type', 'normal|preorder')
@@ -156,7 +167,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::delete('/{product}', [AdminProductController::class, 'destroy'])->name('products.destroy');
     });
     
-    // Categories Management
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
     Route::get('/categories/create', [CategoryController::class, 'create'])->name('categories.create');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
@@ -164,14 +174,12 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
     
-    // Colors Management
     Route::get('/colors', [ColorController::class, 'index'])->name('colors.index');
     Route::get('/colors/data', [ColorController::class, 'getColors'])->name('colors.data');
     Route::post('/colors', [ColorController::class, 'store'])->name('colors.store');
     Route::put('/colors/{id}', [ColorController::class, 'update'])->name('colors.update');
     Route::delete('/colors/{id}', [ColorController::class, 'destroy'])->name('colors.destroy');
         
-    // Brands Management
     Route::prefix('brands')->group(function () {
         Route::get('/', [BrandController::class, 'index'])->name('brands.index');
         Route::get('/data', [BrandController::class, 'getBrands'])->name('brands.data');
@@ -181,7 +189,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/search', [BrandController::class, 'search'])->name('brands.search');
     });
     
-    // Customers Management
     Route::prefix('customers')->group(function () {
         Route::get('/', [AdminCustomerController::class, 'index'])->name('customers.index');
         Route::get('/retail', [AdminCustomerController::class, 'retail'])->name('customers.retail');
@@ -191,7 +198,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::post('/export', [AdminCustomerController::class, 'export'])->name('customers.export');
     });
     
-    // Customize Management
     Route::prefix('customize')->group(function () {
         Route::get('/', [AdminCustomizeController::class, 'index'])->name('customize.index');
         Route::put('/{id}/status', [AdminCustomizeController::class, 'updateStatus'])->name('customize.update-status');
@@ -199,7 +205,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::post('/send-quote', [AdminCustomizeController::class, 'sendQuote'])->name('customize.send-quote');
     });
 
-    // News Management
     Route::prefix('news')->group(function () {
         Route::get('/', [NewsController::class, 'index'])->name('news.index');
         Route::get('/data', [NewsController::class, 'getNews'])->name('news.data');
@@ -209,13 +214,11 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::patch('/{id}/status', [NewsController::class, 'updateStatus'])->name('news.update-status');
     });
 
-    // Reviews Management
     Route::prefix('reviews')->group(function () {
         Route::get('/', [AdminReviewController::class, 'index'])->name('reviews.index');
         Route::delete('/{id}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
     });
 
-    // Banner routes
     Route::get('/banners', [BannerController::class, 'index'])->name('banners.index');
     Route::get('/banners/data', [BannerController::class, 'getBanners'])->name('banners.data');
     Route::get('/banners/campaigns', [BannerController::class, 'getCampaigns'])->name('banners.campaigns');
@@ -226,57 +229,45 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::patch('/banners/{id}/order', [BannerController::class, 'updateOrder'])->name('banners.order');
     Route::post('/banners/check-status', [BannerController::class, 'checkAndUpdateStatus'])->name('banners.check-status');
 
-    // ==================== PROMOTION ROUTES (FIXED) ====================
     Route::prefix('promotions')->group(function () {
-        // Index - Danh sách khuyến mãi
         Route::get('/', [AdminPromotionController::class, 'index'])->name('promotions.index');
         
-        // ⭐ Campaign routes
         Route::post('/campaign', [AdminPromotionController::class, 'storeCampaign'])->name('promotions.campaign.store');
         Route::put('/campaign/{id}', [AdminPromotionController::class, 'updateCampaign'])->name('promotions.campaign.update');
         Route::delete('/campaign/{id}', [AdminPromotionController::class, 'deleteCampaign'])->name('promotions.campaign.delete');
         Route::put('/campaign/{id}/status', [AdminPromotionController::class, 'updateCampaignStatus'])->name('promotions.campaign.status');
         Route::get('/campaigns/list', [AdminPromotionController::class, 'getCampaignsList'])->name('promotions.campaigns.list');
 
-        // ⭐ Voucher routes
         Route::post('/voucher', [AdminPromotionController::class, 'storeVoucher'])->name('promotions.voucher.store');
         Route::put('/voucher/{id}', [AdminPromotionController::class, 'updateVoucher'])->name('promotions.voucher.update');
         Route::delete('/voucher/{id}', [AdminPromotionController::class, 'deleteVoucher'])->name('promotions.voucher.delete');
         Route::put('/voucher/{id}/toggle', [AdminPromotionController::class, 'toggleVoucher'])->name('promotions.voucher.toggle');
 
-        // ⭐ Pre-order routes
         Route::post('/preorder', [AdminPromotionController::class, 'storePreorder'])->name('promotions.preorder.store');
         Route::put('/preorder/{id}', [AdminPromotionController::class, 'updatePreorder'])->name('promotions.preorder.update');
         Route::delete('/preorder/{id}', [AdminPromotionController::class, 'deletePreorder'])->name('promotions.preorder.delete');
         Route::put('/preorder/{id}/toggle', [AdminPromotionController::class, 'togglePreorder'])->name('promotions.preorder.toggle');
         
-        // Discount routes
         Route::post('/discount', [AdminPromotionController::class, 'storeDiscount'])->name('admin.promotions.discount.store');
         Route::put('/discount/{id}', [AdminPromotionController::class, 'updateDiscount'])->name('admin.promotions.discount.update');
         Route::delete('/discount/{id}', [AdminPromotionController::class, 'deleteDiscount'])->name('admin.promotions.discount.delete');
         Route::put('/discount/{id}/toggle', [AdminPromotionController::class, 'toggleDiscount'])->name('admin.promotions.discount.toggle');
 
-
-        // ⭐ THÊM: Route increment buyers cho pre-order
         Route::post('/preorder/{id}/increment-buyers', [AdminPromotionController::class, 'incrementPreorderBuyers'])
             ->name('promotions.preorder.increment');
 
-        // ⭐ API Check Promotion (dùng AdminPromotionController)
         Route::post('/check', [AdminPromotionController::class, 'checkPromotion'])->name('promotions.check');
         Route::get('/preorder-info', [AdminPromotionController::class, 'getPreorderInfo'])->name('promotions.preorder.info');
     });
 
-    // Reports
     Route::get('/reports', function () {
         return Inertia::render('Admin/Reports');
     })->name('reports.index');
     
-    // Settings
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::put('/settings/general', [SettingController::class, 'updateGeneral'])->name('settings.updateGeneral');
     Route::put('/settings/password', [SettingController::class, 'changePassword'])->name('settings.changePassword');
 
-    // User Management
     Route::get('/settings/users', [SettingController::class, 'getUsers'])->name('settings.users');
     Route::post('/settings/users', [SettingController::class, 'storeUser'])->name('settings.storeUser');
     Route::put('/settings/users/{id}', [SettingController::class, 'updateUser'])->name('settings.updateUser');
