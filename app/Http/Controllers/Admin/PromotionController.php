@@ -25,10 +25,8 @@ class PromotionController extends Controller
     public function index()
     {
         try {
-            // Kiểm tra và reset pre-order hết hạn trước khi load
             $this->checkExpiredPreorders();
 
-            // Lấy campaigns
             $allCampaigns = Campaign::with([
                 'configs', 
                 'productVariants', 
@@ -56,14 +54,21 @@ class PromotionController extends Controller
                         $bannerImage = $campaign->banner_url;
                     }
                     
-                    // ============ TÍNH GIÁ SALE CHO PRE-ORDER ============
                     $basePrice = 0;
                     $currentSalePrice = 0;
                     $currentDiscount = 0;
+                    $productImage = null;
+
                     
                     if ($campaign->type === 'preorder' && $campaign->product_id) {
                         $product = $campaign->product;
+                        $productImage = null;
                         if ($product) {
+                            // Lấy ảnh sản phẩm
+                            if ($product->image_url && is_array($product->image_url) && count($product->image_url) > 0) {
+                                $productImage = $product->image_url[0];
+                            }
+                            
                             $variants = $product->variants;
                             if ($variants && $variants->count() > 0) {
                                 $basePrice = $variants->min('price') ?? 0;
@@ -115,6 +120,7 @@ class PromotionController extends Controller
                         'discount' => $config ? (float) $config->discount_percent . '%' : '0%',
                         'products' => $campaign->productVariants->pluck('id')->toArray(),
                         'product_id' => $campaign->product_id,
+                        'product_image' => $productImage, // Thêm ảnh sản phẩm
                         'tiers' => $campaign->tiers,
                         'current_buyers' => $campaign->current_buyers ?? 0,
                         'base_price' => $basePrice,
@@ -151,11 +157,7 @@ class PromotionController extends Controller
                 return [
                     'id' => $discount->id,
                     'min_quantity' => $discount->min_quantity,
-                    'discount_percent' => $discount->discount_percent,
-                    'order_code' => $discount->order_code,
-                    'order_code_label' => $discount->order_code_label,
-                    'type' => $discount->type ?? 'quantity_based',
-                    'min_amount' => $discount->min_amount,
+                    'discount_percent' => (float) $discount->discount_percent,
                     'is_active' => (bool) $discount->is_active,
                     'created_at' => $discount->created_at ? $discount->created_at->format('d/m/Y H:i') : null,
                 ];
@@ -209,6 +211,9 @@ class PromotionController extends Controller
                             'brand_name' => $variant->product->brand ? $variant->product->brand->name : null,
                             'category_id' => $variant->product->category_id,
                             'category_name' => $variant->product->category ? $variant->product->category->name : null,
+                            'image' => $variant->product->image_url && is_array($variant->product->image_url) && count($variant->product->image_url) > 0 
+                                ? $variant->product->image_url[0] 
+                                : null, // Thêm ảnh sản phẩm
                         ] : null,
                         'color' => $variant->color ? [
                             'id' => $variant->color->id,
@@ -225,6 +230,12 @@ class PromotionController extends Controller
                 ->latest()
                 ->get()
                 ->map(function ($product) {
+                    // Lấy ảnh đầu tiên từ image_url
+                    $image = null;
+                    if ($product->image_url && is_array($product->image_url) && count($product->image_url) > 0) {
+                        $image = $product->image_url[0];
+                    }
+                    
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
@@ -232,6 +243,7 @@ class PromotionController extends Controller
                         'brand_name' => $product->brand ? $product->brand->name : null,
                         'category_id' => $product->category_id,
                         'category_name' => $product->category ? $product->category->name : null,
+                        'image' => $image, // Thêm ảnh sản phẩm
                         'variants' => $product->variants->map(function ($variant) {
                             return [
                                 'id' => $variant->id,
@@ -279,15 +291,11 @@ class PromotionController extends Controller
         }
     }
 
-    // ==================== CẬP NHẬT SALE PRICE CHO RETAIL ====================
+    // ==================== CẬP NHẬT SALE PRICE ====================
     
-    /**
-     * Cập nhật sale_price cho variants khi campaign retail active
-     */
     private function updateRetailSalePrice($campaign)
     {
         try {
-            // Lấy các variant được áp dụng campaign
             $variantIds = $campaign->productVariants()->pluck('product_variant_id')->toArray();
             
             if (empty($variantIds)) {
@@ -295,17 +303,9 @@ class PromotionController extends Controller
                 return;
             }
 
-            // Lấy discount percent từ config
             $config = $campaign->configs()->first();
             $discountPercent = $config ? (float) $config->discount_percent : 0;
 
-            Log::info('Updating retail sale price:', [
-                'campaign_id' => $campaign->id,
-                'variant_count' => count($variantIds),
-                'discount_percent' => $discountPercent,
-            ]);
-
-            // Cập nhật sale_price cho từng variant
             foreach ($variantIds as $variantId) {
                 $variant = ProductVariant::find($variantId);
                 if (!$variant) continue;
@@ -323,7 +323,6 @@ class PromotionController extends Controller
                         'sale_campaign_id' => $campaign->id,
                     ]);
                 } else {
-                    // Nếu discount = 0, xóa sale
                     $variant->update([
                         'sale_price' => null,
                         'is_on_sale' => false,
@@ -331,26 +330,13 @@ class PromotionController extends Controller
                         'sale_campaign_id' => null,
                     ]);
                 }
-
-                Log::info('Variant sale price updated:', [
-                    'variant_id' => $variantId,
-                    'original_price' => $originalPrice,
-                    'sale_price' => $variant->sale_price,
-                    'discount_percent' => $discountPercent,
-                ]);
             }
 
         } catch (\Exception $e) {
-            Log::error('Error updating retail sale price: ' . $e->getMessage(), [
-                'campaign_id' => $campaign->id,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error updating retail sale price: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Reset sale_price cho variants khi campaign ended/disabled
-     */
     private function resetRetailSalePrice($campaign)
     {
         try {
@@ -362,7 +348,6 @@ class PromotionController extends Controller
                 $variant = ProductVariant::find($variantId);
                 if (!$variant) continue;
                 
-                // Chỉ reset nếu variant đang được campaign này áp dụng
                 if ($variant->sale_campaign_id == $campaign->id) {
                     $variant->update([
                         'sale_price' => null,
@@ -373,21 +358,16 @@ class PromotionController extends Controller
                 }
             }
 
-            Log::info('Retail sale price reset for campaign', ['campaign_id' => $campaign->id]);
-
         } catch (\Exception $e) {
-            Log::error('Error resetting retail sale price: ' . $e->getMessage(), [
-                'campaign_id' => $campaign->id,
-            ]);
+            Log::error('Error resetting retail sale price: ' . $e->getMessage());
         }
     }
 
-    // ==================== KIỂM TRA PRE-ORDER HẾT HẠN ====================
+    // ==================== KIỂM TRA EXPIRED ====================
     
     public function checkExpiredPreorders()
     {
         try {
-            // Xử lý pre-order expired
             $expiredPreorders = Campaign::where('type', 'preorder')
                 ->where('status', 'active')
                 ->where('end_time', '<', now())
@@ -407,14 +387,8 @@ class PromotionController extends Controller
                 }
                 
                 $preorder->update(['status' => 'ended']);
-                
-                Log::info('Pre-order expired and reset:', [
-                    'campaign_id' => $preorder->id,
-                    'product_id' => $preorder->product_id,
-                ]);
             }
             
-            // Xử lý campaign retail expired
             $expiredCampaigns = Campaign::where('type', '!=', 'preorder')
                 ->where('type', '!=', 'voucher')
                 ->where('status', 'active')
@@ -424,11 +398,6 @@ class PromotionController extends Controller
             foreach ($expiredCampaigns as $campaign) {
                 $this->resetRetailSalePrice($campaign);
                 $campaign->update(['status' => 'ended']);
-                
-                Log::info('Campaign expired and reset:', [
-                    'campaign_id' => $campaign->id,
-                    'name' => $campaign->name,
-                ]);
             }
             
             return $expiredPreorders->count() + $expiredCampaigns->count();
@@ -439,6 +408,69 @@ class PromotionController extends Controller
         }
     }
 
+    // ==================== KIỂM TRA TRÙNG LẶP ====================
+    
+    private function checkProductConflicts($productIds, $excludeCampaignId = null)
+    {
+        $conflicts = [];
+        
+        foreach ($productIds as $productId) {
+            $conflictingCampaign = Campaign::where('type', '!=', 'voucher')
+                ->where('type', '!=', 'preorder')
+                ->where('status', 'active')
+                ->where('id', '!=', $excludeCampaignId)
+                ->whereHas('productVariants', function($query) use ($productId) {
+                    $query->where('product_variant_id', $productId);
+                })
+                ->first();
+            
+            if ($conflictingCampaign) {
+                $variant = ProductVariant::find($productId);
+                $productName = $variant && $variant->product ? $variant->product->name : 'SP#' . $productId;
+                $conflicts[] = $productName . ' (đang trong campaign: ' . $conflictingCampaign->name . ')';
+            }
+        }
+        
+        return $conflicts;
+    }
+
+    private function checkPreorderProductConflict($productId, $excludePreorderId = null)
+    {
+        $conflictingPreorder = Campaign::where('type', 'preorder')
+            ->where('status', 'active')
+            ->where('id', '!=', $excludePreorderId)
+            ->where('product_id', $productId)
+            ->first();
+        
+        if ($conflictingPreorder) {
+            return $conflictingPreorder->name;
+        }
+        
+        return null;
+    }
+
+    private function validateDiscountOrder($minQuantity, $discountPercent, $excludeId = null)
+    {
+        $query = Discount::where('is_active', true)
+            ->where('id', '!=', $excludeId);
+        
+        $existingDiscounts = $query->orderBy('min_quantity', 'asc')->get();
+        
+        foreach ($existingDiscounts as $existing) {
+            if ($minQuantity > $existing->min_quantity) {
+                if ($discountPercent <= $existing->discount_percent) {
+                    return "Số lượng {$minQuantity} sản phẩm phải có % chiết khấu lớn hơn mức {$existing->min_quantity} sản phẩm ({$existing->discount_percent}%)";
+                }
+            } elseif ($minQuantity < $existing->min_quantity) {
+                if ($discountPercent >= $existing->discount_percent) {
+                    return "Số lượng {$minQuantity} sản phẩm phải có % chiết khấu nhỏ hơn mức {$existing->min_quantity} sản phẩm ({$existing->discount_percent}%)";
+                }
+            }
+        }
+        
+        return null;
+    }
+
     // ==================== DISCOUNT METHODS ====================
 
     public function storeDiscount(Request $request)
@@ -446,42 +478,47 @@ class PromotionController extends Controller
         try {
             DB::beginTransaction();
 
-            Log::info('=== STORE DISCOUNT ===');
-            Log::info('Data: ', $request->all());
-
             $validated = $request->validate([
                 'min_quantity' => 'required|integer|min:1',
-                'discount_percent' => 'required|numeric|min:0|max:100',
-                'order_code' => 'nullable|in:wholesale,event',
-                'type' => 'nullable|in:quantity_based,amount_based',
-                'min_amount' => 'nullable|numeric|min:0',
+                'discount_percent' => 'required|numeric|min:1|max:100',
                 'is_active' => 'nullable|boolean',
             ]);
 
-            $existing = Discount::where('min_quantity', $validated['min_quantity'])
-                ->where('order_code', $validated['order_code'] ?? null)
-                ->first();
+            if ($validated['discount_percent'] < 1) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm chiết khấu phải từ 1% đến 100%'
+                ]);
+            }
 
+            $existing = Discount::where('min_quantity', $validated['min_quantity'])->first();
             if ($existing) {
                 DB::rollBack();
                 return redirect()->back()->with([
                     'success' => false,
-                    'message' => 'Đã tồn tại mức chiết khấu cho số lượng ' . $validated['min_quantity'] . ' với loại ' . ($validated['order_code'] ?? 'chung')
+                    'message' => 'Đã tồn tại mức chiết khấu cho số lượng ' . $validated['min_quantity']
                 ]);
             }
 
+            if ($validated['is_active'] ?? false) {
+                $error = $this->validateDiscountOrder($validated['min_quantity'], $validated['discount_percent']);
+                if ($error) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => $error
+                    ]);
+                }
+            }
+
             $discount = Discount::create([
-                'min_quantity' => $validated['min_quantity'],
-                'discount_percent' => $validated['discount_percent'],
-                'order_code' => $validated['order_code'] ?? null,
-                'type' => $validated['type'] ?? 'quantity_based',
-                'min_amount' => $validated['min_amount'] ?? null,
+                'min_quantity' => (int) $validated['min_quantity'],
+                'discount_percent' => (float) $validated['discount_percent'],
                 'is_active' => $validated['is_active'] ?? false,
             ]);
 
             DB::commit();
-
-            Log::info('Discount created: ID ' . $discount->id);
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
@@ -507,15 +544,19 @@ class PromotionController extends Controller
 
             $validated = $request->validate([
                 'min_quantity' => 'required|integer|min:1',
-                'discount_percent' => 'required|numeric|min:0|max:100',
-                'order_code' => 'nullable|in:wholesale,event',
-                'type' => 'nullable|in:quantity_based,amount_based',
-                'min_amount' => 'nullable|numeric|min:0',
+                'discount_percent' => 'required|numeric|min:1|max:100',
                 'is_active' => 'nullable|boolean',
             ]);
 
+            if ($validated['discount_percent'] < 1) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm chiết khấu phải từ 1% đến 100%'
+                ]);
+            }
+
             $existing = Discount::where('min_quantity', $validated['min_quantity'])
-                ->where('order_code', $validated['order_code'] ?? null)
                 ->where('id', '!=', $id)
                 ->first();
 
@@ -523,16 +564,24 @@ class PromotionController extends Controller
                 DB::rollBack();
                 return redirect()->back()->with([
                     'success' => false,
-                    'message' => 'Đã tồn tại mức chiết khấu cho số lượng ' . $validated['min_quantity'] . ' với loại ' . ($validated['order_code'] ?? 'chung')
+                    'message' => 'Đã tồn tại mức chiết khấu cho số lượng ' . $validated['min_quantity']
                 ]);
             }
 
+            if ($validated['is_active'] ?? $discount->is_active) {
+                $error = $this->validateDiscountOrder($validated['min_quantity'], $validated['discount_percent'], $id);
+                if ($error) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => $error
+                    ]);
+                }
+            }
+
             $discount->update([
-                'min_quantity' => $validated['min_quantity'],
-                'discount_percent' => $validated['discount_percent'],
-                'order_code' => $validated['order_code'] ?? null,
-                'type' => $validated['type'] ?? 'quantity_based',
-                'min_amount' => $validated['min_amount'] ?? null,
+                'min_quantity' => (int) $validated['min_quantity'],
+                'discount_percent' => (float) $validated['discount_percent'],
                 'is_active' => $validated['is_active'] ?? false,
             ]);
 
@@ -585,6 +634,18 @@ class PromotionController extends Controller
             
             $discount = Discount::findOrFail($id);
             $newStatus = !$discount->is_active;
+            
+            if ($newStatus) {
+                $error = $this->validateDiscountOrder($discount->min_quantity, $discount->discount_percent, $id);
+                if ($error) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => $error
+                    ]);
+                }
+            }
+            
             $discount->update(['is_active' => $newStatus]);
             
             DB::commit();
@@ -610,26 +671,43 @@ class PromotionController extends Controller
     {
         try {
             DB::beginTransaction();
-            Log::info('=== STORE CAMPAIGN ===');
-            Log::info('Request data:', $request->all());
 
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
                 'type' => 'nullable|string|max:50',
                 'description' => 'nullable|string',
-                'startDate' => 'nullable|date',
-                'endDate' => 'nullable|date|after_or_equal:startDate',
+                'startDate' => 'required|date',
+                'endDate' => 'required|date|after_or_equal:startDate',
                 'status' => 'nullable|in:scheduled,active,ended',
                 'priority' => 'nullable|integer|min:0',
                 'featured' => 'boolean',
-                'discountPercent' => 'nullable|numeric|min:0|max:100',
+                'discountPercent' => 'nullable|numeric|min:1|max:100',
                 'products' => 'nullable|array',
                 'products.*' => 'exists:product_variants,id',
             ]);
 
+            if (isset($validated['discountPercent']) && $validated['discountPercent'] < 1) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
+                ]);
+            }
+
+            if (!empty($validated['products'])) {
+                $conflicts = $this->checkProductConflicts($validated['products'], null);
+                if (!empty($conflicts)) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => 'Các sản phẩm sau đang thuộc chiến dịch khác đang diễn ra: ' . implode(', ', $conflicts)
+                    ]);
+                }
+            }
+
             $status = $validated['status'] ?? 'scheduled';
-            if ($validated['startDate'] && $validated['startDate'] <= now()->format('Y-m-d')) {
-                if (!$validated['endDate'] || $validated['endDate'] >= now()->format('Y-m-d')) {
+            if ($validated['startDate'] <= now()->format('Y-m-d')) {
+                if ($validated['endDate'] >= now()->format('Y-m-d')) {
                     $status = 'active';
                 } elseif ($validated['endDate'] < now()->format('Y-m-d')) {
                     $status = 'ended';
@@ -641,33 +719,23 @@ class PromotionController extends Controller
                 'type' => $validated['type'] ?? 'seasonal',
                 'campaign_type' => 'campaign',
                 'description' => $validated['description'] ?? '',
-                'start_time' => $validated['startDate'] ?? null,
-                'end_time' => $validated['endDate'] ?? null,
+                'start_time' => $validated['startDate'],
+                'end_time' => $validated['endDate'],
                 'status' => $status,
                 'priority' => $validated['priority'] ?? 0,
                 'featured' => $validated['featured'] ?? false,
             ]);
-            Log::info('Campaign created:', ['id' => $campaign->id]);
 
             $config = CampaignConfig::create([
                 'campaign_id' => $campaign->id,
                 'quantity' => 0,
                 'discount_percent' => $validated['discountPercent'] ?? 0,
             ]);
-            Log::info('CampaignConfig created:', [
-                'campaign_id' => $campaign->id,
-                'discount_percent' => $config->discount_percent
-            ]);
 
             if (!empty($validated['products']) && is_array($validated['products'])) {
                 $campaign->productVariants()->attach($validated['products']);
-                Log::info('Products attached to campaign:', [
-                    'campaign_id' => $campaign->id,
-                    'variant_ids' => $validated['products']
-                ]);
             }
 
-            // Cập nhật sale_price cho các variant retail
             if ($status === 'active') {
                 $this->updateRetailSalePrice($campaign);
             }
@@ -682,7 +750,6 @@ class PromotionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Lỗi tạo chiến dịch: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             return redirect()->back()->with([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
@@ -701,36 +768,57 @@ class PromotionController extends Controller
                 'name' => 'nullable|string|max:255',
                 'type' => 'nullable|string|max:50',
                 'description' => 'nullable|string',
-                'startDate' => 'nullable|date',
-                'endDate' => 'nullable|date|after_or_equal:startDate',
+                'startDate' => 'required|date',
+                'endDate' => 'required|date|after_or_equal:startDate',
                 'status' => 'nullable|in:scheduled,active,ended',
                 'priority' => 'nullable|integer|min:0',
                 'featured' => 'boolean',
-                'discountPercent' => 'nullable|numeric|min:0|max:100',
+                'discountPercent' => 'nullable|numeric|min:1|max:100',
                 'products' => 'nullable|array',
                 'products.*' => 'exists:product_variants,id',
             ]);
 
-            $status = $validated['status'] ?? $campaign->status;
-            if ($validated['startDate'] ?? false) {
-                if ($validated['startDate'] <= now()->format('Y-m-d')) {
-                    if (!$validated['endDate'] || $validated['endDate'] >= now()->format('Y-m-d')) {
-                        $status = 'active';
-                    } elseif ($validated['endDate'] < now()->format('Y-m-d')) {
-                        $status = 'ended';
+            if (isset($validated['discountPercent']) && $validated['discountPercent'] < 1) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
+                ]);
+            }
+
+            if (isset($validated['products'])) {
+                $oldProducts = $campaign->productVariants()->pluck('product_variant_id')->toArray();
+                $newProducts = $validated['products'];
+                
+                $addedProducts = array_diff($newProducts, $oldProducts);
+                
+                if (!empty($addedProducts)) {
+                    $conflicts = $this->checkProductConflicts($addedProducts, $id);
+                    if (!empty($conflicts)) {
+                        DB::rollBack();
+                        return redirect()->back()->with([
+                            'success' => false,
+                            'message' => 'Không thể thêm các sản phẩm sau vì đang thuộc chiến dịch khác đang diễn ra: ' . implode(', ', $conflicts)
+                        ]);
                     }
                 }
             }
 
-            $oldStatus = $campaign->status;
-            $oldProducts = $campaign->productVariants()->pluck('product_variant_id')->toArray();
+            $status = $validated['status'] ?? $campaign->status;
+            if ($validated['startDate'] <= now()->format('Y-m-d')) {
+                if ($validated['endDate'] >= now()->format('Y-m-d')) {
+                    $status = 'active';
+                } elseif ($validated['endDate'] < now()->format('Y-m-d')) {
+                    $status = 'ended';
+                }
+            }
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,
                 'type' => $validated['type'] ?? $campaign->type,
                 'description' => $validated['description'] ?? $campaign->description,
-                'start_time' => $validated['startDate'] ?? $campaign->start_time,
-                'end_time' => $validated['endDate'] ?? $campaign->end_time,
+                'start_time' => $validated['startDate'],
+                'end_time' => $validated['endDate'],
                 'status' => $status,
                 'priority' => $validated['priority'] ?? $campaign->priority,
                 'featured' => $validated['featured'] ?? $campaign->featured,
@@ -754,12 +842,9 @@ class PromotionController extends Controller
                 $campaign->productVariants()->sync($validated['products']);
             }
 
-            // Xử lý sale_price dựa trên status
             if ($status === 'active') {
-                // Nếu đang active, cập nhật sale_price
                 $this->updateRetailSalePrice($campaign);
             } else {
-                // Nếu không active, reset sale_price
                 $this->resetRetailSalePrice($campaign);
             }
 
@@ -787,7 +872,6 @@ class PromotionController extends Controller
             
             $campaign = Campaign::findOrFail($id);
             
-            // Reset sale_price trước khi xóa
             $this->resetRetailSalePrice($campaign);
             
             Banner::where('campaign_id', $campaign->id)->update(['campaign_id' => null]);
@@ -854,11 +938,27 @@ class PromotionController extends Controller
                 'discount_value' => 'required|numeric|min:0',
                 'min_order' => 'nullable|numeric|min:0',
                 'limit' => 'nullable|integer|min:0',
-                'expiry' => 'nullable|date',
+                'expiry' => 'required|date|after:today',
                 'active' => 'boolean',
                 'description' => 'nullable|string',
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
+
+            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < 15000) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Giá trị giảm trực tiếp tối thiểu là 15.000đ'
+                ]);
+            }
+
+            if ($validated['discount_type'] === 'percent' && ($validated['discount_value'] < 1 || $validated['discount_value'] > 100)) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
+                ]);
+            }
 
             $campaign = Campaign::create([
                 'name' => $validated['name'] ?? 'Voucher ' . $validated['code'],
@@ -870,7 +970,7 @@ class PromotionController extends Controller
                 'min_order' => $validated['min_order'] ?? 0,
                 'limit' => $validated['limit'] ?? 100,
                 'used' => 0,
-                'expiry' => $validated['expiry'] ?? null,
+                'expiry' => $validated['expiry'],
                 'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'description' => $validated['description'] ?? "Giảm " . ($validated['discount_type'] === 'percent' ? $validated['discount_value'] . '%' : number_format($validated['discount_value']) . '₫'),
             ]);
@@ -907,10 +1007,26 @@ class PromotionController extends Controller
                 'discount_value' => 'required|numeric|min:0',
                 'min_order' => 'nullable|numeric|min:0',
                 'limit' => 'nullable|integer|min:0',
-                'expiry' => 'nullable|date',
+                'expiry' => 'required|date|after:today',
                 'active' => 'boolean',
                 'description' => 'nullable|string',
             ]);
+
+            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < 15000) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Giá trị giảm trực tiếp tối thiểu là 15.000đ'
+                ]);
+            }
+
+            if ($validated['discount_type'] === 'percent' && ($validated['discount_value'] < 1 || $validated['discount_value'] > 100)) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
+                ]);
+            }
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,
@@ -920,32 +1036,19 @@ class PromotionController extends Controller
                 'discount_value' => $validated['discount_value'],
                 'min_order' => $validated['min_order'] ?? 0,
                 'limit' => $validated['limit'] ?? 100,
-                'expiry' => $validated['expiry'] ?? null,
+                'expiry' => $validated['expiry'],
                 'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'description' => $validated['description'] ?? "Giảm " . ($validated['discount_type'] === 'percent' ? $validated['discount_value'] . '%' : number_format($validated['discount_value']) . '₫'),
             ]);
 
             DB::commit();
 
-            // ============ QUAN TRỌNG: XÓA SESSION VOUCHER CŨ ============
-            // Xóa session của tất cả users đang áp dụng voucher này
-            // Cách 1: Xóa global (recommended)
             session()->forget(['voucher_code', 'voucher_discount']);
             session()->save();
 
-            // Cách 2: Nếu bạn dùng Redis hoặc cache, xóa key liên quan
-            // Cache::forget('voucher_session_' . $campaign->code);
-
-            Log::info('Voucher updated and session cleared:', [
-                'voucher_id' => $campaign->id,
-                'code' => $campaign->code,
-                'new_value' => $validated['discount_value'],
-                'old_value' => $campaign->getOriginal('discount_value')
-            ]);
-
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
-                'message' => 'Cập nhật mã giảm giá thành công! Vui lòng áp dụng lại mã để cập nhật giá trị mới.'
+                'message' => 'Cập nhật mã giảm giá thành công!'
             ]);
 
         } catch (\Exception $e) {
@@ -957,6 +1060,7 @@ class PromotionController extends Controller
             ]);
         }
     }
+
     public function deleteVoucher($id)
     {
         try {
@@ -1014,12 +1118,10 @@ class PromotionController extends Controller
             $tiers = $campaign->tiers ?? [];
             $currentBuyers = $campaign->current_buyers ?? 0;
 
-            // Sắp xếp tiers theo from
             usort($tiers, function($a, $b) {
                 return ($a['from'] ?? 0) - ($b['from'] ?? 0);
             });
 
-            // Tìm discount theo tier hiện tại (mặc định tier đầu tiên)
             $discountPercent = 0;
             if (!empty($tiers)) {
                 $firstTier = $tiers[0];
@@ -1035,14 +1137,6 @@ class PromotionController extends Controller
                 }
             }
 
-            Log::info('Updating pre-order sale price:', [
-                'campaign_id' => $campaign->id,
-                'product_id' => $product->id,
-                'current_buyers' => $currentBuyers,
-                'discount_percent' => $discountPercent,
-            ]);
-
-            // Cập nhật sale_price cho từng variant
             foreach ($product->variants as $variant) {
                 $originalPrice = $variant->price;
                 $salePrice = $originalPrice * (1 - $discountPercent / 100);
@@ -1054,21 +1148,49 @@ class PromotionController extends Controller
                     'sale_type' => 'preorder',
                     'sale_campaign_id' => $campaign->id,
                 ]);
-
-                Log::info('Variant sale price updated:', [
-                    'variant_id' => $variant->id,
-                    'original_price' => $originalPrice,
-                    'sale_price' => $salePrice,
-                    'discount_percent' => $discountPercent,
-                ]);
             }
 
         } catch (\Exception $e) {
-            Log::error('Error updating pre-order sale price: ' . $e->getMessage(), [
-                'campaign_id' => $campaign->id,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error updating pre-order sale price: ' . $e->getMessage());
         }
+    }
+
+    private function validateTiers($tiers)
+    {
+        if (empty($tiers) || !is_array($tiers)) {
+            throw new \Exception('Vui lòng thiết lập ít nhất 1 mức giảm giá');
+        }
+
+        $discounts = [];
+        $ranges = [];
+        
+        foreach ($tiers as $index => $tier) {
+            $from = (int) ($tier['from'] ?? 0);
+            $to = (int) ($tier['to'] ?? 0);
+            $discount = (int) ($tier['discount'] ?? 0);
+
+            if ($from >= $to) {
+                throw new \Exception("Mức #" . ($index + 1) . ": 'Từ' phải nhỏ hơn 'Đến'");
+            }
+
+            if ($discount < 1 || $discount > 100) {
+                throw new \Exception("Mức #" . ($index + 1) . ": Phần trăm giảm phải từ 1% đến 100%");
+            }
+
+            if (in_array($discount, $discounts)) {
+                throw new \Exception("Mức giảm {$discount}% đã được sử dụng ở mức khác");
+            }
+            $discounts[] = $discount;
+
+            foreach ($ranges as $range) {
+                if (!($to < $range['from'] || $from > $range['to'])) {
+                    throw new \Exception("Khoảng lượt #{$from}-{$to} bị trùng với khoảng #{$range['from']}-{$range['to']}");
+                }
+            }
+            $ranges[] = ['from' => $from, 'to' => $to];
+        }
+
+        return true;
     }
 
     public function storePreorder(Request $request)
@@ -1082,15 +1204,38 @@ class PromotionController extends Controller
                 'tiers' => 'required|array|min:1',
                 'tiers.*.from' => 'required|integer|min:1',
                 'tiers.*.to' => 'required|integer|gt:tiers.*.from',
-                'tiers.*.discount' => 'required|integer|min:0|max:100',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
+                'tiers.*.discount' => 'required|integer|min:1|max:100',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
                 'active' => 'boolean',
             ]);
 
+            $conflict = $this->checkPreorderProductConflict($validated['product_id'], null);
+            if ($conflict) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => "Sản phẩm này đang thuộc chương trình pre-order '{$conflict}' đang diễn ra"
+                ]);
+            }
+
+            try {
+                $this->validateTiers($validated['tiers']);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+
             $product = Product::find($validated['product_id']);
             if (!$product || !$product->is_preorder) {
-                throw new \Exception('Sản phẩm phải là pre-order');
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Sản phẩm phải là pre-order'
+                ]);
             }
 
             $campaign = Campaign::create([
@@ -1098,15 +1243,14 @@ class PromotionController extends Controller
                 'type' => 'preorder',
                 'product_id' => $validated['product_id'],
                 'tiers' => $validated['tiers'],
-                'start_time' => $validated['start_date'] ?? null,
-                'end_time' => $validated['end_date'] ?? null,
+                'start_time' => $validated['start_date'],
+                'end_time' => $validated['end_date'],
                 'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
                 'min_order' => 0,
                 'current_buyers' => 0,
                 'description' => "Giảm giá theo số lượt đặt trước",
             ]);
 
-            // Cập nhật sale_price
             $this->updatePreorderSalePrice($campaign);
 
             DB::commit();
@@ -1139,27 +1283,49 @@ class PromotionController extends Controller
                 'tiers' => 'required|array|min:1',
                 'tiers.*.from' => 'required|integer|min:1',
                 'tiers.*.to' => 'required|integer|gt:tiers.*.from',
-                'tiers.*.discount' => 'required|integer|min:0|max:100',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
+                'tiers.*.discount' => 'required|integer|min:1|max:100',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
                 'active' => 'boolean',
             ]);
 
+            $conflict = $this->checkPreorderProductConflict($validated['product_id'], $id);
+            if ($conflict) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => "Sản phẩm này đang thuộc chương trình pre-order '{$conflict}' đang diễn ra"
+                ]);
+            }
+
+            try {
+                $this->validateTiers($validated['tiers']);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+
             $product = Product::find($validated['product_id']);
             if (!$product || !$product->is_preorder) {
-                throw new \Exception('Sản phẩm phải là pre-order');
+                DB::rollBack();
+                return redirect()->back()->with([
+                    'success' => false,
+                    'message' => 'Sản phẩm phải là pre-order'
+                ]);
             }
 
             $campaign->update([
                 'name' => $validated['name'],
                 'product_id' => $validated['product_id'],
                 'tiers' => $validated['tiers'],
-                'start_time' => $validated['start_date'] ?? null,
-                'end_time' => $validated['end_date'] ?? null,
+                'start_time' => $validated['start_date'],
+                'end_time' => $validated['end_date'],
                 'status' => ($validated['active'] ?? true) ? 'active' : 'scheduled',
             ]);
 
-            // Cập nhật lại sale_price
             $this->updatePreorderSalePrice($campaign);
 
             DB::commit();
@@ -1228,7 +1394,6 @@ class PromotionController extends Controller
             
             $campaign = Campaign::findOrFail($id);
             
-            // Reset sale_price trước khi xóa
             $product = Product::find($campaign->product_id);
             if ($product) {
                 foreach ($product->variants as $variant) {
@@ -1268,7 +1433,6 @@ class PromotionController extends Controller
             $preorder = Campaign::findOrFail($preorderId);
             $preorder->increment('current_buyers');
             
-            // Cập nhật lại sale_price sau khi tăng current_buyers
             $this->updatePreorderSalePrice($preorder);
             
             DB::commit();
@@ -1449,7 +1613,6 @@ class PromotionController extends Controller
                 }
             }
 
-            // Nếu chưa ở tier nào, mặc định tier đầu tiên
             if (!$currentTier && !empty($tiers)) {
                 $discountPercent = $tiers[0]['discount'] ?? 0;
             }

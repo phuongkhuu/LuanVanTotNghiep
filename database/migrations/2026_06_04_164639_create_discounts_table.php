@@ -11,7 +11,7 @@ return new class extends Migration
             $table->id();
             $table->integer('min_quantity');
             $table->decimal('discount_percent', 5, 2);
-            $table->enum('order_code', ['wholesale', 'event'])->nullable();
+            $table->boolean('is_active')->default(false);
             $table->timestamps();
         });
     }
@@ -21,5 +21,3 @@ return new class extends Migration
          Schema::dropIfExists('discounts');
     }
 };
-
-

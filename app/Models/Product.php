@@ -41,4 +41,34 @@ class Product extends Model
     {
         return $this->hasManyThrough(Review::class, ProductVariant::class, 'product_id', 'product_variant_id');
     }
+
+    /**
+     * Lấy ảnh đầu tiên của sản phẩm
+     */
+    public function getFirstImageAttribute()
+    {
+        if ($this->image_url && is_array($this->image_url) && count($this->image_url) > 0) {
+            return $this->image_url[0];
+        }
+        return null;
+    }
+
+    /**
+     * Lấy tất cả ảnh của sản phẩm
+     */
+    public function getImagesAttribute()
+    {
+        if ($this->image_url && is_array($this->image_url)) {
+            return $this->image_url;
+        }
+        return [];
+    }
+
+    public function getThumbnailAttribute($value)
+    {
+        if ($value) {
+            return $value;
+        }
+        return $this->first_image;
+    }
 }
