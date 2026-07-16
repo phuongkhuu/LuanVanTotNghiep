@@ -118,8 +118,11 @@
 
           <div>
             <!-- Hiển thị nhãn Pre-order nếu là sản phẩm pre-order -->
-            <span v-if="product.is_preorder" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full mb-2 uppercase font-bold">
-              Pre-order
+            <span v-if="product.is_preorder && product.is_preorder_active" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full mb-2 uppercase font-bold">
+              ⏳ Pre-order
+            </span>
+            <span v-else-if="product.is_preorder && !product.is_preorder_active" class="inline-block px-3 py-1 bg-gray-500 text-white text-xs rounded-full mb-2 uppercase font-bold">
+              ⏳ Pre-order đã kết thúc
             </span>
             <span v-else class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full mb-2 uppercase font-bold">
               Sản Phẩm Mới
@@ -132,11 +135,30 @@
           </div>
 
           <div class="flex flex-col gap-2">
-            <div class="flex items-baseline gap-3">
-              <span class="font-headline-md text-3xl font-bold text-primary">{{ formatPrice(variantPrice) }}</span>
-              <span v-if="product.oldPrice" class="text-gray-400 line-through text-sm">{{ product.oldPrice }}</span>
-              <span v-if="product.discount" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">{{ product.discount }}</span>
+            <!-- ============ GIÁ HIỂN THỊ ============ -->
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <!-- Giá hiện tại -->
+              <span class="font-headline-md text-3xl font-bold" :class="product.hasSale ? 'text-red-600' : 'text-primary'">
+                {{ formatPrice(product.displayPrice || variantPrice) }}
+              </span>
+              
+              <!-- Giá gốc (gạch ngang) - chỉ hiển thị khi có sale -->
+              <span v-if="product.hasSale && product.originalPrice" class="text-gray-400 line-through text-sm">
+                {{ formatPrice(product.originalPrice) }}
+              </span>
+              
+              <!-- Badge % giảm -->
+              <span v-if="product.hasSale && product.salePercent > 0" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">
+                -{{ product.salePercent }}%
+              </span>
+              
+              <!-- Badge giảm theo khoảng giá (cho sản phẩm có nhiều giá) -->
+              <span v-else-if="product.oldPrice && !product.hasSale" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">
+                {{ product.discount }}
+              </span>
             </div>
+            <!-- =================================== -->
+            
             <p class="text-gray-600 text-sm leading-relaxed">{{ product.description || 'Thiết kế tối giản, chất liệu cao cấp, bền bỉ.' }}</p>
             
             <!-- Hiển thị tồn kho cho sản phẩm thường -->
@@ -147,7 +169,7 @@
             </p>
             
             <!-- Hiển thị thông báo Pre-order -->
-            <div v-if="product.is_preorder" class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div v-if="product.is_preorder && product.is_preorder_active" class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <p class="text-sm text-orange-700 font-semibold">
                 Sản phẩm này chỉ được đặt trước (Pre-order)
               </p>
@@ -155,6 +177,80 @@
                 Thời gian giao hàng dự kiến: 7-14 ngày làm việc
               </p>
             </div>
+            
+            <!-- Hiển thị thông báo Pre-order đã kết thúc -->
+            <div v-if="product.is_preorder && !product.is_preorder_active" class="p-3 bg-gray-100 border border-gray-300 rounded-lg">
+              <p class="text-sm text-gray-600 font-semibold">
+                ⏳ Chương trình Pre-order đã kết thúc
+              </p>
+              <p class="text-xs text-gray-500 mt-1">
+                Sản phẩm hiện không có sẵn để đặt trước
+              </p>
+            </div>
+
+            <!-- ============ PRE-ORDER INFO ============ -->
+            <div v-if="product.is_preorder && product.is_preorder_active && product.preorderInfo" class="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <!-- Progress bar -->
+              <div class="mb-2">
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>🎯 Đã đặt: <strong>{{ product.preorderInfo.current_buyers }}</strong> người</span>
+                  <span>{{ progressPercent }}%</span>
+                </div>
+                <div class="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+                       :style="{ width: progressPercent + '%' }">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tiers -->
+              <div class="mt-3">
+                <p class="text-xs font-medium text-gray-600 mb-1.5">📊 Mức giảm giá theo số người đặt:</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <div v-for="tier in product.preorderInfo.tiers" :key="tier.from"
+                       class="text-center p-2 rounded-lg border text-xs"
+                       :class="isCurrentTier(tier) ? 'border-purple-500 bg-purple-100 font-bold' : 'border-gray-200 bg-white'">
+                    <div class="text-sm font-bold" :class="isCurrentTier(tier) ? 'text-purple-700' : 'text-gray-700'">
+                      {{ tier.discount }}%
+                    </div>
+                    <div class="text-gray-500 text-[10px]">#{{ tier.from }}-{{ tier.to }}</div>
+                    <div v-if="isCurrentTier(tier)" class="text-[10px] text-purple-600 font-bold mt-0.5">
+                      ▼ Đang áp dụng
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Thông báo tier tiếp theo -->
+              <div v-if="product.preorderInfo.next_tier" class="mt-3 p-2.5 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-xs text-yellow-700">
+                  🔥 Thêm <strong>{{ product.preorderInfo.next_count }}</strong> người đặt để đạt giảm <strong>{{ product.preorderInfo.next_tier.discount }}%</strong>
+                </p>
+              </div>
+              
+              <!-- Đã đạt tier cuối -->
+              <div v-else-if="product.preorderInfo.is_in_tier && !product.preorderInfo.next_tier" class="mt-3 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                <p class="text-xs text-green-700">
+                  🎉 Đã đạt giảm <strong>{{ product.preorderInfo.current_discount }}%</strong>!
+                  <span v-if="product.preorderInfo.current_buyers < product.preorderInfo.max_buyers">
+                    Còn <strong>{{ product.preorderInfo.max_buyers - product.preorderInfo.current_buyers }}</strong> suất
+                  </span>
+                </p>
+              </div>
+              
+              <!-- Chưa ở tier nào (current_buyers = 0) -->
+              <div v-else-if="!product.preorderInfo.is_in_tier && product.preorderInfo.tiers && product.preorderInfo.tiers.length > 0" class="mt-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-xs text-blue-700">
+                  🎯 Đã đạt giảm <strong>{{ product.preorderInfo.current_discount }}%</strong> cho <strong>{{ product.preorderInfo.tiers[0]?.to || 50 }}</strong> người đầu tiên!
+                </p>
+              </div>
+              
+              <!-- Thời gian -->
+              <div class="mt-2 text-xs text-gray-500">
+                📅 {{ product.preorderInfo.start_date || 'Chưa xác định' }} - {{ product.preorderInfo.end_date || 'Chưa xác định' }}
+              </div>
+            </div>
+            <!-- ============================================================ -->
           </div>
 
           <!-- Size selection -->
@@ -215,8 +311,8 @@
 
           <!-- Action Buttons - PHÂN BIỆT PRE-ORDER VÀ THƯỜNG -->
           <div class="flex flex-col gap-3 py-6">
-            <!-- Nếu là sản phẩm pre-order: CHỈ CÓ NÚT ĐẶT TRƯỚC -->
-            <template v-if="product.is_preorder">
+            <!-- Nếu là sản phẩm pre-order đang active: CHỈ CÓ NÚT ĐẶT TRƯỚC -->
+            <template v-if="product.is_preorder && product.is_preorder_active">
               <!-- Nút Đặt trước ngay (full width) -->
               <button 
                 @click="buyNow" 
@@ -232,6 +328,13 @@
               <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
                 <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
               </Link>
+            </template>
+
+            <!-- Nếu là sản phẩm pre-order đã kết thúc: CHỈ HIỂN THỊ THÔNG BÁO -->
+            <template v-else-if="product.is_preorder && !product.is_preorder_active">
+              <div class="w-full h-14 bg-gray-300 text-gray-600 font-semibold rounded-xl flex items-center justify-center gap-2 cursor-not-allowed">
+                <span class="material-symbols-outlined">block</span> Pre-order đã kết thúc
+              </div>
             </template>
 
             <!-- Nếu là sản phẩm thường: 2 nút chia đôi + 1 nút full width -->
@@ -379,6 +482,7 @@ import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/youtube';
 import { useCart } from '@/utils/useCart'
+import axios from 'axios'
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -409,19 +513,17 @@ const reviewList = ref([]);
 
 const isMagnifying = ref(false);
 const magnifierPos = ref({ x: 0, y: 0 });
-const magnifierSize = 150; // kích thước kính lúp (px)
+const magnifierSize = 150;
 
-// Lấy ảnh hiện tại (chỉ khi là ảnh)
+// Lấy ảnh hiện tại
 const currentImageUrl = computed(() => {
   return currentMedia.value.type === 'image' ? currentMedia.value.url : null;
 });
 
-// Tính toán vị trí của kính lúp (crop theo ảnh gốc)
+// Kính lúp
 const magnifierStyle = computed(() => {
   if (!isMagnifying.value || !currentImageUrl.value) return {};
   
-  // Giả sử container ảnh có kích thước cố định (aspect 4/5)
-  // Bạn cần lấy kích thước thực tế bằng ref hoặc getBoundingClientRect
   const container = document.querySelector('.image-container');
   if (!container) return {};
   
@@ -429,10 +531,8 @@ const magnifierStyle = computed(() => {
   const x = magnifierPos.value.x - rect.left;
   const y = magnifierPos.value.y - rect.top;
   
-  // Tỷ lệ zoom (ví dụ 2.5x)
   const scale = 2.5;
   
-  // Tính vị trí background-position để phóng to
   const bgX = (x / rect.width) * 100;
   const bgY = (y / rect.height) * 100;
   
@@ -464,9 +564,18 @@ const thumbnails = computed(() => {
   return props.product.thumbnails?.length ? props.product.thumbnails : (props.product.image_url || [])
 })
 
+// ============ VARIANT PRICE ============
 const variantPrice = computed(() => {
   if (selectedVariant.value) {
+    // Nếu variant có sale_price và đang on sale, ưu tiên sale_price
+    if (selectedVariant.value.is_on_sale && selectedVariant.value.sale_price) {
+      return selectedVariant.value.sale_price
+    }
     return selectedVariant.value.price
+  }
+  // Fallback: dùng displayPrice từ product
+  if (props.product.displayPrice) {
+    return props.product.displayPrice
   }
   if (props.product.price) {
     const priceStr = props.product.price.replace(/[₫,.]/g, '').trim()
@@ -474,6 +583,33 @@ const variantPrice = computed(() => {
   }
   return 0
 })
+
+// ============ FORMAT PRICE ============
+const formatPrice = (price) => {
+  if (!price && price !== 0) return '0₫'
+  if (typeof price === 'number') {
+    return new Intl.NumberFormat('vi-VN').format(price) + '₫'
+  }
+  // Nếu là chuỗi, thử parse
+  const num = parseInt(String(price).replace(/[^0-9]/g, ''))
+  if (!isNaN(num) && num > 0) {
+    return new Intl.NumberFormat('vi-VN').format(num) + '₫'
+  }
+  return price || '0₫'
+}
+
+// ============ COMPUTED CHO PRE-ORDER ============
+const progressPercent = computed(() => {
+  if (!props.product.preorderInfo || !props.product.preorderInfo.max_buyers) return 0;
+  const current = props.product.preorderInfo.current_buyers || 0;
+  const max = props.product.preorderInfo.max_buyers || 100;
+  return Math.min(Math.round((current / max) * 100), 100);
+});
+
+const isCurrentTier = (tier) => {
+  const current = props.product.preorderInfo?.current_buyers || 0;
+  return current >= (tier.from || 0) && current <= (tier.to || 999999);
+};
 
 // Methods
 const selectSize = (size) => {
@@ -552,18 +688,6 @@ const decreaseQuantity = () => {
   }
 }
 
-const formatPrice = (price) => {
-  if (!price) return '0đ'
-  if (typeof price === 'number') {
-    return new Intl.NumberFormat('vi-VN').format(price) + 'đ'
-  }
-  const num = parseInt(String(price).replace(/[^0-9]/g, ''))
-  if (!isNaN(num) && num > 0) {
-    return new Intl.NumberFormat('vi-VN').format(num) + 'đ'
-  }
-  return price
-}
-
 const showMessage = (msg, type = 'success') => {
   message.value = msg
   messageType.value = type
@@ -609,8 +733,7 @@ const buyNow = async () => {
 
   try {
     // ✅ PRE-ORDER: Lưu vào session và chuyển thẳng đến checkout
-    if (props.product.is_preorder) {
-      // Lưu thông tin pre-order vào session
+    if (props.product.is_preorder && props.product.is_preorder_active) {
       await axios.post('/api/pre-order/session', {
         variant_id: selectedVariant.value.id,
         quantity: quantity.value
@@ -624,7 +747,6 @@ const buyNow = async () => {
       })
       
       loading.value = false
-      // Chuyển đến trang thanh toán với flag pre-order
       router.get(route('checkout'))
       return
     }
@@ -633,7 +755,6 @@ const buyNow = async () => {
     await addToCartGlobal(selectedVariant.value.id, quantity.value)
     
     loading.value = false
-    // CHUYỂN ĐẾN TRANG THANH TOÁN
     router.get(route('checkout'))
     
   } catch (error) {
@@ -684,7 +805,7 @@ const addToCart = async () => {
     await addToCartGlobal(selectedVariant.value.id, quantity.value)
     showMessage('✅ Đã thêm vào giỏ hàng thành công!', 'success')
     
-    // Cập nhật lại số lượng trên header (nếu useCart chưa tự cập nhật)
+    // Cập nhật lại số lượng trên header
     await fetchCart()
     
   } catch (error) {

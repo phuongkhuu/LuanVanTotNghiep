@@ -6,6 +6,8 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductVariant;
 use App\Models\Payment;
+use App\Models\Campaign;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +17,60 @@ use Carbon\Carbon;
 
 class OrderController extends Controller
 {
+    /**
+     * Cập nhật sale_price cho pre-order
+     */
+    private function updatePreorderSalePrice($campaign)
+    {
+        try {
+            $product = Product::find($campaign->product_id);
+            if (!$product) return;
+
+            $tiers = $campaign->tiers ?? [];
+            $currentBuyers = $campaign->current_buyers ?? 0;
+
+            usort($tiers, function($a, $b) {
+                return ($a['from'] ?? 0) - ($b['from'] ?? 0);
+            });
+
+            $discountPercent = 0;
+            if (!empty($tiers)) {
+                $firstTier = $tiers[0];
+                $discountPercent = $firstTier['discount'] ?? 0;
+                
+                foreach ($tiers as $tier) {
+                    $from = $tier['from'] ?? 0;
+                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                        $discountPercent = $tier['discount'] ?? 0;
+                        break;
+                    }
+                }
+            }
+
+            foreach ($product->variants as $variant) {
+                $originalPrice = $variant->price;
+                $salePrice = round($originalPrice * (1 - $discountPercent / 100));
+
+                $variant->update([
+                    'sale_price' => $salePrice,
+                    'is_on_sale' => $discountPercent > 0,
+                    'sale_type' => 'preorder',
+                    'sale_campaign_id' => $campaign->id,
+                ]);
+            }
+
+            Log::info('Pre-order sale price updated:', [
+                'campaign_id' => $campaign->id,
+                'current_buyers' => $currentBuyers,
+                'discount_percent' => $discountPercent,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating pre-order sale price: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Tạo đơn hàng mới từ giỏ hàng
      */
@@ -48,14 +104,18 @@ class OrderController extends Controller
             DB::beginTransaction();
 
             // 1. Kiểm tra tồn kho
+            $productIds = [];
             foreach ($validated['items'] as $item) {
                 $variant = ProductVariant::find($item['id']);
                 if (!$variant) {
                     throw new \Exception('Sản phẩm không tồn tại');
                 }
-                if ($variant->stock < $item['quantity']) {
+                if ($variant->stock < $item['quantity'] && $orderType !== 'preorder') {
                     $productName = $variant->product->name ?? 'Sản phẩm';
                     throw new \Exception("Sản phẩm {$productName} không đủ hàng. Còn {$variant->stock} sản phẩm");
+                }
+                if ($variant->product) {
+                    $productIds[] = $variant->product->id;
                 }
             }
 
@@ -91,7 +151,50 @@ class OrderController extends Controller
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                $variant->decrement('stock', $item['quantity']);
+                // Chỉ cập nhật stock cho retail
+                if ($orderType !== 'preorder') {
+                    $variant->decrement('stock', $item['quantity']);
+                }
+            }
+
+            // ============ CẬP NHẬT SỐ LƯỢT MUA PRE-ORDER ============
+            if ($orderType === 'preorder') {
+                $productIds = array_unique($productIds);
+                
+                foreach ($productIds as $productId) {
+                    $preorder = Campaign::where('type', 'preorder')
+                        ->where('status', 'active')
+                        ->where('product_id', $productId)
+                        ->where(function($query) {
+                            $query->where('end_time', '>=', now())
+                                  ->orWhereNull('end_time');
+                        })
+                        ->first();
+                    
+                    if ($preorder) {
+                        // Tính tổng số lượng đã đặt
+                        $totalQuantity = 0;
+                        foreach ($validated['items'] as $item) {
+                            $variant = ProductVariant::find($item['id']);
+                            if ($variant && $variant->product_id == $productId) {
+                                $totalQuantity += (int) $item['quantity'];
+                            }
+                        }
+                        
+                        $preorder->increment('current_buyers', $totalQuantity);
+                        $preorder->refresh();
+                        
+                        // Cập nhật lại sale_price
+                        $this->updatePreorderSalePrice($preorder);
+                        
+                        Log::info('✅ Pre-order buyers updated (User):', [
+                            'campaign_id' => $preorder->id,
+                            'product_id' => $productId,
+                            'increment' => $totalQuantity,
+                            'new_total' => $preorder->current_buyers,
+                        ]);
+                    }
+                }
             }
 
             // 4. Tạo bản ghi thanh toán
@@ -109,7 +212,6 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // Tạo mã đơn hàng hiển thị
             $displayCode = $this->generateOrderDisplayCode($order);
 
             Log::info('Order created successfully:', [
@@ -117,7 +219,6 @@ class OrderController extends Controller
                 'display_code' => $displayCode,
                 'order_type' => $orderType,
                 'created_at' => $order->created_at->format('dmY H:i:s'),
-                'current_time' => now()->format('dmY H:i:s')
             ]);
 
             return response()->json([
@@ -144,16 +245,21 @@ class OrderController extends Controller
     }
 
     /**
+     * Tạo mã giao dịch
+     */
+    private function generateTransactionCode()
+    {
+        $prefix = 'PAY';
+        $date = now()->format('dmY');
+        $random = strtoupper(substr(uniqid(), -6));
+        return $prefix . $date . $random;
+    }
+
+    /**
      * Tạo mã đơn hàng hiển thị cho khách
-     * Format: [Loại đơn hàng][Ngày tạo dmY][ID 5 số]
-     * Ví dụ: L1307202600016 (L + 13072026 + 00016)
-     * 
-     * @param Order $order
-     * @return string
      */
     public function generateOrderDisplayCode($order)
     {
-        // Lấy order object hoặc order_id
         if (is_numeric($order)) {
             $order = Order::find($order);
             if (!$order) {
@@ -168,24 +274,10 @@ class OrderController extends Controller
             default => 'DH'
         };
 
-        // Dùng ngày hiện tại format dmY (ngày-tháng-năm)
-        $date = now()->format('dmY'); // 13072026
-        
-        // Dùng ID của order làm sequence, format 5 số
+        $date = now()->format('dmY');
         $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
 
         return $prefix . $date . $sequence;
-    }
-
-    /**
-     * Tạo mã giao dịch
-     */
-    private function generateTransactionCode()
-    {
-        $prefix = 'PAY';
-        $date = now()->format('dmY');
-        $random = strtoupper(substr(uniqid(), -6));
-        return $prefix . $date . $random;
     }
 
     /**

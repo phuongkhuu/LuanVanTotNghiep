@@ -114,7 +114,7 @@
                 </span>
                 <!-- Badge loại khuyến mãi -->
                 <span 
-                  v-if="product.discount_type === 'preorder'" 
+                  v-if="product.discount_type === 'preorder' || product.is_pre_order" 
                   class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
                 >
                   Pre-Order
@@ -145,7 +145,7 @@
             </Link>
             <div class="px-4 pb-4">
               <button 
-                @click="addToCart(product)" 
+                @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
@@ -185,6 +185,13 @@
                 >
                   -{{ product.discount_percent }}%
                 </span>
+                <!-- Badge Pre-Order -->
+                <span 
+                  v-if="product.discount_type === 'preorder' || product.is_pre_order" 
+                  class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
+                >
+                  Pre-Order
+                </span>
                 <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
                   <span class="text-white text-sm font-semibold">🔥 Đã bán {{ product.sold || 0 }}</span>
                 </div>
@@ -206,7 +213,7 @@
             </Link>
             <div class="px-4 pb-4">
               <button 
-                @click="addToCart(product)" 
+                @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
@@ -252,7 +259,7 @@
                 
                 <!-- Badge Pre-Order nếu có -->
                 <span 
-                  v-if="product.discount_type === 'preorder'" 
+                  v-if="product.discount_type === 'preorder' || product.is_pre_order" 
                   class="absolute bottom-4 left-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
                 >
                   Pre-Order
@@ -277,7 +284,7 @@
             </Link>
             <div class="px-4 pb-4">
               <button 
-                @click="addToCart(product)" 
+                @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
@@ -333,12 +340,15 @@
   </div>
 </template>
 
+
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
+import { useCart } from '@/utils/useCart'
+import axios from 'axios'
 
 // ==================== PROPS ====================
 const props = defineProps({
@@ -364,12 +374,18 @@ const props = defineProps({
   }
 })
 
+// ==================== COMPOSABLES ====================
+const page = usePage()
+const { addToCart: addToCartGlobal, fetchCart } = useCart()
+
 // ==================== REACTIVE DATA ====================
 const banners = ref(props.banners || [])
 const hotSales = ref(props.hotSales || [])
 const trending = ref(props.trending || [])
 const newProducts = ref(props.newProducts || [])
 const newsList = ref(props.newsList || [])
+const loading = ref(false)
+const isProcessing = ref(false)
 
 // Countdown
 const countdown = ref({ hours: '23', minutes: '45', seconds: '12' })
@@ -379,6 +395,11 @@ let carouselInitialized = false
 
 // ==================== DEFAULT IMAGE (BASE64) ====================
 const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%23f3f4f6"/%3E%3Ctext x="200" y="195" font-family="Arial" font-size="20" text-anchor="middle" fill="%239ca3af"%3ENo Image%3C/text%3E%3Ctext x="200" y="225" font-family="Arial" font-size="14" text-anchor="middle" fill="%23d1d5db"%3EProduct%3C/text%3E%3C/svg%3E'
+
+// ==================== COMPUTED ====================
+const isAuthenticated = computed(() => {
+  return !!page.props.auth?.user
+})
 
 // ==================== METHODS ====================
 const getDefaultImage = () => DEFAULT_IMAGE
@@ -421,10 +442,215 @@ const formatPrice = (price) => {
   return Number(price).toLocaleString('vi-VN') + '₫'
 }
 
-const addToCart = (product) => {
-  router.get(route('product.detail', { slug: product.slug }))
+// ==================== HÀM LƯU VÀO LOCALSTORAGE ====================
+const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false) => {
+  try {
+    // Lấy giỏ hàng hiện tại
+    let cartData = {}
+    const existingCart = localStorage.getItem('cart')
+    if (existingCart) {
+      try {
+        cartData = JSON.parse(existingCart)
+      } catch (e) {
+        console.warn('⚠️ Parse cart error, using empty cart')
+        cartData = {}
+      }
+    }
+    
+    // Lấy giá sản phẩm
+    const price = product.sale_price || product.price || 0
+    
+    // Thêm hoặc cập nhật sản phẩm
+    cartData[variantId] = {
+      quantity: quantity,
+      price: price,
+      product_id: product.id,
+      name: product.name,
+      image: getProductImage(product),
+      is_pre_order: isPreOrder ? 1 : 0
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(cartData))
+    console.log('✅ Đã lưu vào localStorage:', cartData)
+    
+    // Tính tổng số lượng
+    const totalCount = Object.values(cartData).reduce((sum, item) => sum + (item.quantity || 0), 0)
+    console.log('📦 Tổng số lượng trong giỏ:', totalCount)
+    
+    return { success: true, cartData, totalCount }
+  } catch (error) {
+    console.error('❌ Lỗi lưu localStorage:', error)
+    return { success: false, error: error.message }
+  }
 }
 
+// ==================== HÀM GỌI API THÊM VÀO GIỎ ====================
+const callAddToCartAPI = async (variantId, quantity = 1) => {
+  try {
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+    
+    const response = await axios.post('/api/cart/add', {
+      variant_id: variantId,
+      quantity: quantity
+    }, {
+      headers: {
+        'X-CSRF-TOKEN': token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true
+    })
+    
+    return { success: true, data: response.data }
+  } catch (error) {
+    console.error('❌ API add to cart error:', error)
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Không thể thêm vào giỏ hàng',
+      status: error.response?.status
+    }
+  }
+}
+
+// ==================== HÀM MUA NGAY ====================
+const handleBuyNow = async (product) => {
+  // Chặn click liên tục
+  if (isProcessing.value) {
+    console.log('⏳ Đang xử lý, vui lòng chờ...')
+    return
+  }
+
+  // KIỂM TRA ĐĂNG NHẬP
+  if (!isAuthenticated.value) {
+    sessionStorage.setItem('redirectAfterLogin', window.location.href)
+    router.get(route('login'))
+    return
+  }
+
+  // Kiểm tra xem có phải pre-order không
+  const isPreOrder = product.discount_type === 'preorder' || product.is_pre_order || false
+
+  // Lấy variant_id từ sản phẩm
+  let variantId = product.default_variant_id || product.variants?.[0]?.id
+
+  isProcessing.value = true
+  loading.value = true
+
+  try {
+    // ✅ TRƯỜNG HỢP 1: PRE-ORDER - Lưu trực tiếp vào localStorage
+    if (isPreOrder) {
+      console.log('🟣 Pre-order product, saving directly to localStorage...')
+      
+      // Nếu không có variant, tạo variant ảo
+      const finalVariantId = variantId || `product_${product.id}`
+      
+      // Lưu vào localStorage
+      const result = saveToLocalStorage(finalVariantId, product, 1, true)
+      
+      if (result.success) {
+        console.log('✅ Pre-order saved to localStorage, redirecting to checkout...')
+        loading.value = false
+        isProcessing.value = false
+        
+        // 👉 CHUYỂN ĐẾN CHECKOUT
+        router.get(route('checkout'))
+        return
+      } else {
+        alert('Không thể lưu thông tin đặt hàng. Vui lòng thử lại!')
+        loading.value = false
+        isProcessing.value = false
+        return
+      }
+    }
+
+    // ✅ TRƯỜNG HỢP 2: SẢN PHẨM THƯỜNG - Gọi API thêm vào giỏ
+    console.log('🔵 Normal product, calling API to add to cart...')
+    
+    // Nếu không có variant, tạo variant ảo và lưu thẳng
+    if (!variantId) {
+      console.warn('⚠️ No variant found, using product_id as fallback')
+      const fakeVariantId = `product_${product.id}`
+      const result = saveToLocalStorage(fakeVariantId, product, 1, false)
+      
+      if (result.success) {
+        loading.value = false
+        isProcessing.value = false
+        router.get(route('checkout'))
+        return
+      }
+    }
+
+    // Gọi API thêm vào giỏ hàng
+    const apiResult = await callAddToCartAPI(variantId, 1)
+    
+    if (apiResult.success) {
+      console.log('✅ Added to cart via API successfully')
+      
+      // 👉 QUAN TRỌNG: KHÔNG CẦN ĐỢI fetchCart, CHỈ CẦN LƯU LOCALSTORAGE LÀ ĐỦ
+      // Vì trang checkout sẽ tự đọc từ localStorage
+      
+      loading.value = false
+      isProcessing.value = false
+      
+      // 👉 CHUYỂN ĐẾN CHECKOUT NGAY LẬP TỨC
+      router.get(route('checkout'))
+      return
+    } else {
+      // API thất bại
+      console.warn('❌ API add to cart failed:', apiResult.message)
+      
+      // Nếu lỗi là hết hàng
+      if (apiResult.message?.toLowerCase().includes('hết hàng') || 
+          apiResult.message?.toLowerCase().includes('stock')) {
+        alert(apiResult.message)
+        loading.value = false
+        isProcessing.value = false
+        return
+      }
+      
+      // FALLBACK: Lưu trực tiếp vào localStorage
+      console.log('🔄 Fallback: Saving directly to localStorage...')
+      const finalVariantId = variantId || `product_${product.id}`
+      const result = saveToLocalStorage(finalVariantId, product, 1, false)
+      
+      if (result.success) {
+        loading.value = false
+        isProcessing.value = false
+        router.get(route('checkout'))
+        return
+      } else {
+        alert('Không thể thêm vào giỏ hàng. Vui lòng thử lại!')
+        loading.value = false
+        isProcessing.value = false
+        return
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Buy now error:', error)
+    
+    // Fallback cuối cùng: lưu trực tiếp vào localStorage
+    try {
+      const finalVariantId = variantId || `product_${product.id}`
+      const result = saveToLocalStorage(finalVariantId, product, 1, isPreOrder)
+      
+      if (result.success) {
+        loading.value = false
+        isProcessing.value = false
+        router.get(route('checkout'))
+        return
+      }
+    } catch (fallbackError) {
+      console.error('❌ Fallback also failed:', fallbackError)
+    }
+    
+    alert('Có lỗi xảy ra. Vui lòng thử lại!')
+    loading.value = false
+    isProcessing.value = false
+  }
+}
+
+// ==================== COUNTDOWN ====================
 const startCountdown = () => {
   let hours = 23, minutes = 45, seconds = 12
   if (countdownInterval) clearInterval(countdownInterval)
@@ -452,6 +678,7 @@ const startCountdown = () => {
   }, 1000)
 }
 
+// ==================== CAROUSEL ====================
 const initCarousel = () => {
   const carouselEl = document.getElementById('hero-carousel')
   if (!carouselEl || carouselInitialized || banners.value.length <= 1) return
@@ -556,26 +783,11 @@ onMounted(() => {
     initCarousel()
   })
   
-  // Debug: In ra dữ liệu sản phẩm mới
   console.log('=== WELCOME.VUE DEBUG ===')
   console.log('Banners:', banners.value)
   console.log('HotSales:', hotSales.value)
   console.log('Trending:', trending.value)
   console.log('New Products:', newProducts.value)
-  
-  // Kiểm tra từng sản phẩm mới có sale không
-  if (newProducts.value && newProducts.value.length > 0) {
-    newProducts.value.forEach((product, index) => {
-      console.log(`New Product ${index + 1}:`, {
-        name: product.name,
-        price: product.price,
-        is_on_sale: product.is_on_sale,
-        sale_price: product.sale_price,
-        original_price: product.original_price,
-        discount_percent: product.discount_percent
-      })
-    })
-  }
 })
 
 onUnmounted(() => {

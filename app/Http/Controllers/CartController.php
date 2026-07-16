@@ -19,7 +19,7 @@ class CartController extends Controller
         $discountPercent = 0;
         $now = now();
 
-        // Kiểm tra campaign
+        // Kiểm tra campaign (retail)
         $campaigns = Campaign::where('status', 'active')
             ->where('type', '!=', 'voucher')
             ->where('type', '!=', 'preorder')
@@ -47,7 +47,7 @@ class CartController extends Controller
         }
 
         // Kiểm tra pre-order
-        if ($variant->product && $variant->product->is_pre_order) {
+        if ($variant->product && ($variant->product->is_preorder ?? false)) {
             $preorder = Campaign::where('type', 'preorder')
                 ->where('status', 'active')
                 ->where('product_id', $variant->product_id)
@@ -65,6 +65,11 @@ class CartController extends Controller
             if ($preorder) {
                 $currentBuyers = $preorder->current_buyers ?? 0;
                 $tiers = $preorder->tiers ?? [];
+                
+                usort($tiers, function($a, $b) {
+                    return ($a['from'] ?? 0) - ($b['from'] ?? 0);
+                });
+                
                 foreach ($tiers as $tier) {
                     $from = $tier['from'] ?? 0;
                     $to = $tier['to'] ?? PHP_INT_MAX;
@@ -75,6 +80,10 @@ class CartController extends Controller
                         }
                         break;
                     }
+                }
+                
+                if ($discountPercent == 0 && !empty($tiers)) {
+                    $discountPercent = $tiers[0]['discount'] ?? 0;
                 }
             }
         }
@@ -94,6 +103,7 @@ class CartController extends Controller
 
     /**
      * Lấy giỏ hàng từ request (client gửi lên)
+     * CHỈ LẤY SẢN PHẨM THƯỜNG, BỎ QUA PRE-ORDER
      */
     public function index(Request $request)
     {
@@ -109,7 +119,6 @@ class CartController extends Controller
                 $cart = json_decode($cartJson, true) ?: [];
             }
             
-            // Nếu cart rỗng, trả về mảng rỗng
             if (empty($cart)) {
                 return response()->json([
                     'success' => true,
@@ -124,15 +133,15 @@ class CartController extends Controller
             $count = 0;
 
             foreach ($cart as $variantId => $item) {
-                // Kiểm tra variant tồn tại
                 $variant = ProductVariant::with('product', 'color')->find($variantId);
                 if (!$variant) {
                     Log::warning("Variant not found: {$variantId}");
                     continue;
                 }
                 
-                // Bỏ qua pre-order
-                if ($variant->product && ($variant->product->is_pre_order ?? false)) {
+                // ============ BỎ QUA PRE-ORDER (KHÔNG HIỂN THỊ TRONG GIỎ) ============
+                if ($variant->product->is_preorder ?? false) {
+                    Log::info("Skipping pre-order item in cart: {$variantId}");
                     continue;
                 }
 
@@ -155,13 +164,14 @@ class CartController extends Controller
                     'product_id' => $variant->product->id ?? 0,
                     'product_variant_id' => (int) $variantId,
                     'name' => $variant->product->name ?? 'Sản phẩm',
+                    'slug' => $variant->product->slug ?? '#',
                     'price' => $price,
                     'original_price' => $variant->price,
                     'quantity' => $item['quantity'] ?? 1,
                     'image' => $image,
                     'color' => $variant->color->name ?? 'Đen',
                     'size' => $variant->size_name ?? 'M',
-                    'is_pre_order' => $variant->product->is_pre_order ?? false,
+                    'is_pre_order' => false,
                     'is_on_sale' => $saleInfo['is_on_sale'],
                     'discount_percent' => $saleInfo['discount_percent'],
                     'stock' => $variant->stock,
@@ -189,6 +199,7 @@ class CartController extends Controller
 
     /**
      * Thêm vào giỏ hàng
+     * CHỈ CHO PHÉP SẢN PHẨM THƯỜNG, TỪ CHỐI PRE-ORDER
      */
     public function add(Request $request)
     {
@@ -211,23 +222,25 @@ class CartController extends Controller
                 ], 404);
             }
 
-            if ($variant->product->is_pre_order ?? false) {
+            // ============ PRE-ORDER: KHÔNG CHO THÊM VÀO GIỎ HÀNG ============
+            if ($variant->product->is_preorder ?? false) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Sản phẩm Pre-order chỉ có thể mua ngay'
+                    'message' => 'Sản phẩm Pre-order không thể thêm vào giỏ hàng. Vui lòng chọn "Mua ngay" để đặt hàng.'
                 ], 400);
             }
 
-            // Tính giá sale
-            $saleInfo = $this->calculateSalePrice($variant);
-            $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
-
+            // Kiểm tra stock (chỉ cho sản phẩm thường)
             if ($variant->stock < $quantity) {
                 return response()->json([
                     'success' => false,
                     'message' => "Sản phẩm chỉ còn {$variant->stock} sản phẩm"
                 ], 400);
             }
+
+            // Tính giá sale
+            $saleInfo = $this->calculateSalePrice($variant);
+            $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
 
             // Lấy ảnh
             $image = '/images/default-product.jpg';
@@ -246,12 +259,14 @@ class CartController extends Controller
                     'id' => (int) $variantId,
                     'product_id' => $variant->product->id ?? 0,
                     'name' => $variant->product->name ?? 'Sản phẩm',
+                    'slug' => $variant->product->slug ?? '#',
                     'price' => $price,
                     'original_price' => $variant->price,
                     'quantity' => $quantity,
                     'image' => $image,
                     'color' => $variant->color->name ?? 'Đen',
                     'size' => $variant->size_name ?? 'M',
+                    'is_pre_order' => false,
                     'is_on_sale' => $saleInfo['is_on_sale'],
                     'discount_percent' => $saleInfo['discount_percent'],
                     'stock' => $variant->stock,
@@ -317,7 +332,6 @@ class CartController extends Controller
         try {
             Log::info('CartController@clear called');
             
-            // Xóa voucher session khi xóa giỏ hàng
             $request->session()->forget(['voucher_code', 'voucher_discount']);
             
             return response()->json([
@@ -428,7 +442,6 @@ class CartController extends Controller
         try {
             Log::info('CartController@removeCoupon called');
             
-            // Xóa voucher khỏi session
             $request->session()->forget(['voucher_code', 'voucher_discount']);
             $request->session()->save();
             

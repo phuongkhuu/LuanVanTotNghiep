@@ -7,9 +7,8 @@
       <div class="mb-6">
         <h1 class="font-headline-lg text-2xl md:text-3xl border-l-4 pl-4 border-primary text-gray-900">Thanh toán</h1>
         <p class="text-gray-500 text-sm mt-2 ml-5">Vui lòng kiểm tra lại thông tin đặt hàng và nhận hàng.</p>
-        <!-- Hiển thị loại đơn hàng -->
         <div class="mt-2 ml-5">
-          <span v-if="isPreOrder" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full font-bold">
+          <span v-if="is_pre_order" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full font-bold">
             Đơn hàng Pre-order
           </span>
           <span v-else class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full font-bold">
@@ -220,8 +219,7 @@
             <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               <h2 class="font-semibold text-xl mb-6 border-b border-gray-200 pb-4 text-gray-800">Đơn hàng của bạn</h2>
               
-              <!-- Hiển thị badge pre-order nếu có -->
-              <div v-if="isPreOrder" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div v-if="is_pre_order" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <p class="text-sm text-orange-700 font-semibold flex items-center gap-2">
                   <span class="material-symbols-outlined text-orange-500">info</span>
                   Đây là đơn hàng Pre-order. Thời gian giao hàng dự kiến: 7-14 ngày
@@ -274,7 +272,6 @@
                 </div>
               </div>
 
-              <!-- ============ ORDER SUMMARY ============ -->
               <div class="space-y-4 border-t border-gray-200 pt-4 mb-4">
                 <div class="flex justify-between text-sm text-gray-600">
                   <span>Tạm tính ({{ cartItems.length }} sản phẩm)</span>
@@ -284,7 +281,6 @@
                   <span>Phí vận chuyển</span>
                   <span class="text-green-600 font-semibold">Miễn phí</span>
                 </div>
-                <!-- Hiển thị giảm giá -->
                 <div v-if="discountAmount > 0" class="flex justify-between text-sm text-green-600">
                   <span>Giảm giá ({{ promoCode }})</span>
                   <span class="font-semibold">-{{ formatPrice(discountAmount) }}</span>
@@ -295,10 +291,9 @@
                   <span class="font-display-lg text-2xl text-primary font-bold">{{ formatPrice(finalTotal) }}</span>
                 </div>
               </div>
-              <!-- ======================================= -->
 
               <button @click="placeOrder" :disabled="loading" class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
-                <span v-if="!loading">{{ isPreOrder ? 'Đặt trước ngay' : 'Đặt hàng ngay' }}</span>
+                <span v-if="!loading">{{ is_pre_order ? 'Đặt trước ngay' : 'Đặt hàng ngay' }}</span>
                 <span v-else>Đang xử lý...</span>
               </button>
               <p class="text-center text-xs text-gray-500 mt-4">
@@ -358,14 +353,12 @@ const cartItems = ref(props.products || [])
 const loading = ref(false)
 const isAuthenticated = ref(!!props.user)
 
-// Thông tin người đặt
 const customerInfo = ref({
   name: props.user?.name || '',
   email: props.user?.email || '',
   phone: props.user?.phone || '',
 })
 
-// Thông tin người nhận
 const receiverInfo = ref({
   name: '',
   phone: '',
@@ -385,7 +378,6 @@ const promoApplied = ref(!!props.voucher_code && props.voucher_discount > 0)
 const promoMessage = ref('')
 const discountAmount = ref(props.voucher_discount || 0)
 
-// Nếu có voucher từ session, hiển thị thông báo
 if (promoApplied.value && props.voucher_code) {
   promoMessage.value = `✅ Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`
 }
@@ -399,7 +391,9 @@ const subtotal = computed(() => {
 const finalTotal = computed(() => {
   const baseTotal = subtotal.value
   const discount = discountAmount.value || 0
-  return Math.max(0, baseTotal - discount)
+  const result = baseTotal - discount
+  console.log('💰 finalTotal calculation:', { baseTotal, discount, result })
+  return Math.max(0, result)
 })
 
 // ============ WATCH ============
@@ -419,10 +413,6 @@ watch(sameAsCustomer, (val) => {
 })
 
 // ============ METHODS ============
-
-/**
- * Áp dụng mã khuyến mãi
- */
 const applyPromoCode = async () => {
   if (!promoCode.value.trim()) {
     promoMessage.value = 'Vui lòng nhập mã khuyến mãi'
@@ -441,13 +431,6 @@ const applyPromoCode = async () => {
       discountAmount.value = response.data.discount_amount || 0
       promoApplied.value = true
       promoMessage.value = `✅ ${response.data.message}`
-      
-      console.log('💰 Voucher applied:', {
-        code: promoCode.value,
-        discount: discountAmount.value,
-        subtotal: subtotal.value,
-        finalTotal: finalTotal.value
-      })
     } else {
       promoMessage.value = '❌ ' + (response.data.message || 'Mã không hợp lệ')
       promoApplied.value = false
@@ -461,9 +444,6 @@ const applyPromoCode = async () => {
   }
 }
 
-/**
- * Xóa mã khuyến mãi
- */
 const removePromoCode = async () => {
   try {
     const response = await axios.post('/checkout/remove-voucher')
@@ -474,7 +454,6 @@ const removePromoCode = async () => {
       promoCode.value = ''
       promoMessage.value = '✅ Đã xóa mã giảm giá'
       
-      // Nếu có signal clear_local, xóa localStorage
       if (response.data.clear_local) {
         window.dispatchEvent(new CustomEvent('voucher:cleared'))
         console.log('🗑️ Voucher cleared from localStorage via event')
@@ -489,11 +468,7 @@ const removePromoCode = async () => {
   }
 }
 
-/**
- * Đặt hàng
- */
 const placeOrder = () => {
-  // Kiểm tra đăng nhập
   if (!isAuthenticated.value || !props.user) {
     alert('Vui lòng đăng nhập để thanh toán')
     sessionStorage.setItem('redirectAfterLogin', window.location.href)
@@ -501,25 +476,21 @@ const placeOrder = () => {
     return
   }
 
-  // Validate thông tin người đặt
   if (!customerInfo.value.name || !customerInfo.value.email || !customerInfo.value.phone) {
     alert('Vui lòng điền đầy đủ thông tin người đặt')
     return
   }
 
-  // Validate thông tin người nhận
   if (!receiverInfo.value.name || !receiverInfo.value.phone || !receiverInfo.value.address) {
     alert('Vui lòng điền đầy đủ thông tin người nhận')
     return
   }
 
-  // Nếu checkbox được tick, đồng bộ lại
   if (sameAsCustomer.value) {
     receiverInfo.value.name = customerInfo.value.name
     receiverInfo.value.phone = customerInfo.value.phone
   }
 
-  // Tạo địa chỉ đầy đủ
   const fullAddress = [
     receiverInfo.value.address,
     receiverInfo.value.ward,
@@ -527,7 +498,6 @@ const placeOrder = () => {
     receiverInfo.value.city,
   ].filter(Boolean).join(', ')
 
-  // ============ DỮ LIỆU ĐƠN HÀNG ============
   const orderData = {
     customer_name: customerInfo.value.name,
     customer_phone: customerInfo.value.phone,
@@ -544,8 +514,8 @@ const placeOrder = () => {
     })),
     total_amount: finalTotal.value,
     order_type: props.order_type || 'retail',
-    promo_code: promoApplied.value ? promoCode.value : null, // <-- GỬI PROMO_CODE
-    discount_amount: discountAmount.value, // <-- GỬI DISCOUNT_AMOUNT
+    promo_code: promoApplied.value ? promoCode.value : null,
+    discount_amount: discountAmount.value,
   }
 
   console.log('📦 Order data:', orderData)
@@ -555,7 +525,6 @@ const placeOrder = () => {
 
   loading.value = true
 
-  // Gửi dữ liệu bằng Inertia
   router.post(route('checkout.store'), orderData, {
     onSuccess: () => {
       loading.value = false
@@ -569,25 +538,56 @@ const placeOrder = () => {
   })
 }
 
+
+const checkVoucherOnLoad = async () => {
+    // Nếu có voucher trong props
+    if (props.voucher_code) {
+        try {
+            // Gọi API để kiểm tra và tính toán lại
+            const response = await axios.post('/checkout/apply-voucher', {
+                code: props.voucher_code,
+                subtotal: subtotal.value
+            });
+            
+            if (response.data.success) {
+                // Cập nhật với giá trị mới nhất
+                discountAmount.value = response.data.discount_amount;
+                promoApplied.value = true;
+                promoMessage.value = `✅ Đã áp dụng mã: ${response.data.code} (giảm ${formatPrice(response.data.discount_amount)})`;
+                
+                // Cập nhật finalTotal
+                finalTotal.value = subtotal.value - discountAmount.value;
+                
+                console.log('🔄 Voucher refreshed from DB:', {
+                    code: response.data.code,
+                    discount_amount: response.data.discount_amount
+                });
+            } else {
+                // Voucher không còn hiệu lực
+                promoApplied.value = false;
+                discountAmount.value = 0;
+                promoMessage.value = '❌ ' + response.data.message;
+                
+                // Xóa session
+                await axios.post('/checkout/remove-voucher');
+            }
+        } catch (error) {
+            console.error('Error checking voucher on load:', error);
+        }
+    }
+};
+
 // ============ LIFECYCLE ============
 onMounted(() => {
-  console.log('📦 Checkout props:', props)
-  console.log('📦 Order type:', props.order_type)
-  console.log('📦 Is pre-order:', props.is_pre_order)
-  console.log('📦 Voucher from props:', {
-    code: props.voucher_code,
-    discount: props.voucher_discount
-  })
-  
-  // Nếu có voucher từ session, cập nhật UI
-  if (props.voucher_code && props.voucher_discount > 0) {
-    discountAmount.value = props.voucher_discount
-    promoApplied.value = true
-    promoMessage.value = `✅ Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`
-  }
-})
+    console.log('📦 Checkout props:', props);
+    
+    if (props.voucher_code && props.voucher_discount > 0) {
+        discountAmount.value = props.voucher_discount;
+        promoApplied.value = true;
+        promoMessage.value = `✅ Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`;
+    }
+    
+    // ============ KIỂM TRA VOUCHER KHI LOAD ============
+    checkVoucherOnLoad();
+});
 </script>
-
-<style scoped>
-/* Không cần style đặc biệt */
-</style>

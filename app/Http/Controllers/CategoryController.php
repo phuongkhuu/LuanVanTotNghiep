@@ -284,6 +284,8 @@ class CategoryController extends Controller
     /**
      * Tính giá sale cho sản phẩm
      */
+// app/Http/Controllers/CategoryController.php
+
     private function calculateSalePrice($product)
     {
         $minPrice = $product->variants->min('price') ?? 0;
@@ -292,73 +294,82 @@ class CategoryController extends Controller
         $isOnSale = false;
         $now = now();
 
-        $variantIds = $product->variants->pluck('id')->toArray();
-
-        if (!empty($variantIds)) {
-            // Kiểm tra campaign
-            $campaigns = Campaign::where('status', 'active')
-                ->where('type', '!=', 'voucher')
-                ->where('type', '!=', 'preorder')
+        // ============ KIỂM TRA PRE-ORDER ============
+        if ($product->is_preorder) {
+            $preorder = Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('product_id', $product->id)
                 ->where(function($query) use ($now) {
                     $query->where(function($q) use ($now) {
                         $q->where('start_time', '<=', $now)
-                          ->where('end_time', '>=', $now);
+                        ->where('end_time', '>=', $now);
                     })->orWhere(function($q) {
                         $q->whereNull('start_time')
-                          ->whereNull('end_time');
+                        ->whereNull('end_time');
                     });
                 })
-                ->whereHas('productVariants', function($query) use ($variantIds) {
-                    $query->whereIn('product_variant_id', $variantIds);
-                })
-                ->with('configs')
-                ->get();
+                ->first();
 
-            foreach ($campaigns as $campaign) {
-                $config = $campaign->configs()->first();
-                $currentDiscount = $config ? (float) $config->discount_percent : 0;
-                if ($currentDiscount > $discountPercent) {
-                    $discountPercent = $currentDiscount;
+            if ($preorder) {
+                $currentBuyers = $preorder->current_buyers ?? 0;
+                $tiers = $preorder->tiers ?? [];
+                
+                foreach ($tiers as $tier) {
+                    $from = $tier['from'] ?? 0;
+                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                        $discountPercent = $tier['discount'] ?? 0;
+                        break;
+                    }
+                }
+                
+                // Nếu chưa ở tier nào, lấy tier đầu tiên
+                if ($discountPercent == 0 && !empty($tiers)) {
+                    $discountPercent = $tiers[0]['discount'] ?? 0;
+                }
+                
+                if ($discountPercent > 0) {
+                    $salePrice = round($minPrice * (1 - $discountPercent / 100));
+                    $isOnSale = true;
                 }
             }
+        }
 
-            // Kiểm tra pre-order
-            if ($product->is_preorder) {
-                $preorder = Campaign::where('type', 'preorder')
-                    ->where('status', 'active')
-                    ->where('product_id', $product->id)
+        // ============ KIỂM TRA CAMPAIGN (RETAIL) ============
+        if (!$product->is_preorder) {
+            $variantIds = $product->variants->pluck('id')->toArray();
+            
+            if (!empty($variantIds)) {
+                $campaigns = Campaign::where('status', 'active')
+                    ->where('type', '!=', 'voucher')
+                    ->where('type', '!=', 'preorder')
                     ->where(function($query) use ($now) {
                         $query->where(function($q) use ($now) {
                             $q->where('start_time', '<=', $now)
-                              ->where('end_time', '>=', $now);
+                            ->where('end_time', '>=', $now);
                         })->orWhere(function($q) {
                             $q->whereNull('start_time')
-                              ->whereNull('end_time');
+                            ->whereNull('end_time');
                         });
                     })
-                    ->first();
+                    ->whereHas('productVariants', function($query) use ($variantIds) {
+                        $query->whereIn('product_variant_id', $variantIds);
+                    })
+                    ->with('configs')
+                    ->get();
 
-                if ($preorder) {
-                    $currentBuyers = $preorder->current_buyers ?? 0;
-                    $tiers = $preorder->tiers ?? [];
-                    foreach ($tiers as $tier) {
-                        $from = $tier['from'] ?? 0;
-                        $to = $tier['to'] ?? PHP_INT_MAX;
-                        if ($currentBuyers >= $from && $currentBuyers <= $to) {
-                            $preorderDiscount = $tier['discount'] ?? 0;
-                            if ($preorderDiscount > $discountPercent) {
-                                $discountPercent = $preorderDiscount;
-                            }
-                            break;
-                        }
+                foreach ($campaigns as $campaign) {
+                    $config = $campaign->configs()->first();
+                    $currentDiscount = $config ? (float) $config->discount_percent : 0;
+                    if ($currentDiscount > $discountPercent) {
+                        $discountPercent = $currentDiscount;
                     }
                 }
-            }
 
-            if ($discountPercent > 0) {
-                $salePrice = $minPrice * (1 - $discountPercent / 100);
-                $salePrice = round($salePrice);
-                $isOnSale = true;
+                if ($discountPercent > 0) {
+                    $salePrice = round($minPrice * (1 - $discountPercent / 100));
+                    $isOnSale = true;
+                }
             }
         }
 

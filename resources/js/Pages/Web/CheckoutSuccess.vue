@@ -292,23 +292,26 @@ const orderDetails = computed(() => {
 // ============ QUAN TRỌNG: Tổng hợp đơn hàng ============
 const orderSummary = computed(() => {
   if (props.order) {
-    const subtotal = props.order.total_amount || 0
+    const total = props.order.total_amount || 0
+    const discount = props.order.discount_amount || 0
     const shippingFee = props.order.shipping_fee || 0
-    const discountAmount = props.order.discount_amount || 0
-    const finalAmount = props.order.final_amount || (subtotal + shippingFee - discountAmount)
+    const finalAmount = props.order.final_amount || total
+   
+    const subtotal = total + discount
     
     console.log('💰 Order Summary:', {
       subtotal,
       shippingFee,
-      discountAmount,
+      discount,
       finalAmount,
+      total,
       raw: props.order
     })
     
     return {
-      subtotal,
+      subtotal: subtotal,
       shipping_fee: shippingFee,
-      discount_amount: discountAmount,
+      discount_amount: discount,
       final_amount: finalAmount,
     }
   }

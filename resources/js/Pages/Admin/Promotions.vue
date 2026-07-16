@@ -283,14 +283,15 @@
             <!-- ==================== PRE-ORDERS LIST ==================== -->
             <div v-if="activeTab === 'preorder'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="preorder in filteredPreorders" :key="preorder.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
+                    <!-- Header -->
                     <div class="relative h-28 bg-gradient-to-r from-purple-50 to-purple-100">
                         <div class="w-full h-full flex items-center justify-center text-purple-300">
                             <span class="material-symbols-outlined text-4xl">schedule</span>
                         </div>
                         <div class="absolute top-2 left-2 flex flex-col gap-1">
-                            <span v-if="preorder.status === 'active' && preorder.tiers && preorder.tiers.length > 0" 
-                                  class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold">
-                                SALE {{ getCurrentTierDiscount(preorder) }}%
+                            <span v-if="preorder.status === 'active' && preorder.current_discount > 0" 
+                                class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse">
+                                SALE {{ preorder.current_discount }}%
                             </span>
                             <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white">
                                 {{ preorder.current_buyers || 0 }} người đặt
@@ -319,21 +320,48 @@
                             </div>
                         </div>
 
+                        <!-- ============ PHẦN HIỂN THỊ GIÁ SALE ============ -->
                         <div class="mt-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-2">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-[10px] font-medium">Đã đặt: {{ preorder.current_buyers || 0 }} lượt</span>
-                                <span class="text-xs font-bold text-blue-600">
-                                    {{ getCurrentTierDiscount(preorder) }}%
+                                <span class="text-xs font-bold" :class="preorder.current_discount > 0 ? 'text-red-600' : 'text-blue-600'">
+                                    {{ preorder.current_discount || 0 }}%
                                 </span>
                             </div>
 
-                            <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <!-- Hiển thị giá -->
+                            <div class="flex items-center justify-between mt-1">
+                                <div class="flex items-center gap-2">
+                                    <span v-if="preorder.base_price > 0 && preorder.current_discount > 0" 
+                                        class="text-xs text-gray-400 line-through">
+                                        {{ formatPrice(preorder.base_price) }}
+                                    </span>
+                                    <span v-if="preorder.current_sale_price > 0" 
+                                        class="text-sm font-bold" 
+                                        :class="preorder.current_discount > 0 ? 'text-red-600' : 'text-gray-800'">
+                                        {{ formatPrice(preorder.current_sale_price) }}
+                                    </span>
+                                    <span v-else-if="preorder.base_price > 0" 
+                                        class="text-sm font-bold text-gray-800">
+                                        {{ formatPrice(preorder.base_price) }}
+                                    </span>
+                                    <span v-else class="text-xs text-gray-400">Chưa có giá</span>
+                                </div>
+                                <span v-if="preorder.current_discount > 0" 
+                                    class="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full">
+                                    -{{ preorder.current_discount }}%
+                                </span>
+                            </div>
+
+                            <!-- Progress bar -->
+                            <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-2">
                                 <div 
-                                    class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
+                                    class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
                                     :style="{ width: getProgressPercent(preorder) + '%' }"
                                 ></div>
                             </div>
 
+                            <!-- Tiers -->
                             <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
                                 <div v-for="tier in preorder.tiers" :key="tier.from" 
                                     class="text-center p-1 bg-white rounded border"
@@ -344,10 +372,10 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- ============================================== -->
 
                         <div class="mt-2 flex justify-between items-center text-[10px] text-gray-500">
                             <span>📅 {{ formatDate(preorder.start_date) }} - {{ formatDate(preorder.end_date) }}</span>
-                            <span v-if="preorder.min_order > 0">💰 {{ formatPrice(preorder.min_order) }}</span>
                         </div>
 
                         <div class="mt-2 pt-2 border-t border-gray-100 flex justify-end">
@@ -843,7 +871,7 @@
             </div>
         </div>
 
-        <!-- ==================== PRE-ORDER MODAL (ĐÃ BỎ CAMPAIGN_ID) ==================== -->
+        <!-- ==================== PRE-ORDER MODAL ==================== -->
         <div v-if="showPreorderModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closePreorderModal">
             <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
@@ -901,16 +929,7 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Đơn hàng tối thiểu</label>
-                        <input 
-                            v-model.number="preorderForm.min_order" 
-                            type="number" 
-                            min="0"
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                            placeholder="0"
-                        >
-                    </div>
+                    <!-- ĐÃ XÓA PHẦN MIN_ORDER -->
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -933,8 +952,6 @@
                             <p class="text-xs text-gray-500 mt-1">Có thể chọn cùng ngày hoặc sau ngày bắt đầu</p>
                         </div>
                     </div>
-
-                    <!-- ĐÃ BỎ PHẦN LIÊN KẾT CHIẾN DỊCH -->
 
                     <div>
                         <div class="flex justify-between items-center mb-2">
@@ -1263,7 +1280,6 @@ const voucherForm = ref({
     campaign_id: null
 });
 
-// Preorder Form (ĐÃ BỎ CAMPAIGN_ID)
 const preorderForm = ref({
     id: null,
     name: '',
@@ -1276,8 +1292,7 @@ const preorderForm = ref({
     start_date: '',
     end_date: '',
     active: true,
-    min_order: 0
-});
+  });
 
 // Discount Form
 const discountForm = ref({

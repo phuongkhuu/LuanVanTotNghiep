@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderDetail;
+use App\Models\Payment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -16,91 +17,9 @@ class PaymentController extends Controller
 {
     protected $orderController;
 
-    public function store(Request $request)
-    {
-        Log::info('PaymentController@store called', $request->all());
-    
-        $validated = $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'required|email|max:255',
-            'receiver_name' => 'required|string|max:255',
-            'receiver_phone' => 'required|string|max:20',
-            'shipping_address' => 'required|string|max:500',
-            'note' => 'nullable|string|max:500',
-            'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'required|exists:product_variants,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
-            'order_type' => 'required|in:retail,preorder',
-            'promo_code' => 'nullable|string', // <-- NHẬN PROMO_CODE
-            'discount_amount' => 'nullable|numeric|min:0', // <-- NHẬN DISCOUNT_AMOUNT
-        ]);
-
-        $orderType = $validated['order_type'];
-        
-        Log::info('Order data:', [
-            'promo_code' => $validated['promo_code'] ?? null,
-            'discount_amount' => $validated['discount_amount'] ?? 0,
-            'total_amount' => $validated['total_amount'],
-        ]);
-
-        // Tạo request mới với đầy đủ dữ liệu
-        $orderRequest = new Request([
-            'customer_name' => $validated['customer_name'],
-            'customer_phone' => $validated['customer_phone'],
-            'customer_email' => $validated['customer_email'],
-            'receiver_name' => $validated['receiver_name'],
-            'receiver_phone' => $validated['receiver_phone'],
-            'shipping_address' => $validated['shipping_address'],
-            'note' => $validated['note'] ?? null,
-            'payment_method' => $validated['payment_method'],
-            'items' => $validated['items'],
-            'total_amount' => $validated['total_amount'],
-            'order_type' => $orderType,
-            'promo_code' => $validated['promo_code'] ?? null, // <-- TRUYỀN PROMO_CODE
-            'discount_amount' => $validated['discount_amount'] ?? 0, // <-- TRUYỀN DISCOUNT_AMOUNT
-        ]);
-
-        try {
-            $response = $this->orderController->store($orderRequest);
-            $responseData = $response->getData();
-
-            if ($responseData->success) {
-                // Xóa session
-                if ($orderType === 'retail') {
-                    $request->session()->forget('cart');
-                } else {
-                    $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
-                }
-                
-                $request->session()->forget(['voucher_code', 'voucher_discount']);
-                
-                session(['last_order_id' => $responseData->order->id]);
-                
-                if (isset($responseData->order_display_code) && !empty($responseData->order_display_code)) {
-                    session(['last_order_display_code' => $responseData->order_display_code]);
-                } else {
-                    $displayCode = $this->generateOrderDisplayCode($responseData->order);
-                    session(['last_order_display_code' => $displayCode]);
-                }
-
-                return redirect()->route('checkout.success');
-            }
-
-            return back()->withErrors(['error' => $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.']);
-
-        } catch (\Exception $e) {
-            Log::error('Payment store error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
-        }
-    }
-
-
     public function __construct()
     {
+        // Sử dụng Admin\OrderController để tạo đơn hàng
         $this->orderController = app(\App\Http\Controllers\Admin\OrderController::class);
     }
 
@@ -114,6 +33,7 @@ class PaymentController extends Controller
         $discountPercent = 0;
         $now = now();
 
+        // Kiểm tra campaign (retail)
         $campaigns = Campaign::where('status', 'active')
             ->where('type', '!=', 'voucher')
             ->where('type', '!=', 'preorder')
@@ -137,6 +57,50 @@ class PaymentController extends Controller
             $currentDiscount = $config ? (float) $config->discount_percent : 0;
             if ($currentDiscount > $discountPercent) {
                 $discountPercent = $currentDiscount;
+            }
+        }
+
+        // Kiểm tra pre-order
+        if ($variant->product && ($variant->product->is_preorder ?? false)) {
+            $preorder = Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('product_id', $variant->product_id)
+                ->where(function($query) use ($now) {
+                    $query->where(function($q) use ($now) {
+                        $q->where('start_time', '<=', $now)
+                          ->where('end_time', '>=', $now);
+                    })->orWhere(function($q) {
+                        $q->whereNull('start_time')
+                          ->whereNull('end_time');
+                    });
+                })
+                ->first();
+
+            if ($preorder) {
+                $currentBuyers = $preorder->current_buyers ?? 0;
+                $tiers = $preorder->tiers ?? [];
+                
+                usort($tiers, function($a, $b) {
+                    return ($a['from'] ?? 0) - ($b['from'] ?? 0);
+                });
+                
+                $preorderDiscount = 0;
+                foreach ($tiers as $tier) {
+                    $from = $tier['from'] ?? 0;
+                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                        $preorderDiscount = $tier['discount'] ?? 0;
+                        break;
+                    }
+                }
+                
+                if ($preorderDiscount == 0 && !empty($tiers)) {
+                    $preorderDiscount = $tiers[0]['discount'] ?? 0;
+                }
+                
+                if ($preorderDiscount > $discountPercent) {
+                    $discountPercent = $preorderDiscount;
+                }
             }
         }
 
@@ -184,6 +148,7 @@ class PaymentController extends Controller
         $orderType = 'retail';
         $isPreOrder = false;
 
+        // Xử lý sản phẩm thường (retail)
         if (!empty($cartItems)) {
             foreach ($cartItems as $variantId => $item) {
                 $variant = ProductVariant::with('product', 'color')->find($variantId);
@@ -192,6 +157,7 @@ class PaymentController extends Controller
                     continue;
                 }
 
+                // Bỏ qua pre-order
                 if ($variant->product && ($variant->product->is_preorder ?? false)) {
                     continue;
                 }
@@ -230,13 +196,17 @@ class PaymentController extends Controller
             $isPreOrder = false;
         }
 
+        // Xử lý pre-order
         if (empty($products)) {
             $preOrderVariantId = Session::get('pre_order_variant_id');
             if ($preOrderVariantId) {
                 $variant = ProductVariant::with('product', 'color')->find($preOrderVariantId);
                 if ($variant && ($variant->product->is_preorder ?? false)) {
                     $quantity = Session::get('pre_order_quantity', 1);
-                    $price = $variant->price;
+                    
+                    $saleInfo = $this->calculateSalePrice($variant);
+                    $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                    
                     $total = $price * $quantity;
                     $subtotal = $total;
 
@@ -259,14 +229,19 @@ class PaymentController extends Controller
                         'color' => $variant->color->name ?? 'Đen',
                         'size' => $variant->size_name ?? 'M',
                         'is_pre_order' => true,
-                        'is_on_sale' => false,
+                        'is_on_sale' => $saleInfo['is_on_sale'],
                         'original_price' => $variant->price,
-                        'discount_percent' => 0,
+                        'discount_percent' => $saleInfo['discount_percent'],
                     ];
 
                     $orderType = 'preorder';
                     $isPreOrder = true;
-                    Log::info('Checkout - Pre-order mode');
+                    Log::info('Checkout - Pre-order mode with sale price:', [
+                        'original_price' => $variant->price,
+                        'sale_price' => $price,
+                        'discount_percent' => $saleInfo['discount_percent'],
+                        'is_on_sale' => $saleInfo['is_on_sale'],
+                    ]);
                 }
             }
         }
@@ -276,9 +251,39 @@ class PaymentController extends Controller
             return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
         }
 
+        // Nếu có voucher, tính lại discount dựa trên giá trị mới nhất
+        if ($voucherCode && $voucherDiscount > 0) {
+            $voucher = Campaign::where('code', $voucherCode)
+                ->where('type', 'voucher')
+                ->where('status', 'active')
+                ->first();
+            
+            if ($voucher) {
+                $discountValue = $voucher->discount_value;
+                $discountType = $voucher->discount_type;
+                
+                if ($discountType === 'percent') {
+                    $voucherDiscount = ($subtotal * $discountValue) / 100;
+                } elseif ($discountType === 'fixed') {
+                    $voucherDiscount = min($discountValue, $subtotal);
+                }
+                $voucherDiscount = round($voucherDiscount);
+                
+                // Cập nhật session với giá trị mới
+                session(['voucher_discount' => $voucherDiscount]);
+                session()->save();
+            } else {
+                // Voucher không còn hiệu lực, xóa session
+                session()->forget(['voucher_code', 'voucher_discount']);
+                session()->save();
+                $voucherCode = null;
+                $voucherDiscount = 0;
+            }
+        }
+
         $discount = $voucherDiscount ?? 0;
         $shippingFee = 0;
-        $finalTotal = $subtotal + $shippingFee - $discount;
+        $finalTotal = max(0, $subtotal + $shippingFee - $discount);
 
         $user = Auth::user();
         $userData = $user ? [
@@ -302,8 +307,117 @@ class PaymentController extends Controller
     }
 
     /**
-   
+     * Lưu đơn hàng - Gọi Admin Order Controller
+     */
+    public function store(Request $request)
+    {
+        Log::info('PaymentController@store called', $request->all());
     
+        $validated = $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_email' => 'required|email|max:255',
+            'receiver_name' => 'required|string|max:255',
+            'receiver_phone' => 'required|string|max:20',
+            'shipping_address' => 'required|string|max:500',
+            'note' => 'nullable|string|max:500',
+            'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:product_variants,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'total_amount' => 'required|numeric|min:0',
+            'order_type' => 'required|in:retail,preorder',
+            'promo_code' => 'nullable|string',
+            'discount_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $orderType = $validated['order_type'];
+        
+        Log::info('Order data:', [
+            'promo_code' => $validated['promo_code'] ?? null,
+            'discount_amount' => $validated['discount_amount'] ?? 0,
+            'total_amount' => $validated['total_amount'],
+        ]);
+
+        // Tạo request mới với đầy đủ dữ liệu
+        $orderRequest = new Request([
+            'customer_name' => $validated['customer_name'],
+            'customer_phone' => $validated['customer_phone'],
+            'customer_email' => $validated['customer_email'],
+            'receiver_name' => $validated['receiver_name'],
+            'receiver_phone' => $validated['receiver_phone'],
+            'shipping_address' => $validated['shipping_address'],
+            'note' => $validated['note'] ?? null,
+            'payment_method' => $validated['payment_method'],
+            'items' => $validated['items'],
+            'total_amount' => $validated['total_amount'],
+            'order_type' => $orderType,
+            'promo_code' => $validated['promo_code'] ?? null,
+            'discount_amount' => $validated['discount_amount'] ?? 0,
+        ]);
+
+        try {
+            // Gọi Admin Order Controller để tạo đơn hàng
+            $response = $this->orderController->store($orderRequest);
+            $responseData = $response->getData();
+
+            if ($responseData->success) {
+                // Xóa session
+                if ($orderType === 'retail') {
+                    $request->session()->forget('cart');
+                } else {
+                    $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
+                }
+                
+                $request->session()->forget(['voucher_code', 'voucher_discount']);
+                
+                session(['last_order_id' => $responseData->order->id]);
+                
+                if (isset($responseData->order_display_code) && !empty($responseData->order_display_code)) {
+                    session(['last_order_display_code' => $responseData->order_display_code]);
+                } else {
+                    $displayCode = $this->generateOrderDisplayCode($responseData->order);
+                    session(['last_order_display_code' => $displayCode]);
+                }
+
+                return redirect()->route('checkout.success');
+            }
+
+            return back()->withErrors(['error' => $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.']);
+
+        } catch (\Exception $e) {
+            Log::error('Payment store error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Tạo mã đơn hàng hiển thị
+     */
+    private function generateOrderDisplayCode($order)
+    {
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+            if (!$order) {
+                return 'DH' . now()->format('dmY') . '00001';
+            }
+        }
+
+        $prefix = match($order->order_code) {
+            'retail' => 'L',
+            'wholesale' => 'S',
+            'preorder' => 'P',
+            default => 'DH'
+        };
+
+        $date = now()->format('dmY');
+        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
+
+        return $prefix . $date . $sequence;
+    }
+
+    /**
      * Áp dụng voucher từ checkout
      */
     public function applyVoucher(Request $request)
@@ -317,6 +431,7 @@ class PaymentController extends Controller
             $code = strtoupper($request->code);
             $subtotal = $request->subtotal;
 
+            // Luôn lấy từ database để có giá trị mới nhất
             $voucher = Campaign::where('code', $code)
                 ->where('type', 'voucher')
                 ->where('status', 'active')
@@ -362,6 +477,7 @@ class PaymentController extends Controller
 
             $discountAmount = round($discountAmount);
 
+            // Lưu vào session
             session([
                 'voucher_code' => $voucher->code,
                 'voucher_discount' => $discountAmount,
@@ -372,6 +488,8 @@ class PaymentController extends Controller
                 'success' => true,
                 'code' => $voucher->code,
                 'discount_amount' => $discountAmount,
+                'discount_type' => $discountType,
+                'discount_value' => $discountValue,
                 'message' => 'Áp dụng mã giảm giá thành công!'
             ]);
         } catch (\Exception $e) {
@@ -384,12 +502,11 @@ class PaymentController extends Controller
     }
 
     /**
-     * Xóa voucher khỏi session - SỬA: Trả về signal để xóa localStorage
+     * Xóa voucher khỏi session
      */
     public function removeVoucher(Request $request)
     {
         try {
-            // Xóa session
             $request->session()->forget(['voucher_code', 'voucher_discount']);
             $request->session()->save();
 
@@ -398,7 +515,7 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Đã xóa mã giảm giá',
-                'clear_local' => true // Signal để xóa localStorage
+                'clear_local' => true
             ]);
         } catch (\Exception $e) {
             Log::error('Remove voucher error: ' . $e->getMessage());
@@ -516,20 +633,5 @@ class PaymentController extends Controller
             'order' => $orderData,
             'order_display_code' => $displayCode,
         ]);
-    }
-
-    private function generateOrderDisplayCode($order)
-    {
-        $prefix = match($order->order_code) {
-            'retail' => 'L',
-            'wholesale' => 'S',
-            'preorder' => 'P',
-            default => 'DH'
-        };
-
-        $date = now()->format('dmY');
-        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
-
-        return $prefix . $date . $sequence;
     }
 }

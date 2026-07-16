@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Admin/ProductController.php
 
 namespace App\Http\Controllers\Admin;
 
@@ -59,15 +58,11 @@ class ProductController extends Controller
         $parsed = parse_url($path);
         $cleanPath = ltrim($parsed['path'] ?? $path, '/');
 
-        // Chỉ xóa nếu đường dẫn bắt đầu bằng 'media/'
         if (!str_starts_with($cleanPath, 'media/')) {
             return;
         }
 
-        // Lấy phần đường dẫn sau 'media/'
-        $relative = substr($cleanPath, 6); // bỏ 'media/'
-
-        // Kiểm tra thêm nếu cần: chỉ cho phép image/ video/
+        $relative = substr($cleanPath, 6);
         if (!preg_match('#^(image|video)/#', $relative)) {
             return;
         }
@@ -94,14 +89,36 @@ class ProductController extends Controller
      */
     private function calculateSalePriceForVariant($variant)
     {
+        // ============ ƯU TIÊN 1: ĐỌC TỪ DATABASE ============
+        if ($variant->is_on_sale && $variant->sale_price !== null && $variant->sale_price > 0) {
+            $originalPrice = $variant->price;
+            $salePrice = $variant->sale_price;
+            $discountPercent = 0;
+            
+            if ($originalPrice > 0 && $salePrice < $originalPrice) {
+                $discountPercent = round((($originalPrice - $salePrice) / $originalPrice) * 100);
+            }
+            
+            return [
+                'original_price' => $originalPrice,
+                'sale_price' => $salePrice,
+                'discount_percent' => $discountPercent,
+                'discount_type' => $variant->sale_type,
+                'campaign_id' => $variant->sale_campaign_id,
+                'is_on_sale' => true,
+            ];
+        }
+        
+        // ============ ƯU TIÊN 2: TÍNH TOÁN LẠI (FALLBACK) ============
         $originalPrice = $variant->price;
         $salePrice = $originalPrice;
         $discountPercent = 0;
         $discountType = null;
         $campaignId = null;
         
-        // 1. Kiểm tra campaign (chỉ cho retail - không pre-order)
+        // 1. Kiểm tra campaign (retail) - KHÔNG pre-order
         if (!$variant->product || !$variant->product->is_preorder) {
+            // Lấy campaign active áp dụng cho variant này
             $campaign = \App\Models\Campaign::where('status', 'active')
                 ->where('type', '!=', 'voucher')
                 ->where('type', '!=', 'preorder')
@@ -112,41 +129,64 @@ class ProductController extends Controller
             
             if ($campaign) {
                 $config = $campaign->configs()->first();
-                $discountPercent = $config ? $config->discount_percent : 0;
+                $discountPercent = $config ? (float) $config->discount_percent : 0;
                 if ($discountPercent > 0) {
                     $salePrice = $originalPrice * (1 - $discountPercent / 100);
                     $salePrice = round($salePrice);
                     $discountType = 'campaign';
                     $campaignId = $campaign->id;
+                    
+                    // LƯU VÀO DATABASE
+                    $variant->update([
+                        'sale_price' => $salePrice,
+                        'is_on_sale' => true,
+                        'sale_type' => 'campaign',
+                        'sale_campaign_id' => $campaign->id,
+                    ]);
                 }
             }
         }
         
         // 2. Kiểm tra pre-order
         if ($variant->product && $variant->product->is_preorder) {
-            $preorder = \App\Models\Campaign::where('type', 'preorder')
-                ->where('status', 'active')
-                ->where('product_id', $variant->product_id)
-                ->first();
-            
-            if ($preorder) {
-                $currentBuyers = $preorder->current_buyers ?? 0;
-                $tiers = $preorder->tiers ?? [];
+            if (!$variant->is_on_sale || $variant->sale_price === null || $variant->sale_price == 0) {
+                $preorder = \App\Models\Campaign::where('type', 'preorder')
+                    ->where('status', 'active')
+                    ->where('product_id', $variant->product_id)
+                    ->first();
                 
-                foreach ($tiers as $tier) {
-                    $from = $tier['from'] ?? 0;
-                    $to = $tier['to'] ?? PHP_INT_MAX;
-                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
-                        $discountPercent = $tier['discount'] ?? 0;
-                        break;
+                if ($preorder) {
+                    $currentBuyers = $preorder->current_buyers ?? 0;
+                    $tiers = $preorder->tiers ?? [];
+                    
+                    $discountPercent = 0;
+                    if (!empty($tiers)) {
+                        $firstTier = $tiers[0];
+                        $discountPercent = $firstTier['discount'] ?? 0;
                     }
-                }
-                
-                if ($discountPercent > 0) {
-                    $salePrice = $originalPrice * (1 - $discountPercent / 100);
-                    $salePrice = round($salePrice);
-                    $discountType = 'preorder';
-                    $campaignId = $preorder->id;
+                    
+                    foreach ($tiers as $tier) {
+                        $from = $tier['from'] ?? 0;
+                        $to = $tier['to'] ?? PHP_INT_MAX;
+                        if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                            $discountPercent = $tier['discount'] ?? 0;
+                            break;
+                        }
+                    }
+                    
+                    if ($discountPercent > 0) {
+                        $salePrice = $originalPrice * (1 - $discountPercent / 100);
+                        $salePrice = round($salePrice);
+                        $discountType = 'preorder';
+                        $campaignId = $preorder->id;
+                        
+                        $variant->update([
+                            'sale_price' => $salePrice,
+                            'is_on_sale' => true,
+                            'sale_type' => 'preorder',
+                            'sale_campaign_id' => $preorder->id,
+                        ]);
+                    }
                 }
             }
         }
@@ -175,25 +215,33 @@ class ProductController extends Controller
                 
                 // Tính sale price cho từng variant
                 $salePrices = [];
+                $variantSaleInfo = [];
                 $isOnSale = false;
                 $salePercent = 0;
                 $saleType = null;
-                $variantSaleInfo = [];
+                $minSalePrice = null;
                 
                 foreach ($product->variants as $variant) {
                     $saleInfo = $this->calculateSalePriceForVariant($variant);
-                    $salePrices[] = $saleInfo['sale_price'];
                     $variantSaleInfo[$variant->id] = $saleInfo;
                     
-                    if ($saleInfo['is_on_sale']) {
+                    // Lấy sale_price nếu có
+                    if ($saleInfo['is_on_sale'] && $saleInfo['sale_price'] > 0) {
+                        $salePrices[] = $saleInfo['sale_price'];
                         $isOnSale = true;
                         $salePercent = max($salePercent, $saleInfo['discount_percent']);
                         $saleType = $saleInfo['discount_type'];
                     }
                 }
                 
+                // Lấy giá sale thấp nhất
                 $minSalePrice = !empty($salePrices) ? min($salePrices) : null;
-                $displayPrice = $minSalePrice && $minSalePrice < $minPrice ? $minSalePrice : $minPrice;
+                
+                // Giá hiển thị: ưu tiên sale_price nếu có và nhỏ hơn giá gốc
+                $displayPrice = $minPrice;
+                if ($minSalePrice !== null && $minSalePrice < $minPrice) {
+                    $displayPrice = $minSalePrice;
+                }
 
                 $media = $product->image_url ?? [];
                 if (!is_array($media)) {
@@ -228,13 +276,22 @@ class ProductController extends Controller
                             'code' => $v->color->code ?? '',
                             'size_name' => $v->size_name,
                             'price' => $v->price,
-                            'sale_price' => $info['sale_price'],
-                            'is_on_sale' => $info['is_on_sale'],
+                            'sale_price' => $info['sale_price'] ?? null,
+                            'is_on_sale' => $info['is_on_sale'] ?? false,
                             'stock' => $v->stock,
                         ];
                     }),
                 ];
             });
+
+        // Lọc theo type
+        $products = $allProducts->filter(function($item) use ($type) {
+            if ($type === 'normal') {
+                return $item['type'] === 'normal';
+            } else {
+                return $item['type'] === 'preorder';
+            }
+        })->values();
 
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $brands = Brand::orderBy('name')->get(['id', 'name']);
@@ -242,7 +299,7 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Products', [
             'type' => $type,
-            'initialProducts' => $allProducts,
+            'initialProducts' => $products,
             'categories' => $categories,
             'brands' => $brands,
             'colors' => $colors,
