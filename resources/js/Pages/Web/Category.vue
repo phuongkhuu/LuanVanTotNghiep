@@ -210,7 +210,7 @@
               </Link>
               <div class="px-4 pb-4">
                 <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm">
-                  Thêm vào giỏ hàng
+                  Xem chi tiết
                 </button>
               </div>
             </div>

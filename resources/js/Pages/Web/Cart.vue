@@ -213,8 +213,7 @@ const handleVoucherCleared = () => {
   
   // Xóa localStorage
   clearVoucherStorage()
-  
-  console.log('🗑️ Voucher cleared by event from Checkout')
+ 
 }
 
 // Watch cartItems
@@ -224,7 +223,6 @@ watch(cartItems, (newItems, oldItems) => {
   
   if (newCount !== oldCount) {
     CartEvents.emitUpdated(newCount)
-    console.log('📦 Cart.vue: Cart changed - Dispatch event, count:', newCount)
   }
 }, { deep: true })
 
@@ -239,7 +237,6 @@ const loadVoucherFromSession = () => {
   
   if (voucherCode && voucherDiscount > 0) {
     setVoucherFromSession(voucherCode, voucherDiscount)
-    console.log('📦 Cart.vue: Loaded voucher from session:', voucherCode, voucherDiscount)
   } else {
     restoreVoucher()
   }
@@ -289,7 +286,6 @@ const handleApplyCoupon = async () => {
 const handleRemoveCoupon = async () => {
   try {
     await removeCoupon()
-    console.log('✅ Voucher removed successfully')
   } catch (error) {
     console.error('❌ Failed to remove voucher:', error)
   }

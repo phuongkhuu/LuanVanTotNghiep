@@ -71,7 +71,6 @@
         <script>
             // Đảm bảo window.user được set đúng
             window.user = @json(Auth::user());
-            console.log('User set in window:', window.user);
             
             // Nếu không có user, set là null
             if (!window.user) {

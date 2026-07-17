@@ -143,14 +143,14 @@
                 </div>
               </div>
             </Link>
-            <div class="px-4 pb-4">
+            <!-- <div class="px-4 pb-4">
               <button 
                 @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
               </button>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -211,14 +211,14 @@
                 </div>
               </div>
             </Link>
-            <div class="px-4 pb-4">
+            <!-- <div class="px-4 pb-4">
               <button 
                 @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
               </button>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -282,14 +282,14 @@
                 </div>
               </div>
             </Link>
-            <div class="px-4 pb-4">
+            <!-- <div class="px-4 pb-4">
               <button 
                 @click="handleBuyNow(product)" 
                 class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
               >
                 Mua Ngay
               </button>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -452,7 +452,7 @@ const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false
       try {
         cartData = JSON.parse(existingCart)
       } catch (e) {
-        console.warn('⚠️ Parse cart error, using empty cart')
+        console.warn('Parse cart error, using empty cart')
         cartData = {}
       }
     }
@@ -471,11 +471,9 @@ const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false
     }
     
     localStorage.setItem('cart', JSON.stringify(cartData))
-    console.log('✅ Đã lưu vào localStorage:', cartData)
     
     // Tính tổng số lượng
     const totalCount = Object.values(cartData).reduce((sum, item) => sum + (item.quantity || 0), 0)
-    console.log('📦 Tổng số lượng trong giỏ:', totalCount)
     
     return { success: true, cartData, totalCount }
   } catch (error) {
@@ -516,7 +514,7 @@ const callAddToCartAPI = async (variantId, quantity = 1) => {
 const handleBuyNow = async (product) => {
   // Chặn click liên tục
   if (isProcessing.value) {
-    console.log('⏳ Đang xử lý, vui lòng chờ...')
+    console.log('Đang xử lý, vui lòng chờ...')
     return
   }
 
@@ -539,7 +537,6 @@ const handleBuyNow = async (product) => {
   try {
     // ✅ TRƯỜNG HỢP 1: PRE-ORDER - Lưu trực tiếp vào localStorage
     if (isPreOrder) {
-      console.log('🟣 Pre-order product, saving directly to localStorage...')
       
       // Nếu không có variant, tạo variant ảo
       const finalVariantId = variantId || `product_${product.id}`
@@ -548,7 +545,6 @@ const handleBuyNow = async (product) => {
       const result = saveToLocalStorage(finalVariantId, product, 1, true)
       
       if (result.success) {
-        console.log('✅ Pre-order saved to localStorage, redirecting to checkout...')
         loading.value = false
         isProcessing.value = false
         
@@ -563,8 +559,6 @@ const handleBuyNow = async (product) => {
       }
     }
 
-    // ✅ TRƯỜNG HỢP 2: SẢN PHẨM THƯỜNG - Gọi API thêm vào giỏ
-    console.log('🔵 Normal product, calling API to add to cart...')
     
     // Nếu không có variant, tạo variant ảo và lưu thẳng
     if (!variantId) {
@@ -584,15 +578,10 @@ const handleBuyNow = async (product) => {
     const apiResult = await callAddToCartAPI(variantId, 1)
     
     if (apiResult.success) {
-      console.log('✅ Added to cart via API successfully')
-      
-      // 👉 QUAN TRỌNG: KHÔNG CẦN ĐỢI fetchCart, CHỈ CẦN LƯU LOCALSTORAGE LÀ ĐỦ
-      // Vì trang checkout sẽ tự đọc từ localStorage
       
       loading.value = false
       isProcessing.value = false
       
-      // 👉 CHUYỂN ĐẾN CHECKOUT NGAY LẬP TỨC
       router.get(route('checkout'))
       return
     } else {
@@ -609,7 +598,6 @@ const handleBuyNow = async (product) => {
       }
       
       // FALLBACK: Lưu trực tiếp vào localStorage
-      console.log('🔄 Fallback: Saving directly to localStorage...')
       const finalVariantId = variantId || `product_${product.id}`
       const result = saveToLocalStorage(finalVariantId, product, 1, false)
       
@@ -782,12 +770,6 @@ onMounted(() => {
   nextTick(() => {
     initCarousel()
   })
-  
-  console.log('=== WELCOME.VUE DEBUG ===')
-  console.log('Banners:', banners.value)
-  console.log('HotSales:', hotSales.value)
-  console.log('Trending:', trending.value)
-  console.log('New Products:', newProducts.value)
 })
 
 onUnmounted(() => {

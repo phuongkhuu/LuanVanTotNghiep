@@ -869,7 +869,6 @@ const handleOverlayClick = (e) => {
 onMounted(() => {
     fetchBanners()
     fetchCampaigns()
-    console.log('Banners:', banners.value)
 })
 </script>
 

@@ -376,8 +376,6 @@ const fetchOrders = async () => {
     }
     
     const data = await response.json()
-    console.log('📦 Orders data:', data)
-    
     if (data.success) {
       // Thay thế email nếu bị N/A bằng email user
       orders.value = (data.orders || []).map(order => ({
@@ -387,7 +385,6 @@ const fetchOrders = async () => {
           : userEmail.value || 'N/A'
       }))
       pagination.value = data.pagination || null
-      console.log('✅ Loaded orders:', orders.value.length)
     } else {
       throw new Error(data.message || 'Có lỗi xảy ra')
     }

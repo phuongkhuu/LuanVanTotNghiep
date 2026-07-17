@@ -60,7 +60,6 @@ export function useCart() {
         cartTotal.value = cartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
         
         CartEvents.emitUpdated(newCount)
-        console.log('🔄 Cart updated - Count:', cartCount.value, 'Items:', cartItems.value.length)
     }
 
     const setVoucherFromSession = (code, discount) => {
@@ -73,7 +72,6 @@ export function useCart() {
                 discount_value: discount
             }
             couponError.value = ''
-            console.log('✅ Voucher set from session:', code, discount)
             return true
         }
         return false
@@ -105,7 +103,6 @@ export function useCart() {
         try {
             const key = `bigbag_voucher_${getUserId()}`
             localStorage.removeItem(key)
-            console.log('🗑️ Voucher cleared from localStorage')
         } catch (e) {
             console.error('Error clearing voucher:', e)
         }
@@ -260,7 +257,6 @@ export function useCart() {
             const key = getStorageKey()
             localStorage.removeItem(key)
             clearVoucherStorage()
-            console.log('🗑️ Cart cleared')
             return { success: true }
         } catch (error) {
             console.error('Error clearing cart:', error)
@@ -302,8 +298,6 @@ export function useCart() {
             
             // Xóa localStorage
             clearVoucherStorage()
-            
-            console.log('🗑️ Voucher removed from session and storage')
             return { success: true }
         } catch (error) {
             console.error('Error removing coupon:', error)
@@ -318,7 +312,6 @@ export function useCart() {
     }
 
     const reloadCart = () => {
-        console.log('🔄 Reloading cart...')
         fetchCart()
     }
 
@@ -332,7 +325,6 @@ export function useCart() {
                 discount_type: 'fixed',
                 discount_value: voucher.discount
             }
-            console.log('✅ Voucher restored from storage:', voucher.code, voucher.discount)
             return true
         }
         return false

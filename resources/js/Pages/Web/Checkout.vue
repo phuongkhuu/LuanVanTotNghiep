@@ -392,7 +392,6 @@ const finalTotal = computed(() => {
   const baseTotal = subtotal.value
   const discount = discountAmount.value || 0
   const result = baseTotal - discount
-  console.log('💰 finalTotal calculation:', { baseTotal, discount, result })
   return Math.max(0, result)
 })
 
@@ -425,8 +424,6 @@ const applyPromoCode = async () => {
       subtotal: subtotal.value
     })
 
-    console.log('📦 Apply voucher response:', response.data)
-
     if (response.data.success) {
       discountAmount.value = response.data.discount_amount || 0
       promoApplied.value = true
@@ -456,7 +453,6 @@ const removePromoCode = async () => {
       
       if (response.data.clear_local) {
         window.dispatchEvent(new CustomEvent('voucher:cleared'))
-        console.log('🗑️ Voucher cleared from localStorage via event')
       }
     }
   } catch (error) {
@@ -518,11 +514,6 @@ const placeOrder = () => {
     discount_amount: discountAmount.value,
   }
 
-  console.log('📦 Order data:', orderData)
-  console.log('💰 Discount amount:', discountAmount.value)
-  console.log('💰 Promo code:', promoApplied.value ? promoCode.value : null)
-  console.log('💰 Final total:', finalTotal.value)
-
   loading.value = true
 
   router.post(route('checkout.store'), orderData, {
@@ -557,11 +548,6 @@ const checkVoucherOnLoad = async () => {
                 
                 // Cập nhật finalTotal
                 finalTotal.value = subtotal.value - discountAmount.value;
-                
-                console.log('🔄 Voucher refreshed from DB:', {
-                    code: response.data.code,
-                    discount_amount: response.data.discount_amount
-                });
             } else {
                 // Voucher không còn hiệu lực
                 promoApplied.value = false;
@@ -579,7 +565,6 @@ const checkVoucherOnLoad = async () => {
 
 // ============ LIFECYCLE ============
 onMounted(() => {
-    console.log('📦 Checkout props:', props);
     
     if (props.voucher_code && props.voucher_discount > 0) {
         discountAmount.value = props.voucher_discount;

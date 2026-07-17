@@ -272,9 +272,7 @@ const closeDropdown = () => {
 // Xử lý logout
 const handleLogout = async () => {
   try {
-    const userId = getUserId()
-    console.log(`Logging out user: ${userId}`)
-    
+    const userId = getUserId()    
     closeDropdown()
     
     router.post(route('logout'), {}, {
@@ -308,13 +306,11 @@ const handleClickOutside = (event) => {
 
 // Xử lý sự kiện cart-updated
 const handleCartUpdated = (event) => {
-  console.log('📦 AppHeader received cart-updated event:', event.detail)
   // cartCount đã được cập nhật trong useCart
 }
 
 // Xử lý sự kiện user-changed
 const handleUserChanged = (event) => {
-  console.log('👤 AppHeader received user-changed event:', event.detail)
   reloadCart()
 }
 
@@ -324,7 +320,6 @@ watch(() => user.value, (newUser, oldUser) => {
   const oldId = oldUser?.id || 'guest'
   
   if (newId !== oldId) {
-    console.log(`User changed from ${oldId} to ${newId}`)
     window.user = newUser
     reloadCart()
     CartEvents.emitUserChanged(newId)
@@ -348,8 +343,6 @@ onMounted(() => {
   // Lắng nghe sự kiện user-changed
   userChangedHandler = handleUserChanged
   CartEvents.onUserChanged(userChangedHandler)
-  
-  console.log('AppHeader mounted, user:', user.value, 'cartCount:', cartCount.value)
 })
 
 onUnmounted(() => {
