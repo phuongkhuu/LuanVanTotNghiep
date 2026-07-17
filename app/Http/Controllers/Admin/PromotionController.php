@@ -872,18 +872,31 @@ class PromotionController extends Controller
             
             $campaign = Campaign::findOrFail($id);
             
+            // Lấy ID campaign trước khi xóa
+            $campaignId = $campaign->id;
+            
+            // Reset sale price cho sản phẩm
             $this->resetRetailSalePrice($campaign);
             
-            Banner::where('campaign_id', $campaign->id)->update(['campaign_id' => null]);
+            // Cập nhật banner: xóa liên kết campaign_id (không xóa banner)
+            Banner::where('campaign_id', $campaignId)->update(['campaign_id' => null]);
+            
+            // Cập nhật news: chuyển thành Nháp (0) - THÊM PHẦN NÀY
+            \App\Models\News::where('campaign_id', $campaignId)
+                ->update(['status' => 0]);
+            
+            // Xóa các liên kết
             $campaign->configs()->delete();
             $campaign->productVariants()->detach();
+            
+            // Xóa campaign
             $campaign->delete();
 
             DB::commit();
 
             return redirect()->route('admin.promotions.index')->with([
                 'success' => true,
-                'message' => 'Xóa chiến dịch thành công!'
+                'message' => 'Xóa chiến dịch thành công! Các tin tức liên quan đã chuyển sang Nháp.'
             ]);
 
         } catch (\Exception $e) {

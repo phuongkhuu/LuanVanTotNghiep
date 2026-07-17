@@ -86,6 +86,8 @@ Route::get('/gio-hang', function (Request $request) {
     ]);
 })->name('cart')->middleware('auth');
 
+Route::get('/api/news', [NewsController::class, 'getFrontendNews'])->name('api.news');
+
 Route::prefix('api')->group(function () {
     // Cart routes
     Route::get('/cart', [CartController::class, 'index']);

@@ -454,6 +454,7 @@ const addToCart = (product) => {
 }
 
 onMounted(() => {
+  console.log("Xem tên danh mục",prop.categoryName);
   const params = new URLSearchParams(window.location.search)
   
   if (params.has('brands')) {

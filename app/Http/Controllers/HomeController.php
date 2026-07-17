@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Campaign;
 use App\Models\CampaignConfig;
+use App\Models\News;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,7 @@ class HomeController extends Controller
         $this->detectPriceColumn();
 
         // ==================== BANNER ====================
+        // CHỈ lấy banner có status = 1 (Hoạt động)
         $banners = Banner::where('status', Banner::STATUS_ACTIVE)
             ->with('campaign')
             ->orderBy('order', 'asc')
@@ -44,33 +46,8 @@ class HomeController extends Controller
         // ==================== NEW PRODUCTS ====================
         $newProducts = $this->getNewProducts();
 
-        // ==================== NEWS ====================
-        $newsList = [
-            [
-                'id' => 1,
-                'title' => 'BigBag ra mắt bộ sưu tập Xuân Hè 2024',
-                'excerpt' => 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.',
-                'image' => 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop',
-                'category' => 'Sự kiện',
-                'date' => '15/03/2024'
-            ],
-            [
-                'id' => 2,
-                'title' => 'Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%',
-                'excerpt' => 'Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.',
-                'image' => 'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop',
-                'category' => 'Khuyến mãi',
-                'date' => '10/04/2024'
-            ],
-            [
-                'id' => 3,
-                'title' => 'Bí quyết chọn balo phù hợp với vóc dáng',
-                'excerpt' => 'Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.',
-                'image' => 'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop',
-                'category' => 'Mẹo hay',
-                'date' => '05/04/2024'
-            ]
-        ];
+        // ==================== NEWS & PROMOTIONS ====================
+        $newsList = $this->getNewsAndPromotions();
 
         return Inertia::render('Web/Welcome', [
             'banners' => $banners,
@@ -79,6 +56,198 @@ class HomeController extends Controller
             'newProducts' => $newProducts,
             'newsList' => $newsList,
         ]);
+    }
+
+    /**
+     * Lấy danh sách tin tức và khuyến mãi từ database
+     * CHỈ lấy news có campaign đang active và status = 1
+     */
+    private function getNewsAndPromotions()
+    {
+        try {
+            $now = now();
+            
+            // Lấy news có status = 1, có campaign_id và campaign đang active
+            $news = News::with(['campaign', 'banner'])
+                ->where('status', 1)
+                ->whereHas('campaign', function($query) use ($now) {
+                    $query->where('status', 'active')
+                        ->where(function($q) use ($now) {
+                            $q->where(function($sub) use ($now) {
+                                $sub->where('start_time', '<=', $now)
+                                    ->where('end_time', '>=', $now);
+                            })->orWhere(function($sub) {
+                                $sub->whereNull('start_time')
+                                    ->whereNull('end_time');
+                            });
+                        });
+                })
+                ->orderBy('created_at', 'desc')
+                ->limit(3)
+                ->get();
+
+            if ($news->isNotEmpty()) {
+                return $news->map(function ($item) {
+                    $campaign = $item->campaign;
+                    $category = 'Tin tức';
+                    
+                    if ($campaign) {
+                        $campaignType = $campaign->type ?? '';
+                        $typeLabels = [
+                            'seasonal' => 'Theo mùa',
+                            'flash_sale' => 'Flash Sale',
+                            'anniversary' => 'Kỷ niệm',
+                            'holiday' => 'Ngày lễ',
+                            'product_launch' => 'Ra mắt sản phẩm',
+                            'campaign' => 'Chiến dịch',
+                            'other' => 'Khuyến mãi',
+                        ];
+                        $category = $typeLabels[$campaignType] ?? 'Khuyến mãi';
+                    }
+
+                    return [
+                        'id' => $item->id,
+                        'title' => $item->title,
+                        'excerpt' => $this->getExcerpt($item->content, 120),
+                        'image' => $item->thumbnail ?? $item->banner?->image ?? $this->getDefaultNewsImage(),
+                        'category' => $category,
+                        'date' => $item->created_at ? $item->created_at->format('d/m/Y') : date('d/m/Y'),
+                        'slug' => $item->slug,
+                        'campaign_id' => $item->campaign_id,
+                        'banner_id' => $item->banner_id,
+                    ];
+                });
+            }
+
+            // Fallback: Lấy từ campaigns đang active nếu chưa có news
+            return $this->getCampaignsAsNews();
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi lấy news & promotions: ' . $e->getMessage());
+            return $this->getFallbackNews();
+        }
+    }
+
+    /**
+     * Fallback: Lấy campaigns đang active làm tin tức nếu chưa có news
+     */
+    private function getCampaignsAsNews()
+    {
+        try {
+            $now = now();
+            
+            $campaigns = Campaign::where('status', 'active')
+                ->whereNotIn('type', ['voucher', 'preorder'])
+                ->where(function($query) use ($now) {
+                    $query->where(function($q) use ($now) {
+                        $q->where('start_time', '<=', $now)
+                          ->where('end_time', '>=', $now);
+                    })->orWhere(function($q) {
+                        $q->whereNull('start_time')
+                          ->whereNull('end_time');
+                    });
+                })
+                ->with('banners')
+                ->orderBy('priority', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->limit(3)
+                ->get();
+
+            if ($campaigns->isNotEmpty()) {
+                return $campaigns->map(function ($campaign) {
+                    $banner = $campaign->banners()->where('status', Banner::STATUS_ACTIVE)->first();
+                    
+                    $typeLabels = [
+                        'seasonal' => 'Theo mùa',
+                        'flash_sale' => 'Flash Sale',
+                        'anniversary' => 'Kỷ niệm',
+                        'holiday' => 'Ngày lễ',
+                        'product_launch' => 'Ra mắt sản phẩm',
+                        'campaign' => 'Chiến dịch',
+                        'other' => 'Khuyến mãi',
+                    ];
+
+                    return [
+                        'id' => $campaign->id,
+                        'title' => $campaign->name ?? 'Chiến dịch khuyến mãi',
+                        'excerpt' => $campaign->description ?? 'Ưu đãi đặc biệt dành cho bạn',
+                        'image' => $banner?->image ?? $campaign->banner_url ?? $this->getDefaultNewsImage(),
+                        'category' => $typeLabels[$campaign->type] ?? 'Khuyến mãi',
+                        'date' => $campaign->start_time ? $campaign->start_time->format('d/m/Y') : date('d/m/Y'),
+                        'slug' => 'promotion-' . $campaign->id,
+                        'campaign_id' => $campaign->id,
+                        'banner_id' => $banner?->id,
+                    ];
+                });
+            }
+
+            return $this->getFallbackNews();
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi lấy campaigns làm news: ' . $e->getMessage());
+            return $this->getFallbackNews();
+        }
+    }
+
+    /**
+     * Fallback cuối cùng: Dữ liệu mặc định
+     */
+    private function getFallbackNews()
+    {
+        return collect([
+            [
+                'id' => 1,
+                'title' => 'BigBag ra mắt bộ sưu tập Xuân Hè 2024',
+                'excerpt' => 'Những thiết kế mới nhất với chất liệu thân thiện môi trường, phong cách thời trang công sở hiện đại.',
+                'image' => 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop',
+                'category' => 'Sự kiện',
+                'date' => date('d/m/Y'),
+            ],
+            [
+                'id' => 2,
+                'title' => 'Ưu đãi đặc biệt dịp 30/4 - Giảm đến 40%',
+                'excerpt' => 'Nhân dịp lễ lớn, BigBag dành tặng ưu đãi cực sốc cho tất cả sản phẩm balo và túi xách.',
+                'image' => 'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=800&h=500&fit=crop',
+                'category' => 'Khuyến mãi',
+                'date' => date('d/m/Y'),
+            ],
+            [
+                'id' => 3,
+                'title' => 'Bí quyết chọn balo phù hợp với vóc dáng',
+                'excerpt' => 'Khám phá những bí quyết chọn balo giúp bạn tôn lên vóc dáng và phong cách riêng.',
+                'image' => 'https://images.unsplash.com/photo-1547949003-9792a18a2601?w=800&h=500&fit=crop',
+                'category' => 'Mẹo hay',
+                'date' => date('d/m/Y'),
+            ]
+        ]);
+    }
+
+    /**
+     * Lấy excerpt từ nội dung
+     */
+    private function getExcerpt($content, $length = 120)
+    {
+        if (empty($content)) {
+            return '';
+        }
+
+        // Loại bỏ HTML tags
+        $text = strip_tags($content);
+        
+        // Cắt chuỗi
+        if (mb_strlen($text) > $length) {
+            $text = mb_substr($text, 0, $length) . '...';
+        }
+        
+        return $text;
+    }
+
+    /**
+     * Lấy ảnh mặc định cho news
+     */
+    private function getDefaultNewsImage()
+    {
+        return 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&h=500&fit=crop';
     }
 
     private function detectPriceColumn()

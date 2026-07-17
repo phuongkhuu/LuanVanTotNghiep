@@ -193,4 +193,58 @@ class PromotionController extends Controller
             ]);
         }
     }
+
+    public function checkExpiredPreorders()
+    {
+        try {
+            // Xử lý preorder hết hạn
+            $expiredPreorders = Campaign::where('type', 'preorder')
+                ->where('status', 'active')
+                ->where('end_time', '<', now())
+                ->get();
+            
+            foreach ($expiredPreorders as $preorder) {
+                $product = Product::find($preorder->product_id);
+                if ($product) {
+                    foreach ($product->variants as $variant) {
+                        $variant->update([
+                            'sale_price' => null,
+                            'is_on_sale' => false,
+                            'sale_type' => null,
+                            'sale_campaign_id' => null,
+                        ]);
+                    }
+                }
+                
+                $preorder->update(['status' => 'ended']);
+                
+                // Cập nhật banner liên quan sang trạng thái Đã khóa (-1)
+                Banner::where('campaign_id', $preorder->id)
+                    ->update(['status' => Banner::STATUS_INACTIVE]);
+            }
+            
+            // Xử lý campaign thường hết hạn
+            $expiredCampaigns = Campaign::where('type', '!=', 'preorder')
+                ->where('type', '!=', 'voucher')
+                ->where('status', 'active')
+                ->where('end_time', '<', now())
+                ->get();
+            
+            foreach ($expiredCampaigns as $campaign) {
+                $this->resetRetailSalePrice($campaign);
+                $campaign->update(['status' => 'ended']);
+                
+                // Cập nhật banner liên quan sang trạng thái Đã khóa (-1)
+                Banner::where('campaign_id', $campaign->id)
+                    ->update(['status' => Banner::STATUS_INACTIVE]);
+            }
+            
+            return $expiredPreorders->count() + $expiredCampaigns->count();
+            
+        } catch (\Exception $e) {
+            Log::error('Error checking expired campaigns: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
 }

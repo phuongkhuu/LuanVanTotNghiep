@@ -96,6 +96,9 @@ class BannerController extends Controller
         return response()->json($campaigns);
     }
 
+
+
+    // Cập nhật phương thức store để tự động xét trạng thái
     public function store(Request $request)
     {
         try {
@@ -124,25 +127,13 @@ class BannerController extends Controller
                 ], 404);
             }
 
-            if (!in_array($campaign->status, ['active', 'scheduled'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chiến dịch đã kết thúc hoặc không khả dụng. Chỉ chọn chiến dịch đang diễn ra hoặc sắp diễn ra.'
-                ], 422);
-            }
-
-            if (in_array($campaign->type, ['voucher', 'preorder'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chiến dịch không hợp lệ. Chỉ chọn campaign thông thường.'
-                ], 422);
-            }
-
             // Tự động xét trạng thái dựa trên campaign
-            // active -> 1 (Hoạt động), scheduled -> 0 (Đang chờ)
-            $status = $campaign->status === 'active' 
-                ? Banner::STATUS_ACTIVE   // 1
-                : Banner::STATUS_PENDING; // 0
+            $status = match($campaign->status) {
+                'active' => Banner::STATUS_ACTIVE,    // 1
+                'scheduled' => Banner::STATUS_PENDING, // 0
+                'ended' => Banner::STATUS_INACTIVE,    // -1
+                default => Banner::STATUS_PENDING,
+            };
 
             $data = [
                 'title' => $validated['title'],
@@ -214,23 +205,13 @@ class BannerController extends Controller
         }
     }
 
+    // Cập nhật phương thức update để tự động xét trạng thái
     public function update(Request $request, $id)
     {
         try {
             Log::info('Banner update request:', ['id' => $id, 'data' => $request->all()]);
 
             $banner = Banner::findOrFail($id);
-            
-            // Kiểm tra campaign hiện tại
-            $currentCampaign = Campaign::find($banner->campaign_id);
-            
-            // Nếu campaign đã kết thúc -> KHÔNG cho sửa
-            if ($currentCampaign && $currentCampaign->status === 'ended') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chiến dịch đã kết thúc, không thể sửa banner này. Bạn chỉ có thể xóa.'
-                ], 422);
-            }
             
             $rules = [
                 'title' => 'required|string|max:255',
@@ -255,24 +236,13 @@ class BannerController extends Controller
                 ], 404);
             }
 
-            if (!in_array($campaign->status, ['active', 'scheduled'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chiến dịch đã kết thúc. Chỉ chọn chiến dịch đang diễn ra hoặc sắp diễn ra.'
-                ], 422);
-            }
-
-            if (in_array($campaign->type, ['voucher', 'preorder'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Chiến dịch không hợp lệ. Chỉ chọn campaign thông thường.'
-                ], 422);
-            }
-
-            // Tự động xét trạng thái dựa trên campaign mới
-            $status = $campaign->status === 'active' 
-                ? Banner::STATUS_ACTIVE   // 1
-                : Banner::STATUS_PENDING; // 0
+            // Tự động xét trạng thái dựa trên campaign
+            $status = match($campaign->status) {
+                'active' => Banner::STATUS_ACTIVE,    // 1
+                'scheduled' => Banner::STATUS_PENDING, // 0
+                'ended' => Banner::STATUS_INACTIVE,    // -1
+                default => Banner::STATUS_PENDING,
+            };
 
             $data = [
                 'title' => $validated['title'],

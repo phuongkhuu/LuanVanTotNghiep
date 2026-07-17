@@ -30,9 +30,6 @@
               @error="handleImageError"
             />
           </div>
-          <div v-if="banner.campaign" class="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
-            {{ banner.campaign }}
-          </div>
         </div>
       </div>
 
@@ -308,7 +305,7 @@
             :key="article.id" 
             class="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100"
           >
-            <Link :href="route('promotion')" class="block">
+            <Link :href="article.campaign_id ? route('promotion') : '#'" class="block">
               <div class="aspect-[1.5/1] overflow-hidden">
                 <img 
                   :src="article.image || getDefaultImage()" 
@@ -320,13 +317,13 @@
               </div>
               <div class="p-5">
                 <div class="flex items-center gap-2 mb-3">
-                  <span class="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-medium">{{ article.category }}</span>
+                  <span class="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-medium">{{ article.category || 'Tin tức' }}</span>
                   <span class="text-xs text-gray-400">{{ article.date }}</span>
                 </div>
                 <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">{{ article.title }}</h3>
                 <p class="text-gray-500 text-sm line-clamp-2">{{ article.excerpt }}</p>
                 <div class="text-primary text-sm mt-4 inline-flex items-center gap-1 hover:gap-2 transition-all">
-                  Đọc thêm →
+                  {{ article.campaign_id ? 'Xem chi tiết →' : 'Đọc thêm →' }}
                 </div>
               </div>
             </Link>

@@ -13,11 +13,11 @@
             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           >
           <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex flex-col justify-center px-6 md:px-12 text-white">
-            <h1 class="font-headline-xl text-3xl md:text-5xl font-bold mb-4">{{ banners[0].title || 'ĐẠI TIỆC KHUYẾN MÃI' }}</h1>
+            <h1 class="font-headline-xl text-3xl md:text-5xl font-bold mb-4">{{'ĐẠI TIỆC KHUYẾN MÃI' || banners[0].title }}</h1>
             <p class="text-base md:text-lg mb-6 max-w-lg">{{ banners[0].description || 'Sẵn sàng cho mọi hành trình với ưu đãi lên đến 50% cho tất cả dòng sản phẩm Balo & Túi cao cấp.' }}</p>
-            <Link :href="banners[0].link || route('category', { slug: 'sale' })" class="bg-primary text-white font-bold py-3 px-8 w-fit rounded-full hover:bg-primary-dark transition-all shadow-lg text-sm">
+            <!-- <Link :href="banners[0].link || route('category', { slug: 'sale' })" class="bg-primary text-white font-bold py-3 px-8 w-fit rounded-full hover:bg-primary-dark transition-all shadow-lg text-sm">
               KHÁM PHÁ NGAY
-            </Link>
+            </Link> -->
           </div>
         </div>
         <!-- Fallback nếu không có banner -->

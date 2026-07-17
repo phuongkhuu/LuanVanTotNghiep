@@ -110,7 +110,7 @@ class CategoryController extends Controller
     private function showProductsByMultipleCategories(Request $request, $slug, $categories)
     {
         $keywords = explode('-', $slug);
-        $displayName = collect($keywords)->map(fn($kw) => ucfirst($kw))->implode(' & ');
+        $displayName = collect($keywords)->map(fn($kw) => ucfirst($kw))->implode(' ');
         $categoryIds = $categories->pluck('id')->toArray();
 
         $query = Product::with(['category', 'brand', 'variants.color'])
