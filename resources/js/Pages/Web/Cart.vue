@@ -113,7 +113,7 @@
             <h2 class="font-semibold text-xl mb-6 border-b border-gray-200 pb-4 text-gray-800">Tóm tắt đơn hàng</h2>
             <div class="space-y-4">
               <div class="flex justify-between text-gray-600">
-                <span>Tạm tính ({{ cartItems.length }} sản phẩm)</span>
+                <span>Tạm tính</span>
                 <span class="font-semibold text-gray-800">{{ formatPrice(subtotal) }}</span>
               </div>
               <div class="flex justify-between text-gray-600">
@@ -284,6 +284,7 @@ const handleApplyCoupon = async () => {
 }
 
 const handleRemoveCoupon = async () => {
+  console.log('✅ Voucher removed successfully')
   try {
     await removeCoupon()
   } catch (error) {

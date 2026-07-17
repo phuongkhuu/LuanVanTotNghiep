@@ -565,6 +565,7 @@ const checkVoucherOnLoad = async () => {
 
 // ============ LIFECYCLE ============
 onMounted(() => {
+    //console.log('📦 Checkout props:', props);
     
     if (props.voucher_code && props.voucher_discount > 0) {
         discountAmount.value = props.voucher_discount;

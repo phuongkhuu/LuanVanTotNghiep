@@ -44,7 +44,7 @@
                 
                 <!-- Filter -->
                 <div class="flex flex-wrap items-center gap-2">
-                    <select v-model="statusFilter" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white min-w-[130px]">
+                    <select v-model="statusFilter" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white min-w-[180px]">
                         <option value="all">Tất cả trạng thái</option>
                         <option value="active">Hoạt động</option>
                         <option value="pending">Đang chờ</option>
@@ -52,7 +52,7 @@
                         <option value="inactive">Tạm dừng</option>
                     </select>
                     
-                    <select v-model="campaignFilter" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white min-w-[150px]">
+                    <select v-model="campaignFilter" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white min-w-[130px]">
                         <option value="">Chiến dịch</option>
                         <option v-for="camp in campaigns" :key="camp.id" :value="camp.id">
                             {{ camp.name }}
@@ -869,6 +869,7 @@ const handleOverlayClick = (e) => {
 onMounted(() => {
     fetchBanners()
     fetchCampaigns()
+    console.log('Banners:', banners.value)
 })
 </script>
 

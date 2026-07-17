@@ -244,6 +244,10 @@ const props = defineProps({
 
 // Debug
 onMounted(() => {
+  // console.log('📦 CheckoutSuccess - Full props:', props)
+  // console.log('📦 CheckoutSuccess - Order:', props.order)
+  // console.log('📦 CheckoutSuccess - Order discount_amount:', props.order?.discount_amount)
+  // console.log('📦 CheckoutSuccess - Order final_amount:', props.order?.final_amount)
 })
 
 // Lấy mã đơn hàng
