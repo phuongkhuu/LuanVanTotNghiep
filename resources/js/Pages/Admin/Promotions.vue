@@ -885,7 +885,7 @@
                                     :value="product.id"
                                     :disabled="isProductInOtherActivePreorder(product.id)"
                                 >
-                                    ⏳ {{ product.name }} 
+                                     {{ product.name }} 
                                     <span v-if="product.variants && product.variants.length > 0" class="text-gray-400 text-xs">
                                         ({{ product.variants.length }} biến thể)
                                     </span>
@@ -904,10 +904,7 @@
                         
                         <div v-if="preorderForm.product_id" class="mt-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
                             <p class="text-sm font-medium text-purple-700">
-                                ✅ Đã chọn: {{ getProductName(preorderForm.product_id) }}
-                            </p>
-                            <p class="text-xs text-gray-500 mt-1">
-                                ID: {{ preorderForm.product_id }}
+                                 Đã chọn: {{ getProductName(preorderForm.product_id) }}
                             </p>
                         </div>
                         <div v-if="preorderConflictError" class="mt-2 p-2 bg-red-50 rounded-lg border border-red-200">

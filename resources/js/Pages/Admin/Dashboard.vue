@@ -1,55 +1,41 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
+
+// Nhận props từ controller
+const props = defineProps({
+    stats: Object,          // { todayRevenue: { retail, wholesale, preorder }, totalOrders, totalCustomers, lowStockProducts }
+    growth: Object,         // { retail, wholesale, preorder }
+    recentOrders: Array,
+    topRetail: Array,
+    topWholesale: Array,
+    topPreorder: Array,
+    chartWeek: Object,      // { labels, retail, wholesale, preorder }
+    chartMonth: Object,     // { labels, retail, wholesale, preorder }
+    currentPeriod: String,  // 'week' or 'month'
+});
+
+const page = usePage();
 
 // Period state
-const selectedPeriod = ref('week');
+const selectedPeriod = ref(props.currentPeriod || 'week');
 let revenueChart = null;
 
-// Recent orders data
-const recentOrders = ref([
-    { code: '#ORD-001', customer: 'Nguyễn Văn A', type: 'Bán lẻ', amount: '2.500.000₫', status: 'Hoàn thành', statusClass: 'bg-green-100 text-green-700' },
-    { code: '#ORD-002', customer: 'Công ty ABC', type: 'Bán sỉ', amount: '18.500.000₫', status: 'Đang giao', statusClass: 'bg-blue-100 text-blue-700' },
-    { code: '#ORD-003', customer: 'Trần Thị B', type: 'Pre-order', amount: '1.850.000₫', status: 'Chờ xác nhận', statusClass: 'bg-yellow-100 text-yellow-700' }
-]);
-
-// Top products
-const topRetail = ref([
-    { name: 'Balo Doanh Nhân Elite', sold: 145 },
-    { name: 'Túi Du Lịch Nomad', sold: 98 },
-    { name: 'Balo Công Sở Commuter', sold: 87 }
-]);
-
-const topWholesale = ref([
-    { name: 'Balo Elite - Order số lượng lớn', quantity: 12 },
-    { name: 'Túi Nomad - Doanh nghiệp', quantity: 8 },
-    { name: 'Balo Tech Nova - Đối tác', quantity: 5 }
-]);
-
-const topPreorder = ref([
-    { name: 'Balo Limited Edition 2025', preordered: 45 },
-    { name: 'Túi Da Cao Cấp', preordered: 32 },
-    { name: 'Set Balo + Ví', preordered: 28 }
-]);
-
-// Data cho các khoảng thời gian
-const chartData = {
-    week: {
-        labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'],
-        retail: [8, 10, 7, 12, 15, 18, 14],
-        wholesale: [15, 18, 12, 22, 28, 35, 25],
-        preorder: [5, 4, 6, 8, 10, 12, 7]
-    },
-    month: {
-        labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
-        retail: [45, 52, 48, 58],
-        wholesale: [85, 92, 78, 98],
-        preorder: [28, 32, 35, 42]
-    }
+// Format currency
+const formatPrice = (value) => {
+    if (!value && value !== 0) return '0₫';
+    return value.toLocaleString('vi-VN') + '₫';
 };
 
-// Hàm khởi tạo biểu đồ
+// Format growth with sign
+const formatGrowth = (value) => {
+    if (value > 0) return `↑ +${value}% so với hôm qua`;
+    if (value < 0) return `↓ ${value}% so với hôm qua`;
+    return '0% so với hôm qua';
+};
+
+// Khởi tạo biểu đồ với dữ liệu từ props
 const initChart = () => {
     const canvas = document.getElementById('revenueByTypeChart');
     if (!canvas) return;
@@ -57,30 +43,37 @@ const initChart = () => {
     const ctx = canvas.getContext('2d');
     if (revenueChart) revenueChart.destroy();
     
-    const data = chartData[selectedPeriod.value];
+    // Lấy dữ liệu tương ứng với period
+    const data = selectedPeriod.value === 'week' ? props.chartWeek : props.chartMonth;
+    
+    // Nếu không có dữ liệu, dùng mảng rỗng
+    const labels = data?.labels || [];
+    const retail = data?.retail || [];
+    const wholesale = data?.wholesale || [];
+    const preorder = data?.preorder || [];
     
     revenueChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: data.labels,
+            labels: labels,
             datasets: [
                 { 
                     label: 'Bán lẻ', 
-                    data: data.retail, 
+                    data: retail, 
                     backgroundColor: '#f97316', 
                     borderRadius: 6,
                     barPercentage: 0.7
                 },
                 { 
                     label: 'Bán sỉ', 
-                    data: data.wholesale, 
+                    data: wholesale, 
                     backgroundColor: '#436651', 
                     borderRadius: 6,
                     barPercentage: 0.7
                 },
                 { 
                     label: 'Pre-order', 
-                    data: data.preorder, 
+                    data: preorder, 
                     backgroundColor: '#f59e0b', 
                     borderRadius: 6,
                     barPercentage: 0.7
@@ -98,7 +91,7 @@ const initChart = () => {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return context.dataset.label + ': ' + context.raw + ' triệu ₫';
+                            return context.dataset.label + ': ' + context.raw.toFixed(1) + ' triệu ₫';
                         }
                     }
                 }
@@ -118,10 +111,29 @@ const initChart = () => {
     });
 };
 
-// Xử lý khi đổi period
+// Xử lý khi đổi period: gọi lại controller để lấy dữ liệu mới
 const handlePeriodChange = () => {
-    initChart();
+    router.visit(route('admin.dashboard'), {
+        method: 'get',
+        data: { period: selectedPeriod.value },
+        preserveScroll: true,
+        preserveState: true,
+        only: ['chartWeek', 'chartMonth', 'currentPeriod'], // Chỉ cập nhật các props liên quan đến chart
+        onSuccess: () => {
+            // Sau khi cập nhật props, khởi tạo lại biểu đồ
+            initChart();
+        }
+    });
 };
+
+// Theo dõi props thay đổi (khi có Inertia reload)
+watch(() => [props.chartWeek, props.chartMonth, props.currentPeriod], () => {
+    // Cập nhật selectedPeriod nếu currentPeriod thay đổi
+    if (props.currentPeriod && props.currentPeriod !== selectedPeriod.value) {
+        selectedPeriod.value = props.currentPeriod;
+    }
+    initChart();
+}, { deep: true });
 
 onMounted(() => {
     setTimeout(() => initChart(), 100);
@@ -144,8 +156,10 @@ onMounted(() => {
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Bán lẻ hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">8.250.000₫</p>
-                        <p class="text-xs text-green-600 mt-2">↑ +12.5% so với hôm qua</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.retail) }}</p>
+                        <p class="text-xs" :class="growth.retail >= 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ formatGrowth(growth.retail) }}
+                        </p>
                     </div>
                 </div>
 
@@ -153,8 +167,10 @@ onMounted(() => {
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Bán sỉ hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">32.500.000₫</p>
-                        <p class="text-xs text-green-600 mt-2">↑ +23.5% so với hôm qua</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.wholesale) }}</p>
+                        <p class="text-xs" :class="growth.wholesale >= 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ formatGrowth(growth.wholesale) }}
+                        </p>
                     </div>
                 </div>
 
@@ -162,9 +178,27 @@ onMounted(() => {
                 <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Pre-order hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">5.200.000₫</p>
-                        <p class="text-xs text-green-600 mt-2">↑ +5.2% so với hôm qua</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.preorder) }}</p>
+                        <p class="text-xs" :class="growth.preorder >= 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ formatGrowth(growth.preorder) }}
+                        </p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Thêm các thông số tổng quan (tùy chọn) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <p class="text-sm text-gray-500 font-medium">Tổng đơn hàng</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.totalOrders }}</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <p class="text-sm text-gray-500 font-medium">Tổng khách hàng</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.totalCustomers }}</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+                    <p class="text-sm text-gray-500 font-medium">Sản phẩm tồn kho thấp</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.lowStockProducts }}</p>
                 </div>
             </div>
 
@@ -226,7 +260,7 @@ onMounted(() => {
                                 <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
                                 <span class="text-sm text-gray-700">{{ p.name }}</span>
                             </div>
-                            <span class="text-sm font-medium text-gray-800">{{ p.quantity }} đơn</span>
+                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
                         </div>
                     </div>
                 </div>
@@ -239,7 +273,7 @@ onMounted(() => {
                                 <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
                                 <span class="text-sm text-gray-700">{{ p.name }}</span>
                             </div>
-                            <span class="text-sm font-medium text-gray-800">{{ p.preordered }} đơn</span>
+                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
                         </div>
                     </div>
                 </div>

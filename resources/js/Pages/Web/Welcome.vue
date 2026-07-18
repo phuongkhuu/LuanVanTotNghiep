@@ -532,7 +532,6 @@ const handleBuyNow = async (product) => {
   loading.value = true
 
   try {
-    // ✅ TRƯỜNG HỢP 1: PRE-ORDER - Lưu trực tiếp vào localStorage
     if (isPreOrder) {
       
       // Nếu không có variant, tạo variant ảo
@@ -545,7 +544,6 @@ const handleBuyNow = async (product) => {
         loading.value = false
         isProcessing.value = false
         
-        // 👉 CHUYỂN ĐẾN CHECKOUT
         router.get(route('checkout'))
         return
       } else {
@@ -559,7 +557,6 @@ const handleBuyNow = async (product) => {
     
     // Nếu không có variant, tạo variant ảo và lưu thẳng
     if (!variantId) {
-      console.warn('⚠️ No variant found, using product_id as fallback')
       const fakeVariantId = `product_${product.id}`
       const result = saveToLocalStorage(fakeVariantId, product, 1, false)
       

@@ -29,7 +29,6 @@ export function useCart() {
             const key = getStorageKey()
             localStorage.setItem(key, JSON.stringify(items))
         } catch (e) {
-            console.error('Error saving cart:', e)
         }
     }
 

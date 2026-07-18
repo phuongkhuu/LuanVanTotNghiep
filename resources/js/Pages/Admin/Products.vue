@@ -26,7 +26,7 @@
                     class="px-5 py-2.5 text-sm font-medium transition-all"
                     :class="activeType === tab.value ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'"
                 >
-                    {{ tab.icon }} {{ tab.label }} 
+                     {{ tab.label }} 
                     <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ getTypeCount(tab.value) }}</span>
                 </button>
             </div>
@@ -477,8 +477,8 @@ const currentPage = ref(1);
 const perPage = ref(5);
 
 const productTypes = [
-    { value: 'normal', label: 'Sản phẩm thường', icon: '📦' },
-    { value: 'preorder', label: 'Pre-order', icon: '⏳' }
+    { value: 'normal', label: 'Sản phẩm thường' },
+    { value: 'preorder', label: 'Pre-order' }
 ];
 
 const products = ref(props.initialProducts);

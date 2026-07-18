@@ -10,18 +10,22 @@ class PaymentSeeder extends Seeder
     public function run()
     {
         $orders = DB::table('orders')->get();
+        $methods = ['cod', 'bank_transfer', 'momo', 'vnpay'];
+        $statuses = ['pending', 'success', 'failed'];
 
         foreach ($orders as $order) {
-            DB::table('payments')->insert([
-                'order_id' => $order->id,
-                'transaction_code' => 'TXN' . str_pad($order->id, 8, '0', STR_PAD_LEFT),
-                'payment_method' => $order->order_code === 'wholesale' ? 'bank_transfer' : 'cod',
-                'amount' => $order->final_amount,
-                'payment_date' => $order->created_at,
-                'status' => $order->order_status == 2 ? 'success' : 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            if (rand(0, 1)) { // 50% số đơn có thanh toán
+                DB::table('payments')->insert([
+                    'order_id' => $order->id,
+                    'transaction_code' => 'TXN' . str_pad($order->id, 8, '0', STR_PAD_LEFT),
+                    'payment_method' => $methods[array_rand($methods)],
+                    'amount' => $order->final_amount,
+                    'payment_date' => $order->created_at,
+                    'status' => $statuses[array_rand($statuses)],
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->created_at,
+                ]);
+            }
         }
     }
 }

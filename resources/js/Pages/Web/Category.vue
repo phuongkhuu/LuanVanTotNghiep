@@ -178,15 +178,17 @@
                 <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                   <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform" :alt="product.name">
                   
-                  <!-- Badge giảm giá -->
-                  <span v-if="product.badge" class="absolute top-4 left-4 px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
-                    {{ product.badge }}
-                  </span>
-                  
-                  <!-- Badge Pre-order -->
-                  <span v-if="product.is_preorder" class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
-                    Pre-Order
-                  </span>
+                  <!-- Badge container -->
+                  <div class="absolute top-4 left-4 flex flex-wrap gap-2">
+                    <!-- Badge giảm giá -->
+                    <span v-if="product.badge" class="px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
+                      {{ product.badge }}
+                    </span>
+                    <!-- Badge Pre-order -->
+                    <span v-if="product.is_preorder" class="px-3 py-1 text-xs rounded-full bg-purple-600 text-white font-bold">
+                      Pre-Order
+                    </span>
+                  </div>
                   
                   <button class="absolute top-4 right-4 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                     <span class="material-symbols-outlined text-sm">favorite</span>
@@ -454,7 +456,6 @@ const addToCart = (product) => {
 }
 
 onMounted(() => {
-  console.log("Xem tên danh mục",prop.categoryName);
   const params = new URLSearchParams(window.location.search)
   
   if (params.has('brands')) {
@@ -485,6 +486,7 @@ onMounted(() => {
   if (params.has('price_max')) {
     const val = Number(params.get('price_max'))
     tempPriceMax.value = val
+    appliedPriceMax.value = val 
     appliedPriceMax.value = val 
   }
   if (params.has('sort')) {

@@ -229,7 +229,6 @@ const getCategoryUrl = (slug) => {
   try {
     return route('category', { slug })
   } catch (e) {
-    console.warn(`Invalid slug: ${slug}`, e)
     return '#'
   }
 }
@@ -285,7 +284,6 @@ const handleLogout = async () => {
       }
     })
   } catch (error) {
-    console.error('Logout error:', error)
     router.post(route('logout'))
   }
 }
@@ -306,7 +304,7 @@ const handleClickOutside = (event) => {
 
 // Xử lý sự kiện cart-updated
 const handleCartUpdated = (event) => {
-  // cartCount đã được cập nhật trong useCart
+  fetchCart()
 }
 
 // Xử lý sự kiện user-changed

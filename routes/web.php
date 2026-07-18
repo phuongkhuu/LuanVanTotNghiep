@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\CustomizeController as AdminCustomizeController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ColorController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ChatbotMessageController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
 use App\Http\Controllers\HomeController;
@@ -262,9 +264,11 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/preorder-info', [AdminPromotionController::class, 'getPreorderInfo'])->name('promotions.preorder.info');
     });
 
-    Route::get('/reports', function () {
-        return Inertia::render('Admin/Reports');
-    })->name('reports.index');
+    Route::prefix('reports')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('reports');
+        Route::get('/data', [ReportController::class, 'getData'])->name('reports.data');
+        Route::get('/export', [ReportController::class, 'export'])->name('reports.export');
+    });
     
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::put('/settings/general', [SettingController::class, 'updateGeneral'])->name('settings.updateGeneral');
@@ -289,5 +293,7 @@ Route::get('/media/{path}', function ($path) {
 // Review
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 Route::post('/reviews', [ReviewController::class, 'store'])->middleware('auth');
+
+Route::post('/chat', [ChatbotMessageController::class, 'chat'])->name('chat');
 
 require __DIR__.'/auth.php';
