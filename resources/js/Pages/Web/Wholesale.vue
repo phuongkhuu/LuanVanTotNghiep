@@ -4,129 +4,7 @@
     <AppHeader />
 
     <main>
-      <!-- Hero Section -->
-      <section class="relative bg-gradient-to-br from-orange-50 to-white overflow-hidden">
-        <div class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-20 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          <div class="z-10">
-            <span class="bg-orange-100 text-orange-700 text-sm px-4 py-1 rounded-full mb-4 inline-block font-medium">B2B & WHOLESALE</span>
-            <h1 class="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">Giải Pháp Balo Doanh Nghiệp Toàn Diện</h1>
-            <p class="text-gray-600 text-base md:text-lg mb-8 max-w-xl">BigBag cung cấp dịch vụ sản xuất và cung ứng balo số lượng lớn với tiêu chuẩn cao cấp, thiết kế tối ưu hóa cho nhận diện thương hiệu và quà tặng doanh nghiệp.</p>
-            <div class="flex gap-4 justify-center lg:justify-start">
-              <a class="bg-orange-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-orange-700 transition-all flex items-center gap-2 uppercase tracking-wide shadow-md" href="#contact">
-                NHẬN BÁO GIÁ NGAY
-                <span class="material-symbols-outlined">arrow_forward</span>
-              </a>
-            </div>
-          </div>
-          <div class="relative">
-            <img alt="Corporate backpacks" class="rounded-xl shadow-xl w-full h-[350px] md:h-[450px] object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPOEllp3eC6aMxqqXyMehfbhNDerSNmtfj3mZhrjOnXP623TDYL8i26XGXe5IHdKHyh6MSnOeYFdMNcx4jUjR6Vu6OX17G3f7FeYXKawZConl3d-PTsLdlf35jOIGCSDoHgk_hKzs6uCxwhdIcuSeRkPbLXdV1VcOIjVPgproadEWitavl6uh7PmPjOh72gxXswaBAt6cMugz9Kue06bvlJbTmIsKfj_Av_omrfNJXndz4xEzjGUjE8Jg1nGbwciTPfishwijGWvtS">
-          </div>
-        </div>
-      </section>
-
-      <!-- Services Bento Grid -->
-      <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16">
-        <div class="text-center mb-8 md:mb-10">
-          <h2 class="text-2xl md:text-4xl font-bold text-gray-900 mb-3 border-b-4 border-orange-400 inline-block pb-2">Dịch Vụ Cung Cấp Sỉ</h2>
-          <p class="text-gray-500 mt-4">Tối ưu hóa ngân sách và nâng tầm thương hiệu của bạn</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[220px] md:auto-rows-[240px]">
-          <div class="md:col-span-2 md:row-span-1 bg-white p-6 md:p-8 border border-gray-100 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div>
-              <span class="material-symbols-outlined text-orange-600 mb-4 text-3xl">branding_watermark</span>
-              <h3 class="text-lg md:text-xl font-bold text-gray-800 mb-2">Gia Công Logo Thương Hiệu</h3>
-              <p class="text-gray-500 text-sm">In ấn, thêu hoặc dập nổi logo doanh nghiệp trên các dòng sản phẩm cao cấp, đảm bảo độ sắc nét và bền bỉ theo thời gian.</p>
-            </div>
-          </div>
-          <div class="bg-gray-50 p-6 md:p-8 rounded-xl flex flex-col justify-center hover:shadow-md transition-shadow border border-gray-100">
-            <span class="material-symbols-outlined text-orange-600 mb-4 text-3xl">design_services</span>
-            <h3 class="text-lg md:text-xl font-bold text-gray-800 mb-2">Thiết Kế Riêng</h3>
-            <p class="text-gray-500 text-sm">Tùy chỉnh ngăn chứa và tính năng theo yêu cầu sử dụng đặc thù của nhân viên hoặc khách hàng.</p>
-          </div>
-          <div class="bg-orange-600 text-white p-6 md:p-8 rounded-xl flex flex-col justify-end hover:shadow-md transition-shadow relative overflow-hidden">
-            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full"></div>
-            <span class="material-symbols-outlined text-white mb-4 text-3xl">payments</span>
-            <h3 class="text-lg md:text-xl font-bold mb-2 text-white">Chiết Khấu Hấp Dẫn</h3>
-            <p class="text-orange-100 text-xs md:text-sm">Càng mua nhiều, ưu đãi càng lớn. Chính sách giá sỉ cạnh tranh nhất thị trường cho đơn hàng từ 50 sản phẩm.</p>
-          </div>
-          <div class="md:col-span-2 bg-white p-6 md:p-8 border border-gray-100 rounded-xl flex flex-col md:flex-row items-center gap-6 md:gap-8 hover:shadow-md transition-shadow">
-            <div class="w-full md:w-1/3">
-              <img alt="Logistics" class="rounded-lg object-cover h-32 w-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDR-dehP2vvVAjMINvlzoTppIxiqc9mK7SmW-PJ2xWTI1o7xLSx15p1Z8wLO-9dUn8uXPmJ_2qgcC5h42t85QK56sdURs3PUi6HZ6qjsxRLUsgbCh2Z3hT06fwFKzrLms0n7Lb6aMpKW9DolcS-nEwfc7U6JMIONHN2WSUxO84Kq36Pqc_9QkNEM1jNqSZQ1nvQHvZkIzHU7wwRGJwBMMviJqp-4LrdbO8N4pf83X5Zi244dHJpsPL-_s10hpRTPHatrv9YceZVfpQi">
-            </div>
-            <div class="w-full md:w-2/3">
-              <h3 class="text-lg md:text-xl font-bold text-gray-800 mb-2">Giao Hàng Toàn Quốc</h3>
-              <p class="text-gray-500 text-sm">Hỗ trợ vận chuyển tận nơi trong thời gian ngắn nhất, đảm bảo quy trình đóng gói tiêu chuẩn cao cấp.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Product Gallery -->
-      <section class="bg-gray-50 py-12 md:py-16">
-        <div class="max-w-[1440px] mx-auto px-4 md:px-8">
-          <div class="flex flex-col md:flex-row justify-between items-end mb-6 md:mb-8 gap-4">
-            <div>
-              <h2 class="text-2xl md:text-4xl font-bold text-gray-900">Mẫu Balo Tiêu Biểu</h2>
-              <p class="text-gray-500 mt-2 text-sm">Các dòng sản phẩm được doanh nghiệp ưa chuộng nhất 2024</p>
-            </div>
-            <Link :href="route('category', { slug: 'wholesale-products' })" class="text-orange-600 font-semibold text-sm flex items-center gap-1 hover:text-orange-700 uppercase tracking-wider">
-              XEM TẤT CẢ MẪU <span class="material-symbols-outlined text-base">chevron_right</span>
-            </Link>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div v-for="product in wholesaleProducts" :key="product.id" class="bg-white rounded-xl p-4 group cursor-pointer border border-gray-100 hover:shadow-lg transition-all">
-              <Link :href="route('product.detail', { id: product.id })" class="block">
-                <div class="aspect-[3/4] overflow-hidden rounded-lg mb-4 bg-gray-100">
-                  <img :alt="product.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" :src="product.image">
-                </div>
-                <h4 class="font-semibold text-gray-800 mb-1 text-sm">{{ product.name }}</h4>
-                <p class="text-gray-500 text-xs mb-3">{{ product.desc }}</p>
-                <div class="flex items-center gap-2">
-                  <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-medium">{{ product.badge }}</span>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Benefits Section -->
-      <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div class="order-2 lg:order-1 grid grid-cols-2 gap-4">
-            <div class="bg-white border border-gray-100 p-6 rounded-xl text-center hover:border-orange-300 transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-orange-600 text-4xl mb-2">verified</span>
-              <h5 class="text-base md:text-lg font-bold text-gray-800 mb-1">Chất Lượng</h5>
-              <p class="text-gray-500 text-xs">Kiểm định nghiêm ngặt</p>
-            </div>
-            <div class="bg-white border border-gray-100 p-6 rounded-xl text-center mt-4 md:mt-8 hover:border-orange-300 transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-orange-600 text-4xl mb-2">schedule</span>
-              <h5 class="text-base md:text-lg font-bold text-gray-800 mb-1">Đúng Hạn</h5>
-              <p class="text-gray-500 text-xs">Đảm bảo tiến độ bàn giao</p>
-            </div>
-            <div class="bg-white border border-gray-100 p-6 rounded-xl text-center hover:border-orange-300 transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-orange-600 text-4xl mb-2">support_agent</span>
-              <h5 class="text-base md:text-lg font-bold text-gray-800 mb-1">Tận Tâm</h5>
-              <p class="text-gray-500 text-xs">Hỗ trợ 24/7 chuyên nghiệp</p>
-            </div>
-            <div class="bg-white border border-gray-100 p-6 rounded-xl text-center mt-4 md:mt-8 hover:border-orange-300 transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-orange-600 text-4xl mb-2">history_edu</span>
-              <h5 class="text-base md:text-lg font-bold text-gray-800 mb-1">Hợp Đồng</h5>
-              <p class="text-gray-500 text-xs">Minh bạch & rõ ràng</p>
-            </div>
-          </div>
-          <div class="order-1 lg:order-2 pl-0 lg:pl-12">
-            <h2 class="text-2xl md:text-4xl font-bold mb-6 border-l-4 pl-4 border-orange-400 text-gray-900">Tại Sao Chọn BigBag Cho Doanh Nghiệp?</h2>
-            <p class="text-gray-600 mb-6 leading-relaxed text-sm">Với hơn 10 năm kinh nghiệm trong lĩnh vực sản xuất và phân phối túi xách, BigBag thấu hiểu giá trị của từng sản phẩm khi đến tay nhân viên và khách hàng của bạn.</p>
-            <ul class="space-y-4">
-              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-orange-600">check_circle</span><span class="text-gray-700 text-sm">Mẫu mã đa dạng, dẫn đầu xu hướng thời trang công sở.</span></li>
-              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-orange-600">check_circle</span><span class="text-gray-700 text-sm">Vật liệu cao cấp, độ bền tối thiểu 3-5 năm.</span></li>
-              <li class="flex items-start gap-3"><span class="material-symbols-outlined text-orange-600">check_circle</span><span class="text-gray-700 text-sm">Quy trình làm việc tinh gọn, tiết kiệm thời gian.</span></li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
+      
       <!-- CTA Section -->
       <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16" id="contact">
         <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
@@ -160,7 +38,6 @@
             <!-- CỘT TRÁI: Thông tin sản phẩm + Bộ lọc -->
             <div class="p-6 md:p-8 border-r border-gray-100">
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-orange-600">shopping_bag</span>
                 Thông tin đặt hàng
               </h3>
               
@@ -231,6 +108,7 @@
                   </select>
                 </div>
               </div>
+
               <!-- THÔNG TIN ĐƠN HÀNG -->
               <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
                 <div class="space-y-2">
@@ -243,13 +121,120 @@
                     <span class="font-semibold text-green-600">Miễn phí</span>
                   </div>
                   <div class="flex justify-between text-sm">
-                    <span class="text-gray-500">Mã giảm giá</span>
+                    <span class="text-gray-500">Chiết khấu</span>
                     <span class="font-semibold text-red-500">- {{ formatPrice(discountAmount) }}</span>
                   </div>
                   <div class="border-t border-gray-200 pt-2 mt-2 flex justify-between">
                     <span class="font-bold text-gray-800">Tổng cộng</span>
                     <span class="text-xl font-bold text-orange-600">{{ formatPrice(totalPrice) }}</span>
                   </div>
+                </div>
+              </div>
+
+              <!-- ===== PHƯƠNG THỨC THANH TOÁN ===== -->
+              <div class="mt-6 pt-4 border-t border-gray-200">
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wider">
+                  PHƯƠNG THỨC THANH TOÁN
+                </h4>
+                
+                <div class="space-y-3">
+                  <!-- COD - Thanh toán khi nhận hàng -->
+                  <label 
+                    class="flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all hover:border-primary/50"
+                    :class="paymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'border-gray-200'"
+                  >
+                    <input 
+                      type="radio" 
+                      name="payment_method" 
+                      value="cod"
+                      v-model="paymentMethod"
+                      class="mt-1 mr-3 accent-primary w-4 h-4 flex-shrink-0"
+                    />
+                    <div class="flex-1">
+                      <div class="flex items-center justify-between">
+                        <span class="font-medium text-gray-800 text-sm">Thanh toán khi nhận hàng (COD)</span>
+                        <span class="text-xs text-gray-400">Trả tiền mặt</span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-0.5">Trả tiền mặt khi nhận hàng</p>
+                    </div>
+                  </label>
+                  
+                  <!-- Chuyển khoản ngân hàng -->
+                  <label 
+                    class="flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all hover:border-primary/50"
+                    :class="paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/5' : 'border-gray-200'"
+                  >
+                    <input 
+                      type="radio" 
+                      name="payment_method" 
+                      value="bank_transfer"
+                      v-model="paymentMethod"
+                      class="mt-1 mr-3 accent-primary w-4 h-4 flex-shrink-0"
+                    />
+                    <div class="flex-1">
+                      <div class="flex items-center justify-between">
+                        <span class="font-medium text-gray-800 text-sm">Chuyển khoản ngân hàng</span>
+                        <span class="text-xs text-gray-400">Thanh toán qua chuyển khoản</span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-0.5">Thanh toán qua chuyển khoản ngân hàng</p>
+                      
+                      <!-- Hiển thị thông tin ngân hàng khi chọn -->
+                      <div v-if="paymentMethod === 'bank_transfer'" class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <p class="text-xs font-medium text-gray-700 mb-2">Thông tin chuyển khoản:</p>
+                        <div class="space-y-1 text-xs">
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Ngân hàng:</span>
+                            <span class="font-medium">Vietcombank</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Số tài khoản:</span>
+                            <span class="font-medium font-mono">123456789</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Chủ tài khoản:</span>
+                            <span class="font-medium">CÔNG TY BIGBAG</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Chi nhánh:</span>
+                            <span class="font-medium">Hà Nội</span>
+                          </div>
+                          <div class="mt-1 pt-1 border-t border-gray-200">
+                            <p class="text-gray-500">Nội dung chuyển:</p>
+                            <p class="font-medium text-orange-600 text-xs">[Mã đơn hàng] - [Họ tên]</p>
+                          </div>
+                        </div>
+                        
+                        <button 
+                          @click="copyBankInfo" 
+                          class="mt-2 text-xs text-orange-600 font-medium hover:underline flex items-center"
+                        >
+                          <i class="fas fa-copy mr-1"></i> Sao chép thông tin
+                        </button>
+                      </div>
+                    </div>
+                  </label>
+                  
+                  <!-- QR Code (hiển thị khi chọn chuyển khoản) -->
+                  <div v-if="paymentMethod === 'bank_transfer'" class="flex justify-center mt-2">
+                    <div class="p-2 bg-white rounded-lg shadow-sm border border-gray-200 text-center">
+                      <img 
+                        src="/images/qr-code.jpg" 
+                        alt="QR Code thanh toán" 
+                        class="w-32 h-32 object-contain mx-auto"
+                        @error="(e) => e.target.src = '/images/default-qr.png'"
+                      />
+                      <p class="text-xs text-gray-400 mt-1">Quét mã QR để thanh toán</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Lưu ý thanh toán -->
+                <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p class="text-xs text-amber-700 flex items-start">
+                    <i class="fas fa-info-circle mr-2 mt-0.5"></i>
+                    <span>Vui lòng kiểm tra kỹ thông tin thanh toán trước khi xác nhận đơn hàng. 
+                    Đối với chuyển khoản, đơn hàng sẽ được xác nhận sau khi chúng tôi nhận được thanh toán.</span>
+                  </p>
                 </div>
               </div>
 
@@ -282,7 +267,6 @@
             <!-- CỘT PHẢI: Form báo giá -->
             <div class="p-6 md:p-8 bg-gray-50">
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-orange-600">description</span>
                 Yêu Cầu Báo Giá (B2B)
               </h3>
               <form class="space-y-4" @submit.prevent="submitRequest">
@@ -412,6 +396,28 @@ const selectedSize = ref('L')
 const colorOptions = ref(['DEN', 'BLACK', 'NAVY', 'KHAKI'])
 const sizeOptions = ref(['S', 'M', 'L', 'XL'])
 
+// ===== PHẦN THÊM: PHƯƠNG THỨC THANH TOÁN =====
+// Payment method
+const paymentMethod = ref('cod')
+
+// Sao chép thông tin ngân hàng
+const copyBankInfo = () => {
+  const bankInfo = `Ngân hàng: Vietcombank
+Số tài khoản: 123456789
+Chủ tài khoản: CÔNG TY BIGBAG
+Chi nhánh: Hà Nội
+Nội dung: [Mã đơn hàng] - [Họ tên]`
+  
+  navigator.clipboard.writeText(bankInfo)
+    .then(() => {
+      alert('✅ Đã sao chép thông tin chuyển khoản!')
+    })
+    .catch(() => {
+      alert('📋 Thông tin chuyển khoản:\n\n' + bankInfo)
+    })
+}
+// ===== KẾT THÚC PHẦN THÊM =====
+
 // Giảm giá
 const discountAmount = 30000
 
@@ -474,7 +480,7 @@ const submitRequest = () => {
 }
 
 const addToOrder = () => {
-  alert(`Đã thêm vào đơn hàng:\n- Sản phẩm: ${selectedProduct.value.name}\n- Số lượng: ${orderQuantity.value}\n- Màu: ${selectedColor.value}\n- Kích thước: ${selectedSize.value}\n- Tổng: ${formatPrice(totalPrice.value)}`)
+  alert(`Đã thêm vào đơn hàng:\n- Sản phẩm: ${selectedProduct.value.name}\n- Số lượng: ${orderQuantity.value}\n- Màu: ${selectedColor.value}\n- Kích thước: ${selectedSize.value}\n- Tổng: ${formatPrice(totalPrice.value)}\n- Phương thức thanh toán: ${paymentMethod.value === 'cod' ? 'COD (Thanh toán khi nhận hàng)' : 'Chuyển khoản ngân hàng'}`)
 }
 </script>
 

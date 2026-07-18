@@ -35,12 +35,7 @@
               >
                 Pre-order
               </span>
-              <span 
-                class="inline-block px-3 py-1 text-xs font-bold rounded-full"
-                :class="getOrderStatusBadge(order?.status)"
-              >
-                {{ order?.status || 'Đang xử lý' }}
-              </span>
+              
             </div>
           </div>
         </div>

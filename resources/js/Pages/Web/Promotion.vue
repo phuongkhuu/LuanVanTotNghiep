@@ -15,9 +15,6 @@
           <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex flex-col justify-center px-6 md:px-12 text-white">
             <h1 class="font-headline-xl text-3xl md:text-5xl font-bold mb-4">{{'ĐẠI TIỆC KHUYẾN MÃI' || banners[0].title }}</h1>
             <p class="text-base md:text-lg mb-6 max-w-lg">{{ banners[0].description || 'Sẵn sàng cho mọi hành trình với ưu đãi lên đến 50% cho tất cả dòng sản phẩm Balo & Túi cao cấp.' }}</p>
-            <!-- <Link :href="banners[0].link || route('category', { slug: 'sale' })" class="bg-primary text-white font-bold py-3 px-8 w-fit rounded-full hover:bg-primary-dark transition-all shadow-lg text-sm">
-              KHÁM PHÁ NGAY
-            </Link> -->
           </div>
         </div>
         <!-- Fallback nếu không có banner -->
@@ -90,8 +87,15 @@
       <section class="max-w-[1440px] mx-auto px-4 md:px-8 mb-12">
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-primary mb-6 uppercase">CHIẾN DỊCH ĐANG DIỄN RA</h2>
         <div v-if="activeCampaigns.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div v-for="campaign in activeCampaigns" :key="campaign.id" class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-100 group">
-            <!-- PHẦN BANNER - SỬ DỤNG BANNER TỪ BẢNG BANNERS -->
+          <!-- Card có thể click -->
+          <div 
+            v-for="campaign in activeCampaigns" 
+            :key="campaign.id" 
+            class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-100 group cursor-pointer"
+            :class="{ 'cursor-pointer': getCampaignLink(campaign), 'cursor-default': !getCampaignLink(campaign) }"
+            @click="handleCampaignClick(campaign)"
+          >
+            <!-- PHẦN BANNER -->
             <div class="relative h-48 overflow-hidden">
               <!-- Hiển thị banner nếu có -->
               <template v-if="campaign.banner && campaign.banner.image">
@@ -134,6 +138,14 @@
               <div v-if="campaign.discount_percent > 0" class="absolute bottom-4 left-4 bg-primary text-white font-bold py-1 px-3 rounded-full text-sm">
                 -{{ campaign.discount_percent }}%
               </div>
+
+              <!-- Badge Link (hiển thị nếu có link) -->
+              <div v-if="getCampaignLink(campaign)" class="absolute top-4 left-4">
+                <span class="px-2 py-1 rounded-full text-xs font-medium bg-black/50 text-white backdrop-blur-sm">
+                  <i class="fas fa-link mr-1"></i>
+                  Chi tiết
+                </span>
+              </div>
             </div>
             
             <div class="p-5">
@@ -150,6 +162,11 @@
               </div>
               <div class="mt-3 text-xs text-gray-400">
                 {{ campaign.product_count }} sản phẩm tham gia
+              </div>
+              <!-- Hiển thị link nếu có -->
+              <div v-if="getCampaignLink(campaign)" class="mt-3 text-xs text-primary/60">
+                <i class="fas fa-arrow-right mr-1"></i>
+                Nhấn để xem chi tiết
               </div>
             </div>
           </div>
@@ -255,6 +272,70 @@ const updateFlashTimer = () => {
 const handleImageError = (e) => {
   e.target.src = defaultImage
 }
+
+// ====== PHẦN CHÍNH: XỬ LÝ CLICK CAMPAIGN ======
+
+/**
+ * Lấy link từ campaign
+ * Ưu tiên: banner.link > campaign.link > fallback
+ */
+const getCampaignLink = (campaign) => {
+  // 1. Ưu tiên link từ banner
+  if (campaign.banner && campaign.banner.link) {
+    return campaign.banner.link
+  }
+  
+  // 2. Link từ campaign (nếu có)
+  if (campaign.link) {
+    return campaign.link
+  }
+  
+  // 3. Fallback: link đến trang chi tiết campaign
+  if (campaign.id) {
+    // Có thể tạo route riêng cho campaign
+    return route('campaign.detail', { id: campaign.id })
+  }
+  
+  return null
+}
+
+/**
+ * Xử lý sự kiện click vào card campaign
+ */
+const handleCampaignClick = (campaign) => {
+  const link = getCampaignLink(campaign)
+  
+  if (!link) {
+    console.warn('Không có link cho campaign:', campaign.name)
+    return
+  }
+  
+  // Kiểm tra nếu link là URL ngoài (http, https)
+  if (link.startsWith('http://') || link.startsWith('https://')) {
+    // Mở link trong tab mới cho URL ngoài
+    window.open(link, '_blank', 'noopener,noreferrer')
+  } else if (link.startsWith('/')) {
+    // Link nội bộ (bắt đầu bằng /)
+    // Sử dụng Inertia router để chuyển trang
+    router.visit(link, {
+      preserveScroll: true,
+      preserveState: true,
+    })
+  } else {
+    // Link dạng khác, thử sử dụng router
+    try {
+      router.visit(link, {
+        preserveScroll: true,
+        preserveState: true,
+      })
+    } catch (e) {
+      // Nếu không phải route Inertia, mở tab mới
+      window.open(link, '_blank')
+    }
+  }
+}
+
+// ====== END PHẦN CHÍNH ======
 
 // Sale Categories - Giữ nguyên giao diện
 const saleCategories = ref([
