@@ -11210,7 +11210,7 @@ AWS_USE_PATH_STYLE_ENDPOINT=false
 
 VITE_APP_NAME="${APP_NAME}"
 
-GEMINI_API_KEY=AQ.Ab8RN6IagNnbXgvJTcydumhkIxqubG22jFLzFi4SiO4BF-ZCZw
+GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3-flash-preview
 Với model thế này thì controller có cần chỉnh gì không?
 <?php
