@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Carbon\Carbon;
 
 class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyles, WithTitle
 {
@@ -20,6 +21,15 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
     {
         $this->period = $period;
         $this->reportData = $reportData;
+    }
+
+    /**
+     * Trả về tên file xuất theo định dạng ngày/tháng/năm
+     */
+    public function getFileName(): string
+    {
+        $now = Carbon::now();
+        return 'bao_cao_' . $now->format('Ymd') . '.xlsx';
     }
 
     public function title(): string
@@ -47,14 +57,16 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
 
         $rows = [];
 
-        // 1. Tiêu đề thời gian
+        // 1. Tiêu đề thời gian và ngày xuất
         $periodLabel = $this->getPeriodLabel($this->period);
+        $exportDate = Carbon::now()->format('d/m/Y H:i');
         $rows[] = ['BÁO CÁO THỐNG KÊ - ' . strtoupper($periodLabel)];
+        $rows[] = ['Ngày xuất: ' . $exportDate];
         $rows[] = []; // dòng trống
 
         // 2. Tổng quan doanh thu
         $rows[] = ['I. TỔNG QUAN DOANH THU'];
-        $rows[] = ['Doanh thu hôm nay', 
+        $rows[] = ['Doanh thu hôm nay',
             number_format($summary['retail']['revenue']) . '₫',
             number_format($summary['wholesale']['revenue']) . '₫',
             number_format($summary['preorder']['revenue']) . '₫'
@@ -79,7 +91,7 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
             $header[] = $label;
         }
         $rows[] = $header;
-        
+
         // Dòng dữ liệu: Bán lẻ
         $rowRetail = ['Bán lẻ'];
         foreach ($retail as $value) {

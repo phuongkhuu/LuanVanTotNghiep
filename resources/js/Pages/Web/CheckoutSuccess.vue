@@ -11,11 +11,90 @@
         </div>
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Đặt hàng thành công!</h1>
         <p class="text-gray-500 text-lg">Cảm ơn bạn đã mua hàng tại BigBag</p>
-        
+
         <!-- Order Code -->
         <div class="mt-4 inline-block bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Mã đơn hàng</p>
           <p class="text-2xl font-bold text-primary">{{ orderDisplayCode }}</p>
+        </div>
+      </div>
+
+      <!-- ====== THANH TOÁN PAYOS (không QR) ====== -->
+      <div 
+        v-if="shouldShowPaymentButton"
+        class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8"
+      >
+        <div class="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-4 border-b border-gray-100">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary">payments</span>
+            <h2 class="text-xl font-semibold text-gray-800">Thanh toán đơn hàng</h2>
+          </div>
+        </div>
+        <div class="p-6 text-center">
+          <!-- Trạng thái: Đã thanh toán -->
+          <div v-if="paymentStatus === 'paid'" class="py-4">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <span class="material-symbols-outlined text-green-600 align-middle">check_circle</span>
+              <span class="text-green-700 font-semibold ml-2">Thanh toán đã được xác nhận!</span>
+              <p class="text-sm text-gray-500 mt-2">Trang sẽ tự động chuyển về trang chủ sau 3 giây...</p>
+            </div>
+          </div>
+
+          <!-- Trạng thái: Thất bại -->
+          <div v-else-if="paymentStatus === 'failed'" class="py-4">
+            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <span class="material-symbols-outlined text-red-600 align-middle">error</span>
+              <span class="text-red-700 font-semibold ml-2">Thanh toán thất bại. Vui lòng thử lại.</span>
+            </div>
+          </div>
+
+          <!-- Trạng thái: Chờ thanh toán -->
+          <div v-else-if="paymentStatus === 'pending'" class="py-4">
+            <p class="text-gray-600 mb-4">
+              Bạn chưa hoàn tất thanh toán. Vui lòng bấm nút bên dưới để thanh toán qua PayOS.
+            </p>
+            <p class="text-sm text-gray-500 mb-4">
+              Số tiền: <span class="font-bold text-primary">{{ formatPrice(orderSummary.final_amount) }}</span>
+            </p>
+
+            <!-- Nút mở link thanh toán trong tab mới -->
+            <button 
+              @click="openPaymentTab"
+              class="inline-flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary-dark transition-all font-medium shadow-md hover:shadow-lg"
+            >
+              <span class="material-symbols-outlined">open_in_new</span>
+              Thanh toán qua PayOS
+            </button>
+
+            <!-- Thông tin đơn hàng -->
+            <div class="mt-4 text-xs text-gray-400 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 inline-block">
+              <span class="material-symbols-outlined text-sm align-middle">info</span>
+              Mã đơn hàng: {{ orderDisplayCode }}
+            </div>
+
+            <div class="mt-4 text-sm text-gray-500">
+              <span class="inline-block animate-pulse mr-2">⏳</span>
+              Đang chờ thanh toán...
+            </div>
+          </div>
+
+          <!-- Lỗi tạo link -->
+          <div v-else-if="paymentError" class="py-4 text-red-500">
+            <span class="material-symbols-outlined text-4xl block">error</span>
+            <p>{{ paymentError }}</p>
+            <button 
+              @click="fetchPaymentLink" 
+              class="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark"
+            >
+              Thử lại
+            </button>
+          </div>
+
+          <!-- Loading -->
+          <div v-else class="py-8">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <p class="mt-4 text-gray-500">Đang chuẩn bị thanh toán...</p>
+          </div>
         </div>
       </div>
 
@@ -35,7 +114,6 @@
               >
                 Pre-order
               </span>
-              
             </div>
           </div>
         </div>
@@ -128,7 +206,6 @@
                     <td colspan="3" class="text-right px-4 py-3 text-gray-600">Phí vận chuyển</td>
                     <td class="text-right px-4 py-3 font-medium">{{ formatPrice(orderSummary.shipping_fee) }}</td>
                   </tr>
-                  <!-- ============ HIỂN THỊ GIẢM GIÁ ============ -->
                   <tr v-if="orderSummary.discount_amount > 0" class="bg-green-50">
                     <td colspan="3" class="text-right px-4 py-3 text-green-600 font-medium">
                       <span class="flex items-center justify-end gap-2">
@@ -140,7 +217,6 @@
                       -{{ formatPrice(orderSummary.discount_amount) }}
                     </td>
                   </tr>
-                  <!-- ========================================= -->
                   <tr class="bg-primary/5">
                     <td colspan="3" class="text-right px-4 py-3 font-bold text-gray-800">
                       <span class="text-lg">Tổng cộng</span>
@@ -220,11 +296,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { Head } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
+import axios from 'axios'
+import { useCart } from '@/utils/useCart'
 
 const props = defineProps({
   order: {
@@ -237,12 +315,24 @@ const props = defineProps({
   }
 })
 
-// Debug
-onMounted(() => {
-  // console.log('📦 CheckoutSuccess - Full props:', props)
-  // console.log('📦 CheckoutSuccess - Order:', props.order)
-  // console.log('📦 CheckoutSuccess - Order discount_amount:', props.order?.discount_amount)
-  // console.log('📦 CheckoutSuccess - Order final_amount:', props.order?.final_amount)
+// ============ CART ============
+const { clearCart } = useCart()
+
+// ============ PAYMENT STATE ============
+const paymentUrl = ref(null)
+const loading = ref(false)
+const paymentError = ref(null)
+const paymentStatus = ref(props.order?.payment_status || 'pending')
+const pollTimer = ref(null)
+const redirectTimer = ref(null)
+
+// ============ COMPUTED ============
+const shouldShowPaymentButton = computed(() => {
+  if (!props.order) return false
+  const method = props.order.payment_method
+  const status = props.order.payment_status
+  // Chỉ hiển thị khi phương thức là bank_transfer hoặc payos và chưa thanh toán
+  return (method === 'bank_transfer' || method === 'payos') && status === 'pending'
 })
 
 // Lấy mã đơn hàng
@@ -284,19 +374,16 @@ const orderDetails = computed(() => {
   return []
 })
 
-// ============ QUAN TRỌNG: Tổng hợp đơn hàng ============
+// Tổng hợp đơn hàng
 const orderSummary = computed(() => {
   if (props.order) {
     const total = props.order.total_amount || 0
     const discount = props.order.discount_amount || 0
     const shippingFee = props.order.shipping_fee || 0
     const finalAmount = props.order.final_amount || total
-   
     const subtotal = total + discount
-    
-    
     return {
-      subtotal: subtotal,
+      subtotal,
       shipping_fee: shippingFee,
       discount_amount: discount,
       final_amount: finalAmount,
@@ -310,6 +397,7 @@ const orderSummary = computed(() => {
   }
 })
 
+// ============ METHODS ============
 const formatPrice = (val) => {
   if (!val && val !== 0) return '0₫'
   return Number(val).toLocaleString('vi-VN') + '₫'
@@ -346,10 +434,11 @@ const getOrderStatusBadge = (status) => {
 const getPaymentLabel = (method) => {
   const map = {
     cod: 'Thanh toán khi nhận hàng (COD)',
-    bank_transfer: 'Chuyển khoản ngân hàng',
+    bank_transfer: 'Chuyển khoản ngân hàng (PayOS)',
     ewallet: 'Ví điện tử',
     vnpay: 'VNPay',
     momo: 'MoMo',
+    payos: 'PayOS',
   }
   return map[method] || method || 'Chưa xác định'
 }
@@ -361,6 +450,7 @@ const getPaymentColor = (method) => {
     ewallet: 'bg-purple-500',
     vnpay: 'bg-red-500',
     momo: 'bg-pink-500',
+    payos: 'bg-indigo-500',
   }
   return map[method] || 'bg-gray-400'
 }
@@ -369,6 +459,7 @@ const getPaymentStatusBadge = (status) => {
   const map = {
     pending: 'bg-yellow-100 text-yellow-800',
     paid: 'bg-green-100 text-green-800',
+    success: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800',
     refunded: 'bg-gray-100 text-gray-800',
   }
@@ -379,27 +470,111 @@ const getPaymentStatusLabel = (status) => {
   const map = {
     pending: 'Chờ thanh toán',
     paid: 'Đã thanh toán',
+    success: 'Đã thanh toán',
     failed: 'Thanh toán thất bại',
     refunded: 'Đã hoàn tiền',
   }
   return map[status] || status || 'Chưa xác định'
 }
 
-// In đơn hàng
+// ============ FETCH PAYMENT LINK ============
+const fetchPaymentLink = async () => {
+  if (!props.order || !props.order.id) return
+
+  loading.value = true
+  paymentError.value = null
+
+  try {
+    const response = await axios.get(`/payment/link/${props.order.id}`)
+    if (response.data.success) {
+      paymentUrl.value = response.data.checkout_url
+      // Bắt đầu polling để kiểm tra trạng thái
+      startPolling()
+    } else {
+      paymentError.value = response.data.message || 'Không thể tạo link thanh toán'
+    }
+  } catch (error) {
+    console.error('Error fetching payment link:', error)
+    paymentError.value = error.response?.data?.message || 'Có lỗi xảy ra khi tạo thanh toán'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ============ MỞ TAB THANH TOÁN ============
+const openPaymentTab = () => {
+  if (paymentUrl.value) {
+    window.open(paymentUrl.value, '_blank')
+  }
+}
+
+// ============ POLLING CHECK ORDER STATUS ============
+const checkOrderStatus = async () => {
+  try {
+    const response = await axios.get(`/don-hang/${props.order.id}`)
+    if (response.data && response.data.order) {
+      const orderData = response.data.order
+      if (orderData.payment_status === 'paid' || orderData.payment_status === 'success') {
+        paymentStatus.value = 'paid'
+        stopPolling()
+        // ==== CHUYỂN HƯỚNG VỀ TRANG CHỦ SAU 3 GIÂY ====
+        redirectTimer.value = setTimeout(() => {
+          router.visit('/')
+        }, 3000)
+      } else if (orderData.payment_status === 'failed') {
+        paymentStatus.value = 'failed'
+        stopPolling()
+      }
+    }
+  } catch (error) {
+    console.warn('Polling error:', error)
+  }
+}
+
+const startPolling = () => {
+  if (pollTimer.value) return
+  checkOrderStatus()
+  pollTimer.value = setInterval(checkOrderStatus, 5000)
+}
+
+const stopPolling = () => {
+  if (pollTimer.value) {
+    clearInterval(pollTimer.value)
+    pollTimer.value = null
+  }
+  if (redirectTimer.value) {
+    clearTimeout(redirectTimer.value)
+    redirectTimer.value = null
+  }
+}
+
+// ============ LIFECYCLE ============
+onMounted(() => {
+  clearCart().catch(() => {})
+  if (shouldShowPaymentButton.value) {
+    fetchPaymentLink()
+  }
+})
+
+onUnmounted(() => {
+  stopPolling()
+})
+
+// ============ PRINT ============
 const printOrder = () => {
   if (!props.order) return
-  
+
   const order = props.order
   const details = orderDetails.value
   const displayCode = orderDisplayCode.value
   const summary = orderSummary.value
-  
+
   const printWindow = window.open('', '_blank')
   if (!printWindow) {
     alert('Vui lòng cho phép popup để in đơn hàng')
     return
   }
-  
+
   const detailsHtml = details.map(item => `
     <tr>
       <td style="padding: 8px 12px; border: 1px solid #ddd;">${item.name}</td>
@@ -503,7 +678,7 @@ const printOrder = () => {
     </body>
     </html>
   `
-  
+
   printWindow.document.write(content)
   printWindow.document.close()
   printWindow.focus()
@@ -516,67 +691,67 @@ const printOrder = () => {
   .no-print {
     display: none !important;
   }
-  
+
   header, footer, .chatbot, .chatbot-toggle {
     display: none !important;
   }
-  
+
   body {
     background: white !important;
     padding: 0 !important;
     margin: 0 !important;
   }
-  
+
   #print-area {
     max-width: 100% !important;
     padding: 20px !important;
     margin: 0 !important;
   }
-  
+
   .bg-white {
     background: white !important;
     box-shadow: none !important;
     border: 1px solid #e5e7eb !important;
   }
-  
+
   .shadow-lg, .shadow-sm {
     box-shadow: none !important;
   }
-  
+
   .rounded-2xl, .rounded-xl {
     border-radius: 8px !important;
   }
-  
+
   .text-primary {
     color: #1a56db !important;
   }
-  
+
   .bg-primary {
     background-color: #1a56db !important;
   }
-  
+
   .bg-primary\/5 {
     background-color: #f0f4ff !important;
   }
-  
+
   .bg-gray-50 {
     background-color: #f9fafb !important;
   }
-  
+
   table {
     width: 100% !important;
     border-collapse: collapse !important;
   }
-  
+
   th, td {
     border: 1px solid #e5e7eb !important;
     padding: 8px 12px !important;
   }
-  
+
   thead {
     background-color: #f9fafb !important;
   }
-  
+
   @page {
     margin: 20mm;
   }

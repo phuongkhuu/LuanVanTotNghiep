@@ -194,7 +194,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { useCart } from '@/utils/useCart'
-import { CartEvents } from '@/events/CartEvents'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user || null)
@@ -205,7 +204,7 @@ const searchKeyword = ref('')
 const dropdownOpen = ref(false)
 const userDropdownRef = ref(null)
 
-// Sử dụng useCart
+// Sử dụng useCart (singleton)
 const { cartCount, fetchCart, reloadCart, getUserId } = useCart()
 
 // Lọc danh mục Balo
@@ -271,13 +270,12 @@ const closeDropdown = () => {
 // Xử lý logout
 const handleLogout = async () => {
   try {
-    const userId = getUserId()    
     closeDropdown()
     
     router.post(route('logout'), {}, {
       onSuccess: () => {
         window.user = null
-        CartEvents.emitUserChanged('guest')
+        // Sau khi logout, watch user sẽ tự động gọi reloadCart, nhưng để chắc chắn:
         setTimeout(() => {
           reloadCart()
         }, 100)
@@ -302,17 +300,7 @@ const handleClickOutside = (event) => {
   }
 }
 
-// Xử lý sự kiện cart-updated
-const handleCartUpdated = (event) => {
-  fetchCart()
-}
-
-// Xử lý sự kiện user-changed
-const handleUserChanged = (event) => {
-  reloadCart()
-}
-
-// Khi user thay đổi
+// Khi user thay đổi (đăng nhập/đăng xuất), reload giỏ hàng
 watch(() => user.value, (newUser, oldUser) => {
   const newId = newUser?.id || 'guest'
   const oldId = oldUser?.id || 'guest'
@@ -320,37 +308,17 @@ watch(() => user.value, (newUser, oldUser) => {
   if (newId !== oldId) {
     window.user = newUser
     reloadCart()
-    CartEvents.emitUserChanged(newId)
   }
 }, { immediate: true })
 
-// Lưu trữ các handler để cleanup
-let cartUpdatedHandler = null
-let userChangedHandler = null
-
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  
-  // Fetch cart lần đầu
+  // Fetch giỏ hàng lần đầu
   fetchCart()
-  
-  // Lắng nghe sự kiện cart-updated
-  cartUpdatedHandler = handleCartUpdated
-  CartEvents.onUpdated(cartUpdatedHandler)
-  
-  // Lắng nghe sự kiện user-changed
-  userChangedHandler = handleUserChanged
-  CartEvents.onUserChanged(userChangedHandler)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  if (cartUpdatedHandler) {
-    CartEvents.offUpdated(cartUpdatedHandler)
-  }
-  if (userChangedHandler) {
-    CartEvents.offUserChanged(userChangedHandler)
-  }
 })
 </script>
 

@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\Payment\PayOSController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\CartController;
@@ -100,7 +101,7 @@ Route::prefix('api')->group(function () {
     Route::delete('/cart/clear', [CartController::class, 'clear']);
     Route::post('/cart/apply-coupon', [CartController::class, 'applyCoupon']);
     Route::get('/cart/get-coupon', [CartController::class, 'getCoupon']);
-    Route::post('/cart/remove-coupon', [CartController::class, 'removeCoupon']); // <-- ROUTE NÀY
+    Route::post('/cart/remove-coupon', [CartController::class, 'removeCoupon']);
 
     Route::post('/campaigns/clear-cache', function() {
         Cache::forget('active_campaigns_with_configs');
@@ -134,6 +135,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/thanh-toan/thanh-cong', [PaymentController::class, 'success'])->name('checkout.success');
     Route::post('/checkout/apply-voucher', [PaymentController::class, 'applyVoucher']);
     Route::post('/checkout/remove-voucher', [PaymentController::class, 'removeVoucher']);
+});
+
+// ==================== PAYOS ROUTES ====================
+Route::prefix('payment')->group(function () {
+    Route::get('/create/{order_id}', [PayOSController::class, 'createPayment'])->name('payment.create');
+    Route::get('/link/{order_id}', [PayOSController::class, 'getPaymentLink'])->name('payment.link');
+    Route::post('/webhook', [PayOSController::class, 'webhook'])->name('payment.webhook');
+    Route::get('/success', [PayOSController::class, 'success'])->name('payment.success');
+    Route::get('/cancel', [PayOSController::class, 'cancel'])->name('payment.cancel');
 });
 
 // ==================== AUTHENTICATED WEB ROUTES ====================
