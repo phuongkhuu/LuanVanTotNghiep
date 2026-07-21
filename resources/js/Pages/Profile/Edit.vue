@@ -47,8 +47,13 @@ const updateProfile = () => {
         preserveScroll: true,
         onSuccess: () => {
             profileForm.reset();
+            refreshUserData();
         },
     });
+};
+
+const refreshUserData = () => {   
+    window.location.reload();
 };
 
 const updatePassword = () => {
@@ -196,7 +201,7 @@ const closeDeleteModal = () => {
                                 >
                                     {{ profileForm.processing ? 'Đang lưu...' : 'Lưu thay đổi' }}
                                 </button>
-                                <span v-if="profileForm.recentlySuccessful" class="text-sm text-green-600">Đã lưu!</span>
+                                <span v-if="profileForm.recentlySuccessful" class="text-sm text-green-600">Đã cập nhật!</span>
                             </div>
                         </form>
                     </div>
