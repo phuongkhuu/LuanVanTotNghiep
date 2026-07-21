@@ -13,6 +13,11 @@
         <p class="mt-2 text-sm text-gray-600">Chào mừng bạn quay trở lại</p>
       </div>
 
+      <!-- Error Message tổng quát (chỉ hiển thị khi không có lỗi email/password) -->
+      <div v-if="errorMessage && !errors.email && !errors.password" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-600 text-center">{{ errorMessage }}</p>
+      </div>
+
       <!-- Form -->
       <form @submit.prevent="submit" class="mt-8 space-y-6">
         <!-- Email -->
@@ -27,9 +32,13 @@
             required
             autofocus
             class="appearance-none rounded-lg relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+            :class="{ 'border-red-500 focus:ring-red-500/50 focus:border-red-500': errors.email }"
             placeholder="Email của bạn"
           />
-          <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+          <p v-if="errors.email" class="mt-1 text-sm text-red-600 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">error</span>
+            {{ errors.email }}
+          </p>
         </div>
 
         <!-- Password -->
@@ -44,6 +53,7 @@
               :type="showPassword ? 'text' : 'password'"
               required
               class="appearance-none rounded-lg relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors pr-12"
+              :class="{ 'border-red-500 focus:ring-red-500/50 focus:border-red-500': errors.password }"
               placeholder="Mật khẩu của bạn"
             />
             <button
@@ -56,7 +66,10 @@
               </span>
             </button>
           </div>
-          <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
+          <p v-if="errors.password" class="mt-1 text-sm text-red-600 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">error</span>
+            {{ errors.password }}
+          </p>
         </div>
 
         <!-- Remember & Forgot -->
@@ -104,21 +117,18 @@
           </Link>
         </div>
       </form>
-      <!-- Error Message -->
-      <div v-if="errorMessage" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-        <p class="text-sm text-red-600 text-center">{{ errorMessage }}</p>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { ref, watch } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { useCart } from '@/utils/useCart'
 import { CartEvents } from '@/events/CartEvents'
 
 const { reloadCart } = useCart()
+const page = usePage()
 
 const form = ref({
   email: '',
@@ -131,6 +141,46 @@ const errorMessage = ref('')
 const processing = ref(false)
 const showPassword = ref(false)
 
+// Hàm dịch lỗi từ tiếng Anh sang tiếng Việt
+const translateError = (message) => {
+  if (!message) return ''
+  const translations = {
+    'These credentials do not match our records.': 'Email hoặc mật khẩu không đúng.',
+    'The email field is required.': 'Vui lòng nhập email.',
+    'The password field is required.': 'Vui lòng nhập mật khẩu.',
+    'The email must be a valid email address.': 'Email không hợp lệ (cần có ký tự @).',
+    'The email has already been taken.': 'Email này đã được sử dụng.',
+    'The password must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
+    'The password confirmation does not match.': 'Xác nhận mật khẩu không khớp.',
+    'The password must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
+  }
+  return translations[message] || message
+}
+
+// Theo dõi errors từ page.props và dịch sang tiếng Việt
+watch(() => page.props.errors, (newErrors) => {
+  if (newErrors && Object.keys(newErrors).length > 0) {
+    const translated = {}
+    for (const [key, value] of Object.entries(newErrors)) {
+      // Nếu value là mảng, lấy phần tử đầu tiên
+      const msg = Array.isArray(value) ? value[0] : value
+      translated[key] = translateError(msg)
+    }
+    errors.value = translated
+
+    // Nếu có lỗi email/password, không hiển thị thông báo chung
+    if (!translated.email && !translated.password) {
+      const firstError = Object.values(translated)[0]
+      errorMessage.value = firstError || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
+    } else {
+      errorMessage.value = '' // xóa thông báo chung để tránh trùng lặp
+    }
+  } else {
+    errors.value = {}
+    errorMessage.value = ''
+  }
+}, { immediate: true, deep: true })
+
 const submit = async () => {
   processing.value = true
   errors.value = {}
@@ -142,31 +192,19 @@ const submit = async () => {
       onSuccess: (page) => {
         if (page.props.auth && page.props.auth.user) {
           window.user = page.props.auth.user
-          console.log('Login success, user:', window.user)
-          
-          // Sử dụng CartEvents để dispatch event
           CartEvents.emitUserChanged(window.user.id)
-          
           setTimeout(() => {
             reloadCart()
           }, 100)
         }
-        
         router.visit('/')
       },
       onError: (err) => {
-        errors.value = err
-        if (err.email) {
-          errorMessage.value = err.email
-        } else if (err.password) {
-          errorMessage.value = err.password
-        } else {
-          errorMessage.value = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
-        }
+        // Fallback nếu watch không bắt được (thường không cần)
+        // Không cần xử lý vì watch đã bắt từ page.props.errors
       }
     })
   } catch (error) {
-    console.error('Login error:', error)
     errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại sau.'
   } finally {
     processing.value = false
