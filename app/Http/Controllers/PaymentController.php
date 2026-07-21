@@ -321,7 +321,7 @@ class PaymentController extends Controller
             'receiver_phone' => 'required|string|max:20',
             'shipping_address' => 'required|string|max:500',
             'note' => 'nullable|string|max:500',
-            'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+            'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo,payos',
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -381,6 +381,12 @@ class PaymentController extends Controller
                     session(['last_order_display_code' => $displayCode]);
                 }
 
+                // Nếu chọn thanh toán qua PayOS -> chuyển sang tạo link thanh toán
+                if ($validated['payment_method'] === 'payos') {
+                    return redirect()->route('payment.create', ['order_id' => $responseData->order->id]);
+                }
+
+                // Các phương thức khác vẫn về trang success
                 return redirect()->route('checkout.success');
             }
 
@@ -591,14 +597,16 @@ class PaymentController extends Controller
         $payment = $order->payment;
         $paymentMethod = $payment ? $payment->payment_method : 'cod';
         $paymentStatus = 'pending';
-        
-        if ($paymentMethod === 'cod') {
-            $paymentStatus = 'pending';
-        } elseif (in_array($paymentMethod, ['bank_transfer', 'ewallet', 'vnpay', 'momo'])) {
+
+        // ===== LOGIC XÁC ĐỊNH TRẠNG THÁI =====
+        if (in_array($paymentMethod, ['vnpay', 'momo', 'ewallet'])) {
             $paymentStatus = 'paid';
         }
+        // cod, bank_transfer, payos giữ nguyên 'pending'
 
-        if ($payment && $payment->status !== $paymentStatus) {
+        // ===== CẬP NHẬT CHỈ KHI CHƯA CÓ TRẠNG THÁI XÁC NHẬN =====
+        if ($payment && in_array($payment->status, ['pending', null])) {
+            // Chỉ cập nhật nếu trạng thái hiện tại là pending hoặc null
             $payment->status = $paymentStatus;
             $payment->save();
         }

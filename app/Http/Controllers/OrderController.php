@@ -296,6 +296,9 @@ class OrderController extends Controller
         }
 
         $order = $order->findOrFail($id);
+        
+        $order->payment_status = $order->payment->status ?? 'pending';
+
 
         return response()->json([
             'order' => $order,

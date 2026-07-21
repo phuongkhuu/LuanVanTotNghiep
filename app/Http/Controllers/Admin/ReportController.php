@@ -48,7 +48,10 @@ class ReportController extends Controller
         $period = $request->input('period', 'week');
         $reportData = $this->getReportData($period);
 
-        return Excel::download(new ReportExport($period, $reportData), 'bao_cao_thong_ke_' . $period . '.xlsx');
+        $export = new ReportExport($period, $reportData);
+        $fileName = $export->getFileName();
+
+        return Excel::download($export, $fileName);
     }
 
     // ==================== Phương thức lấy dữ liệu ====================
