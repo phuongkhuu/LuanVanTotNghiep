@@ -103,10 +103,12 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Kiểm tra tồn kho
+            // 1. Kiểm tra tồn kho và lấy campaign_id cho preorder
             $productIds = [];
+            $campaignIdForOrder = null; // Sẽ lưu campaign_id của sản phẩm preorder
+
             foreach ($validated['items'] as $item) {
-                $variant = ProductVariant::find($item['id']);
+                $variant = ProductVariant::with('product')->find($item['id']);
                 if (!$variant) {
                     throw new \Exception('Sản phẩm không tồn tại');
                 }
@@ -117,13 +119,41 @@ class OrderController extends Controller
                 if ($variant->product) {
                     $productIds[] = $variant->product->id;
                 }
+
+                // Nếu là preorder, tìm campaign và lưu campaign_id
+                if ($orderType === 'preorder' && $variant->product) {
+                    $productId = $variant->product->id;
+                    $preorder = Campaign::where('type', 'preorder')
+                        ->where('status', 'active')
+                        ->where('product_id', $productId)
+                        ->where(function($query) {
+                            $query->where('end_time', '>=', now())
+                                  ->orWhereNull('end_time');
+                        })
+                        ->first();
+
+                    if ($preorder) {
+                        // Lưu campaign_id (nếu có nhiều sản phẩm, ta lưu sản phẩm đầu tiên hoặc có thể xử lý riêng)
+                        if (!$campaignIdForOrder) {
+                            $campaignIdForOrder = $preorder->id;
+                        }
+                        // Log để debug
+                        Log::info('Found preorder campaign for product', [
+                            'product_id' => $productId,
+                            'campaign_id' => $preorder->id,
+                            'campaign_name' => $preorder->name,
+                        ]);
+                    } else {
+                        Log::warning('No active preorder campaign found for product', ['product_id' => $productId]);
+                    }
+                }
             }
 
-            // 2. Tạo đơn hàng
+            // 2. Tạo đơn hàng (gán campaign_id)
             $order = Order::create([
                 'user_id' => $user ? $user->id : null,
                 'discount_id' => null,
-                'campaign_id' => null,
+                'campaign_id' => $campaignIdForOrder, // Gán campaign_id tìm được
                 'order_code' => $orderType,
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
@@ -137,6 +167,12 @@ class OrderController extends Controller
                 'discount_amount' => $discountAmount,
                 'final_amount' => $finalAmount,
                 'order_status' => 0,
+            ]);
+
+            Log::info('Order created with campaign_id', [
+                'order_id' => $order->id,
+                'campaign_id' => $order->campaign_id,
+                'order_type' => $orderType,
             ]);
 
             // 3. Tạo chi tiết đơn hàng và cập nhật tồn kho
@@ -160,7 +196,8 @@ class OrderController extends Controller
             // ============ CẬP NHẬT SỐ LƯỢT MUA PRE-ORDER ============
             if ($orderType === 'preorder') {
                 $productIds = array_unique($productIds);
-                
+                $productCampaignIds = []; // để log
+
                 foreach ($productIds as $productId) {
                     $preorder = Campaign::where('type', 'preorder')
                         ->where('status', 'active')
@@ -187,7 +224,7 @@ class OrderController extends Controller
                         // Cập nhật lại sale_price
                         $this->updatePreorderSalePrice($preorder);
                         
-                        Log::info('✅ Pre-order buyers updated (User):', [
+                        Log::info('Pre-order buyers updated (User):', [
                             'campaign_id' => $preorder->id,
                             'product_id' => $productId,
                             'increment' => $totalQuantity,
@@ -218,6 +255,7 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'display_code' => $displayCode,
                 'order_type' => $orderType,
+                'campaign_id' => $order->campaign_id,
                 'created_at' => $order->created_at->format('dmY H:i:s'),
             ]);
 
@@ -298,7 +336,6 @@ class OrderController extends Controller
         $order = $order->findOrFail($id);
         
         $order->payment_status = $order->payment->status ?? 'pending';
-
 
         return response()->json([
             'order' => $order,

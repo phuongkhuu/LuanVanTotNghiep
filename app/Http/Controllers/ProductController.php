@@ -6,18 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Campaign;
 use App\Models\ProductVariant;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use Inertia\Inertia;
 
 class ProductController extends Controller
 {
-        public function show($slug)
+    public function show($slug)
     {
         $product = Product::with([
-                'category', 
-                'brand', 
-                'variants.color', 
-                'reviews.user'  
-            ])
+            'category',
+            'brand',
+            'variants.color',
+            'reviews.user'
+        ])
             ->where('slug', $slug)
             ->where('status', 1)
             ->firstOrFail();
@@ -31,7 +33,7 @@ class ProductController extends Controller
 
         if ($product->is_preorder) {
             $now = now();
-            
+
             $preorder = Campaign::where('type', 'preorder')
                 ->where('status', 'active')
                 ->where('product_id', $product->id)
@@ -48,9 +50,14 @@ class ProductController extends Controller
             if ($preorder) {
                 $isPreorder = true;
                 $isPreorderActive = true;
-                
+
+                // ===== TÍNH TOTAL_ORDERS (số đơn hàng) =====
+                $totalOrders = Order::where('campaign_id', $preorder->id)
+                    ->where('order_code', 'preorder')
+                    ->where('order_status', '!=', 4) // 4 = hủy
+                    ->count();
+
                 $tiers = $preorder->tiers ?? [];
-                $currentBuyers = $preorder->current_buyers ?? 0;
 
                 usort($tiers, function($a, $b) {
                     return ($a['from'] ?? 0) - ($b['from'] ?? 0);
@@ -61,7 +68,7 @@ class ProductController extends Controller
                 foreach ($tiers as $index => $tier) {
                     $from = $tier['from'] ?? 0;
                     $to = $tier['to'] ?? PHP_INT_MAX;
-                    if ($currentBuyers >= $from && $currentBuyers <= $to) {
+                    if ($totalOrders >= $from && $totalOrders <= $to) {
                         $currentTier = $tier;
                         $currentTierIndex = $index;
                         break;
@@ -80,14 +87,14 @@ class ProductController extends Controller
                 $nextCount = 0;
                 if ($currentTier && isset($tiers[$currentTierIndex + 1])) {
                     $nextTier = $tiers[$currentTierIndex + 1];
-                    $nextCount = ($nextTier['from'] ?? 0) - $currentBuyers;
+                    $nextCount = ($nextTier['from'] ?? 0) - $totalOrders;
                 }
 
                 $maxBuyers = !empty($tiers) ? $tiers[count($tiers) - 1]['to'] ?? 100 : 100;
 
                 $preorderInfo = [
                     'campaign_id' => $preorder->id,
-                    'current_buyers' => $currentBuyers,
+                    'total_orders' => $totalOrders, // Thay vì current_buyers
                     'tiers' => $tiers,
                     'current_discount' => $preorderDiscount,
                     'next_tier' => $nextTier,
@@ -105,16 +112,16 @@ class ProductController extends Controller
 
         // ============ TÍNH GIÁ HIỂN THỊ ============
         $variants = $product->variants;
-        
+
         $minPriceAll = $product->variants->min('price') ?? 0;
         $maxPrice = $product->variants->max('price') ?? $minPriceAll;
-        
+
         $displayPrice = $minPriceAll;
         $originalPrice = 0;
         $hasSale = false;
         $salePercent = 0;
         $discountPercent = 0;
-        
+
         // ============ TÍNH SALE CHO PRE-ORDER ============
         if ($product->is_preorder && $isPreorderActive && $preorderDiscount > 0) {
             $salePrice = round($minPriceAll * (1 - $preorderDiscount / 100));
@@ -124,12 +131,12 @@ class ProductController extends Controller
             $salePercent = $preorderDiscount;
             $discountPercent = $preorderDiscount;
         }
-        
+
         // ============ TÍNH SALE CHO RETAIL (CAMPAIGN) ============
         if (!$product->is_preorder && !$hasSale) {
             $variantIds = $product->variants->pluck('id')->toArray();
             $now = now();
-            
+
             if (!empty($variantIds)) {
                 $campaigns = Campaign::where('status', 'active')
                     ->where('type', '!=', 'voucher')
@@ -137,10 +144,10 @@ class ProductController extends Controller
                     ->where(function($query) use ($now) {
                         $query->where(function($q) use ($now) {
                             $q->where('start_time', '<=', $now)
-                            ->where('end_time', '>=', $now);
+                              ->where('end_time', '>=', $now);
                         })->orWhere(function($q) {
                             $q->whereNull('start_time')
-                            ->whereNull('end_time');
+                              ->whereNull('end_time');
                         });
                     })
                     ->whereHas('productVariants', function($query) use ($variantIds) {
@@ -148,11 +155,11 @@ class ProductController extends Controller
                     })
                     ->with('configs')
                     ->first();
-                
+
                 if ($campaigns) {
                     $config = $campaigns->configs()->first();
                     $discountPercent = $config ? (float) $config->discount_percent : 0;
-                    
+
                     if ($discountPercent > 0) {
                         $salePrice = round($minPriceAll * (1 - $discountPercent / 100));
                         $displayPrice = $salePrice;
@@ -202,13 +209,13 @@ class ProductController extends Controller
             $variantPrice = (int) $variant->price;
             $variantSalePrice = null;
             $variantIsOnSale = false;
-            
+
             // Pre-order sale
             if ($product->is_preorder && $isPreorderActive && $preorderDiscount > 0) {
                 $variantSalePrice = round($variantPrice * (1 - $preorderDiscount / 100));
                 $variantIsOnSale = true;
             }
-            
+
             // Retail campaign sale (chỉ khi chưa có pre-order sale)
             if (!$product->is_preorder && !$variantIsOnSale) {
                 // Tính campaign cho variant này
@@ -219,10 +226,10 @@ class ProductController extends Controller
                     ->where(function($query) use ($now) {
                         $query->where(function($q) use ($now) {
                             $q->where('start_time', '<=', $now)
-                            ->where('end_time', '>=', $now);
+                              ->where('end_time', '>=', $now);
                         })->orWhere(function($q) {
                             $q->whereNull('start_time')
-                            ->whereNull('end_time');
+                              ->whereNull('end_time');
                         });
                     })
                     ->whereHas('productVariants', function($query) use ($variant) {
@@ -230,7 +237,7 @@ class ProductController extends Controller
                     })
                     ->with('configs')
                     ->first();
-                
+
                 if ($campaign) {
                     $config = $campaign->configs()->first();
                     $discount = $config ? (float) $config->discount_percent : 0;
@@ -240,7 +247,7 @@ class ProductController extends Controller
                     }
                 }
             }
-            
+
             return [
                 'id' => $variant->id,
                 'color_id' => $variant->color_id,
@@ -257,18 +264,18 @@ class ProductController extends Controller
             'id' => $product->id,
             'slug' => $product->slug,
             'name' => $product->name,
-            
+
             // Giá hiển thị (chuỗi đã format)
             'price' => number_format($displayPrice) . '₫',
             'oldPrice' => $hasSale && $originalPrice ? number_format($originalPrice) . '₫' : ($maxPrice > $minPriceAll ? number_format($maxPrice) . '₫' : null),
             'discount' => $hasSale ? $salePercent . '%' : $discount,
-            
+
             // Giá dạng số (cho Vue tính toán)
             'displayPrice' => (int) $displayPrice,
             'originalPrice' => (int) $originalPrice,
             'hasSale' => $hasSale,
             'salePercent' => $salePercent,
-            
+
             // Các trường khác
             'reviewCount' => $product->reviews->count(),
             'thumbnails' => $images,

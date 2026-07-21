@@ -300,11 +300,14 @@
                         <!-- Badge -->
                         <div class="absolute top-2 left-2 flex flex-col gap-1">
                             <span v-if="preorder.status === 'active' && preorder.current_discount > 0" 
-                                class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse">
+                                class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse text-center">
                                 SALE {{ preorder.current_discount }}%
                             </span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white">
-                                {{ preorder.current_buyers || 0 }} người đặt
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white font-bold animate-pulse text-center">
+                            {{ preorder.unique_users || 0 }} người
+                            </span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white font-bold animate-pulse text-center">
+                                {{ preorder.total_quantity || 0 }} sản phẩm
                             </span>
                         </div>
                         <div class="absolute top-2 right-2">
@@ -335,7 +338,9 @@
                         <!-- Phần hiển thị giá sale -->
                         <div class="mt-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-2">
                             <div class="flex justify-between items-center mb-1">
-                                <span class="text-[10px] font-medium">Đã đặt: {{ preorder.current_buyers || 0 }} lượt</span>
+                                <span class="text-[10px] font-medium">
+                                    Đã có {{ preorder.unique_users || 0 }} người đặt (Tổng {{ preorder.total_quantity || 0 }} sản phẩm)
+                                </span>
                                 <span class="text-xs font-bold" :class="preorder.current_discount > 0 ? 'text-red-600' : 'text-blue-600'">
                                     {{ preorder.current_discount || 0 }}%
                                 </span>
@@ -1461,7 +1466,7 @@ const getProgressPercent = (preorder) => {
     if (!preorder.tiers || !preorder.tiers.length) return 0;
     const lastTier = preorder.tiers[preorder.tiers.length - 1];
     const max = lastTier.to || 100;
-    const current = preorder.current_buyers || 0;
+    const current = preorder.total_orders || 0;
     return Math.min((current / max) * 100, 100);
 };
 

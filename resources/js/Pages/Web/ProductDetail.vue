@@ -193,7 +193,7 @@
               <!-- Progress bar -->
               <div class="mb-2">
                 <div class="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>🎯 Đã đặt: <strong>{{ product.preorderInfo.current_buyers }}</strong> người</span>
+                  <span>🎯 Đã đặt: <strong>{{ product.preorderInfo.total_orders }}</strong> người</span>
                   <span>{{ progressPercent }}%</span>
                 </div>
                 <div class="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -576,13 +576,13 @@ const formatPrice = (price) => {
 // ============ COMPUTED CHO PRE-ORDER ============
 const progressPercent = computed(() => {
   if (!props.product.preorderInfo || !props.product.preorderInfo.max_buyers) return 0;
-  const current = props.product.preorderInfo.current_buyers || 0;
+  const current = props.product.preorderInfo.total_orders || 0;
   const max = props.product.preorderInfo.max_buyers || 100;
   return Math.min(Math.round((current / max) * 100), 100);
 });
 
 const isCurrentTier = (tier) => {
-  const current = props.product.preorderInfo?.current_buyers || 0;
+  const current = props.product.preorderInfo?.total_orders || 0;
   return current >= (tier.from || 0) && current <= (tier.to || 999999);
 };
 

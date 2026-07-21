@@ -15,7 +15,7 @@ class Order extends Model
         'user_id',
         'discount_id',
         'campaign_id',
-        'order_code',           // 'retail', 'wholesale', 'preorder'
+        'order_code',          
         'customer_name',
         'customer_phone',
         'receiver_name',
@@ -27,7 +27,7 @@ class Order extends Model
         'discount_amount',
         'promo_code', 
         'final_amount',
-        'order_status',         // int (0,1,2,... tùy loại)
+        'order_status',        
     ];
 
     protected $casts = [
@@ -191,5 +191,29 @@ class Order extends Model
         ];
 
         return $maps[$orderCode] ?? [];
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($order) {
+            if (empty($order->order_number)) {
+                $prefix = match ($order->order_code) {
+                    'retail'    => 'L',
+                    'wholesale' => 'S',
+                    'preorder'  => 'P',
+                    default     => 'DH',
+                };
+                $date = now()->format('dmy');
+                $today = now()->toDateString();
+
+                $lastOrder = static::whereDate('created_at', $today)
+                    ->where('order_number', 'like', $prefix . $date . '%')
+                    ->orderBy('order_number', 'desc')
+                    ->first();
+
+                $seq = $lastOrder ? str_pad((int) substr($lastOrder->order_number, -5) + 1, 5, '0', STR_PAD_LEFT) : '00001';
+                $order->order_number = $prefix . $date . $seq;
+            }
+        });
     }
 }

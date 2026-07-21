@@ -14,14 +14,17 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $type = $request->get('type', 'retail');
-        $search = $request->get('search', '');
 
+        // Xác định danh sách order_code dựa trên type
         $orderCodes = match ($type) {
             'retail'    => ['retail'],
             'wholesale' => ['wholesale'],
             'preorder'  => ['preorder'],
+            'all'       => ['retail', 'wholesale', 'preorder'],
             default     => ['retail', 'wholesale', 'preorder'],
         };
+
+        $search = $request->get('search', '');
 
         $query = Order::select(
             'customer_phone',
@@ -29,7 +32,6 @@ class CustomerController extends Controller
             DB::raw('MAX(shipping_address) as address'),
             DB::raw('MAX(created_at) as last_order_date'),
             DB::raw('COUNT(*) as orders_count'),
-
             DB::raw('SUM(
                 COALESCE((SELECT SUM(subtotal) FROM order_details WHERE order_details.order_id = orders.id), 0)
                 + COALESCE(shipping_fee, 0)
@@ -62,21 +64,41 @@ class CustomerController extends Controller
             ];
         });
 
+        // Đếm số lượng khách hàng theo từng loại
+        $counts = [
+            'all'       => Order::whereNotNull('customer_phone')->distinct('customer_phone')->count('customer_phone'),
+            'retail'    => Order::whereNotNull('customer_phone')->where('order_code', 'retail')->distinct('customer_phone')->count('customer_phone'),
+            'wholesale' => Order::whereNotNull('customer_phone')->where('order_code', 'wholesale')->distinct('customer_phone')->count('customer_phone'),
+            'preorder'  => Order::whereNotNull('customer_phone')->where('order_code', 'preorder')->distinct('customer_phone')->count('customer_phone'),
+        ];
+
         return Inertia::render('Admin/Customers', [
             'customers' => $customers,
             'type'      => $type,
+            'counts'    => $counts, // Thêm counts
         ]);
     }
 
-    public function show($phone)
+    public function show($phone, Request $request)
     {
+        $type = $request->input('type', 'all');
 
+        // Xác định danh sách order_code dựa trên type
+        $orderCodes = match ($type) {
+            'retail'    => ['retail'],
+            'wholesale' => ['wholesale'],
+            'preorder'  => ['preorder'],
+            'all'       => ['retail', 'wholesale', 'preorder'],
+            default     => ['retail', 'wholesale', 'preorder'],
+        };
+
+        // Lấy danh sách đơn hàng theo type
         $orders = Order::where('customer_phone', $phone)
+            ->whereIn('order_code', $orderCodes)
             ->with('details')
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($order) {
-
                 $subtotal = $order->details->sum('subtotal');
                 $shipping = (float) ($order->shipping_fee ?? 0);
                 $discount = (float) ($order->discount_amount ?? 0);
@@ -112,10 +134,10 @@ class CustomerController extends Controller
                 ];
             });
 
-
         $totalSpent = $orders->sum('total_amount');
         $ordersCount = $orders->count();
 
+        // Lấy thông tin khách hàng (vẫn lấy từ tất cả đơn hàng, không phân biệt type)
         $customer = Order::where('customer_phone', $phone)
             ->select(
                 'customer_phone as phone',

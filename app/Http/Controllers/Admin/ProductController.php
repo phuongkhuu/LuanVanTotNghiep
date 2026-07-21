@@ -293,6 +293,11 @@ class ProductController extends Controller
             }
         })->values();
 
+        $counts = [
+            'normal'   => Product::where('is_preorder', false)->count(),
+            'preorder' => Product::where('is_preorder', true)->count(),
+        ];
+
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $brands = Brand::orderBy('name')->get(['id', 'name']);
         $colors = Color::orderBy('name')->get(['id', 'name', 'code']);
@@ -303,6 +308,7 @@ class ProductController extends Controller
             'categories' => $categories,
             'brands' => $brands,
             'colors' => $colors,
+            'counts' => $counts,
         ]);
     }
 

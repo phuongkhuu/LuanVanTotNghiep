@@ -19,32 +19,24 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
+    /**
+     * Cập nhật giá khuyến mãi theo tier của pre-order
+     */
     private function updatePreorderSalePrice($campaign)
     {
         try {
             $product = Product::find($campaign->product_id);
             if (!$product) {
-                Log::warning('Product not found for pre-order sale price update', [
-                    'campaign_id' => $campaign->id,
-                    'product_id' => $campaign->product_id
-                ]);
                 return;
             }
 
             $tiers = $campaign->tiers ?? [];
             $currentBuyers = $campaign->current_buyers ?? 0;
 
-            // Sắp xếp tiers theo from
-            usort($tiers, function($a, $b) {
-                return ($a['from'] ?? 0) - ($b['from'] ?? 0);
-            });
+            usort($tiers, fn($a, $b) => ($a['from'] ?? 0) - ($b['from'] ?? 0));
 
-            // Tìm discount theo tier hiện tại
             $discountPercent = 0;
             if (!empty($tiers)) {
-                $firstTier = $tiers[0];
-                $discountPercent = $firstTier['discount'] ?? 0;
-                
                 foreach ($tiers as $tier) {
                     $from = $tier['from'] ?? 0;
                     $to = $tier['to'] ?? PHP_INT_MAX;
@@ -55,31 +47,13 @@ class OrderController extends Controller
                 }
             }
 
-            Log::info('Updating pre-order sale price:', [
-                'campaign_id' => $campaign->id,
-                'product_id' => $product->id,
-                'current_buyers' => $currentBuyers,
-                'discount_percent' => $discountPercent,
-            ]);
-
-            // Cập nhật sale_price cho từng variant
             foreach ($product->variants as $variant) {
-                $originalPrice = $variant->price;
-                $salePrice = $originalPrice * (1 - $discountPercent / 100);
-                $salePrice = round($salePrice);
-
+                $salePrice = round($variant->price * (1 - $discountPercent / 100));
                 $variant->update([
                     'sale_price' => $salePrice,
                     'is_on_sale' => $discountPercent > 0,
                     'sale_type' => 'preorder',
                     'sale_campaign_id' => $campaign->id,
-                ]);
-
-                Log::info('Variant sale price updated:', [
-                    'variant_id' => $variant->id,
-                    'original_price' => $originalPrice,
-                    'sale_price' => $salePrice,
-                    'discount_percent' => $discountPercent,
                 ]);
             }
 
@@ -96,91 +70,87 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
-        Log::info('Admin\OrderController@store called', $request->all());
-        
         try {
             $validated = $request->validate([
-                'customer_name' => 'required|string|max:255',
-                'customer_phone' => 'required|string|max:20',
-                'customer_email' => 'required|email|max:255',
-                'receiver_name' => 'required|string|max:255',
-                'receiver_phone' => 'required|string|max:20',
-                'shipping_address' => 'required|string|max:500',
-                'note' => 'nullable|string|max:500',
-                'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
-                'items' => 'required|array|min:1',
-                'items.*.id' => 'required|exists:product_variants,id',
-                'items.*.quantity' => 'required|integer|min:1',
-                'items.*.price' => 'required|numeric|min:0',
-                'total_amount' => 'required|numeric|min:0',
-                'order_type' => 'required|in:retail,preorder',
-                'promo_code' => 'nullable|string',
+                'customer_name'   => 'required|string|max:255',
+                'customer_phone'  => 'required|string|max:20',
+                'customer_email'  => 'required|email|max:255',
+                'receiver_name'   => 'required|string|max:255',
+                'receiver_phone'  => 'required|string|max:20',
+                'shipping_address'=> 'required|string|max:500',
+                'note'            => 'nullable|string|max:500',
+                'payment_method'  => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+                'items'           => 'required|array|min:1',
+                'items.*.id'      => 'required|exists:product_variants,id',
+                'items.*.quantity'=> 'required|integer|min:1',
+                'items.*.price'   => 'required|numeric|min:0',
+                'total_amount'    => 'required|numeric|min:0',
+                'order_type'      => 'required|in:retail,preorder',
+                'promo_code'      => 'nullable|string',
                 'discount_amount' => 'nullable|numeric|min:0',
             ]);
 
             $orderType = $validated['order_type'];
             $userId = Auth::id();
-            
+
             $totalAmount = (int) $validated['total_amount'];
             $discountAmount = (int) ($validated['discount_amount'] ?? 0);
             $promoCode = $validated['promo_code'] ?? null;
-            $shippingFee = 0;
-            $finalAmount = $totalAmount;
+            $finalAmount = $totalAmount; // shipping fee = 0
 
-            Log::info('Creating order with type: ' . $orderType, [
-                'total_amount_from_request' => $totalAmount,
-                'discount_amount' => $discountAmount,
-                'promo_code' => $promoCode,
-                'final_amount' => $finalAmount,
-            ]);
+            // ============ TÌM CAMPAIGN ID CHO PRE-ORDER ============
+            $campaignId = null;
+            if ($orderType === 'preorder') {
+                foreach ($validated['items'] as $item) {
+                    $variant = ProductVariant::with('product')->find($item['id']);
+                    if (!$variant || !$variant->product) continue;
 
-            DB::beginTransaction();
+                    $preorder = Campaign::where('type', 'preorder')
+                        ->where('status', 'active')
+                        ->where('product_id', $variant->product->id)
+                        ->where(function($query) {
+                            $query->where('end_time', '>=', now())
+                                  ->orWhereNull('end_time');
+                        })
+                        ->first();
 
-            // Tạo đơn hàng
-            $order = Order::create([
-                'user_id' => $userId,
-                'order_code' => $orderType,
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'],
-                'customer_email' => $validated['customer_email'],
-                'receiver_name' => $validated['receiver_name'],
-                'receiver_phone' => $validated['receiver_phone'],
-                'shipping_address' => $validated['shipping_address'],
-                'note' => $validated['note'] ?? null,
-                'shipping_fee' => $shippingFee,
-                'total_amount' => $totalAmount,
-                'discount_amount' => $discountAmount,
-                'promo_code' => $promoCode,
-                'final_amount' => $finalAmount,
-                'order_status' => 0, // Pending
-            ]);
-
-            Log::info('Order created:', [
-                'order_id' => $order->id,
-                'total_amount' => $totalAmount,
-                'discount_amount' => $discountAmount,
-                'final_amount' => $finalAmount,
-                'promo_code' => $promoCode,
-            ]);
-
-            // Cập nhật số lượng đã sử dụng voucher
-            if ($promoCode) {
-                $voucher = Campaign::where('code', $promoCode)
-                    ->where('type', 'voucher')
-                    ->first();
-                
-                if ($voucher) {
-                    $voucher->increment('used');
-                    Log::info('Voucher used count updated:', [
-                        'code' => $promoCode,
-                        'used' => $voucher->used,
-                    ]);
-                } else {
-                    Log::warning('Voucher not found for update:', ['code' => $promoCode]);
+                    if ($preorder) {
+                        $campaignId = $preorder->id;
+                        break;
+                    }
                 }
             }
 
-            // Lưu product_id để cập nhật pre-order
+            DB::beginTransaction();
+
+            // Tạo đơn hàng (gán campaign_id nếu có)
+            $order = Order::create([
+                'user_id'          => $userId,
+                'order_code'       => $orderType,
+                'campaign_id'      => $campaignId, // ĐÃ GÁN CAMPAIGN_ID
+                'customer_name'    => $validated['customer_name'],
+                'customer_phone'   => $validated['customer_phone'],
+                'customer_email'   => $validated['customer_email'],
+                'receiver_name'    => $validated['receiver_name'],
+                'receiver_phone'   => $validated['receiver_phone'],
+                'shipping_address' => $validated['shipping_address'],
+                'note'             => $validated['note'] ?? null,
+                'shipping_fee'     => 0,
+                'total_amount'     => $totalAmount,
+                'discount_amount'  => $discountAmount,
+                'promo_code'       => $promoCode,
+                'final_amount'     => $finalAmount,
+                'order_status'     => 0, // Pending
+            ]);
+
+            // Cập nhật lượt sử dụng voucher
+            if ($promoCode) {
+                $voucher = Campaign::where('code', $promoCode)->where('type', 'voucher')->first();
+                if ($voucher) {
+                    $voucher->increment('used');
+                }
+            }
+
             $productIds = [];
 
             // Tạo chi tiết đơn hàng
@@ -191,19 +161,18 @@ class OrderController extends Controller
                 $subtotal = $price * $quantity;
 
                 OrderDetail::create([
-                    'order_id' => $order->id,
+                    'order_id'           => $order->id,
                     'product_variant_id' => $variant->id,
-                    'quantity' => $quantity,
-                    'unit_price' => $price,
-                    'subtotal' => $subtotal,
+                    'quantity'           => $quantity,
+                    'unit_price'         => $price,
+                    'subtotal'           => $subtotal,
                 ]);
 
-                // Lưu product_id để cập nhật pre-order
                 if ($variant && $variant->product) {
                     $productIds[] = $variant->product->id;
                 }
 
-                // Cập nhật stock cho retail
+                // Trừ stock cho retail
                 if ($orderType === 'retail') {
                     if ($variant->stock < $quantity) {
                         throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
@@ -213,24 +182,17 @@ class OrderController extends Controller
                 }
             }
 
-            // ============ CẬP NHẬT SỐ LƯỢT MUA PRE-ORDER ============
+            // Xử lý pre-order: cập nhật current_buyers và sale_price
             if ($orderType === 'preorder') {
-                // Lấy danh sách product_id duy nhất
                 $productIds = array_unique($productIds);
-                
                 foreach ($productIds as $productId) {
-                    // Tìm pre-order active cho sản phẩm này
                     $preorder = Campaign::where('type', 'preorder')
                         ->where('status', 'active')
                         ->where('product_id', $productId)
-                        ->where(function($query) {
-                            $query->where('end_time', '>=', now())
-                                  ->orWhereNull('end_time');
-                        })
+                        ->where(fn($q) => $q->where('end_time', '>=', now())->orWhereNull('end_time'))
                         ->first();
-                    
+
                     if ($preorder) {
-                        // Tính tổng số lượng đã đặt trong đơn hàng này cho sản phẩm đó
                         $totalQuantity = 0;
                         foreach ($validated['items'] as $item) {
                             $variant = ProductVariant::find($item['id']);
@@ -238,52 +200,26 @@ class OrderController extends Controller
                                 $totalQuantity += (int) $item['quantity'];
                             }
                         }
-                        
-                        // Cập nhật current_buyers (mỗi sản phẩm đặt là 1 lượt)
                         $preorder->increment('current_buyers', $totalQuantity);
-                        
-                        // Lấy số lượng mới nhất sau khi increment
                         $preorder->refresh();
-                        
-                        // Cập nhật lại sale_price sau khi tăng current_buyers
                         $this->updatePreorderSalePrice($preorder);
-                        
-                        Log::info('✅ Pre-order buyers updated:', [
-                            'campaign_id' => $preorder->id,
-                            'product_id' => $productId,
-                            'increment' => $totalQuantity,
-                            'new_total' => $preorder->current_buyers,
-                            'new_discount' => $preorder->current_discount ?? 0,
-                        ]);
-                    } else {
-                        Log::warning('No active pre-order found for product:', ['product_id' => $productId]);
                     }
                 }
             }
 
             // Tạo thanh toán
             Payment::create([
-                'order_id' => $order->id,
-                'transaction_code' => 'PAY-' . $order->id . '-' . time(),
-                'payment_method' => $validated['payment_method'],
-                'amount' => $finalAmount,
-                'payment_date' => now(),
-                'status' => 'pending',
+                'order_id'          => $order->id,
+                'transaction_code'  => 'PAY-' . $order->id . '-' . time(),
+                'payment_method'    => $validated['payment_method'],
+                'amount'            => $finalAmount,
+                'payment_date'      => now(),
+                'status'            => 'pending',
             ]);
 
             DB::commit();
 
             $displayCode = $this->generateOrderDisplayCode($order);
-
-            Log::info('✅ Order created successfully:', [
-                'order_id' => $order->id,
-                'display_code' => $displayCode,
-                'total_amount' => $totalAmount,
-                'discount_amount' => $discountAmount,
-                'final_amount' => $finalAmount,
-                'promo_code' => $promoCode,
-                'order_type' => $orderType,
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -295,8 +231,6 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Order creation error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-            
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
@@ -304,8 +238,9 @@ class OrderController extends Controller
         }
     }
 
-
-
+    /**
+     * Danh sách đơn hàng theo loại
+     */
     public function index($type = 'retail')
     {
         $validTypes = ['retail', 'wholesale', 'preorder'];
@@ -335,20 +270,21 @@ class OrderController extends Controller
 
                 $payment = 'COD';
                 $paymentClass = 'bg-green-100 text-green-800';
-                if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
-                    $payment = 'Chuyển khoản';
-                    $paymentClass = 'bg-blue-100 text-blue-800';
-                } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
-                    $payment = 'Ví điện tử';
-                    $paymentClass = 'bg-purple-100 text-purple-800';
+                if ($order->payment) {
+                    $method = $order->payment->payment_method;
+                    if ($method === 'bank_transfer') {
+                        $payment = 'Chuyển khoản';
+                        $paymentClass = 'bg-blue-100 text-blue-800';
+                    } elseif ($method === 'ewallet') {
+                        $payment = 'Ví điện tử';
+                        $paymentClass = 'bg-purple-100 text-purple-800';
+                    }
                 }
-
-                $displayCode = $this->generateOrderDisplayCode($order);
 
                 return [
                     'id'              => $order->id,
-                    'code'            => $displayCode,
-                    'display_code'    => $displayCode,
+                    'code'            => $order->order_number,
+                    'display_code'    => $order->order_number,
                     'customer'        => $order->customer_name ?? $order->receiver_name,
                     'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
                     'receiver'        => $order->receiver_name,
@@ -361,21 +297,30 @@ class OrderController extends Controller
                     'amount'          => $final,
                     'payment'         => $payment,
                     'paymentClass'    => $paymentClass,
-                    'status'          => $this->getStatusText($order),
-                    'statusLabel'     => $this->getStatusLabel($order),
+                    'status'          => $order->status_text,
+                    'statusLabel'     => $order->status_label,
                     'type'            => $order->order_code ?? 'retail',
                     'address'         => $order->shipping_address,
                     'note'            => $order->note,
                     'products'        => $products,
                 ];
             });
+         $counts = [
+            'retail'    => Order::where('order_code', 'retail')->count(),
+            'wholesale' => Order::where('order_code', 'wholesale')->count(),
+            'preorder'  => Order::where('order_code', 'preorder')->count(),
+        ];
 
         return Inertia::render('Admin/Orders', [
             'type'          => $type,
             'initialOrders' => $orders->all(),
+            'counts'        => $counts,
         ]);
     }
 
+    /**
+     * Chi tiết đơn hàng
+     */
     public function show($id)
     {
         $order = Order::with(['details.productVariant.product', 'payment'])->findOrFail($id);
@@ -398,56 +343,54 @@ class OrderController extends Controller
         $final = $subtotal + $shipping - $discount;
 
         $payment = 'COD';
-        if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
-            $payment = 'Chuyển khoản';
-        } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
-            $payment = 'Ví điện tử';
+        if ($order->payment) {
+            $method = $order->payment->payment_method;
+            if ($method === 'bank_transfer') $payment = 'Chuyển khoản';
+            elseif ($method === 'ewallet') $payment = 'Ví điện tử';
         }
 
-        $displayCode = $this->generateOrderDisplayCode($order);
-
-        $orderData = [
-            'id'              => $order->id,
-            'code'            => $displayCode,
-            'display_code'    => $displayCode,
-            'customer'        => $order->customer_name ?? $order->receiver_name,
-            'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
-            'receiver'        => $order->receiver_name,
-            'receiver_phone'  => $order->receiver_phone,
-            'date'            => $order->created_at->format('d/m/Y'),
-            'subtotal'        => $subtotal,
-            'shipping_fee'    => $shipping,
-            'discount_amount' => $discount,
-            'final_amount'    => $final,
-            'amount'          => $final,
-            'payment'         => $payment,
-            'status'          => $this->getStatusText($order),
-            'statusLabel'     => $this->getStatusLabel($order),
-            'type'            => $order->order_code ?? 'retail',
-            'address'         => $order->shipping_address,
-            'note'            => $order->note,
-            'products'        => $products,
-        ];
-
-        return Inertia::render('Admin/Orders/Show', ['order' => $orderData]);
+        return Inertia::render('Admin/Orders/Show', [
+            'order' => [
+                'id'              => $order->id,
+                'code'            => $order->order_number,
+                'display_code'    => $order->order_number,
+                'customer'        => $order->customer_name ?? $order->receiver_name,
+                'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
+                'receiver'        => $order->receiver_name,
+                'receiver_phone'  => $order->receiver_phone,
+                'date'            => $order->created_at->format('d/m/Y'),
+                'subtotal'        => $subtotal,
+                'shipping_fee'    => $shipping,
+                'discount_amount' => $discount,
+                'final_amount'    => $final,
+                'amount'          => $final,
+                'payment'         => $payment,
+                'status'          => $order->status_text,
+                'statusLabel'     => $order->status_label,
+                'type'            => $order->order_code ?? 'retail',
+                'address'         => $order->shipping_address,
+                'note'            => $order->note,
+                'products'        => $products,
+            ]
+        ]);
     }
 
+    /**
+     * Cập nhật trạng thái đơn hàng
+     */
     public function updateStatus($id, Request $request)
     {
         try {
             $order = Order::findOrFail($id);
             $newStatus = $request->status;
-            $statusMap = $this->getStatusMapForOrder($order);
-            
+            $statusMap = $order->getStatusMap();
+
             if (!isset($statusMap[$newStatus])) {
                 return back()->with('error', 'Trạng thái không hợp lệ');
             }
-            
-            $statusInt = $statusMap[$newStatus];
-            $order->order_status = $statusInt;
-            $order->save();
 
-            Log::info("Order #{$order->id} status updated to: {$newStatus}");
+            $order->order_status = $statusMap[$newStatus];
+            $order->save();
 
             return back()->with('success', 'Cập nhật trạng thái thành công');
         } catch (\Exception $e) {
@@ -456,6 +399,9 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Sinh mã hiển thị cho đơn hàng (ưu tiên order_number)
+     */
     public function generateOrderDisplayCode($order)
     {
         if (is_numeric($order)) {
@@ -465,62 +411,52 @@ class OrderController extends Controller
             }
         }
 
-        $prefix = match($order->order_code) {
-            'retail' => 'L',
-            'wholesale' => 'S',
-            'preorder' => 'P',
-            default => 'DH'
-        };
-
-        $date = now()->format('dmY');
-        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
-
-        return $prefix . $date . $sequence;
+        // Luôn trả về order_number nếu có (đảm bảo từ model event)
+        return $order->order_number ?? $this->fallbackOrderCode($order);
     }
 
     /**
-     * Xuất tất cả đơn hàng
+     * Fallback cho đơn hàng cũ (chỉ khi chưa có order_number)
      */
+    private function fallbackOrderCode($order)
+    {
+        $prefix = match($order->order_code) {
+            'retail'    => 'L',
+            'wholesale' => 'S',
+            'preorder'  => 'P',
+            default     => 'DH',
+        };
+        return $prefix . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
+    }
+
+    /* -------------------- EXPORT -------------------- */
+
     public function export(Request $request)
     {
         try {
-            $orders = Order::with(['details.productVariant.product', 'payment'])
-                ->latest()
-                ->get();
-            
+            $orders = Order::with(['details.productVariant.product', 'payment'])->latest()->get();
             if ($orders->isEmpty()) {
                 return back()->with('error', 'Không có đơn hàng nào để xuất');
             }
-            
-            $formattedOrders = $orders->map(function ($order) {
-                return $this->formatOrderForExport($order);
-            });
-            
-            $export = new OrdersExport('all', $formattedOrders);
-            $date = now()->format('Ymd');
-            $filename = "{$date}_tat_ca_don_hang.xlsx";
-            
-            return Excel::download($export, $filename);
-            
+
+            $formatted = $orders->map(fn($o) => $this->formatOrderForExport($o));
+            $export = new OrdersExport('all', $formatted);
+            return Excel::download($export, now()->format('Ymd') . '_tat_ca_don_hang.xlsx');
         } catch (\Exception $e) {
             Log::error('Export all orders error: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi xảy ra khi xuất file: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Xuất đơn hàng theo bộ lọc
-     */
     public function exportWithFilters(Request $request)
     {
         try {
             $type = $request->input('type', 'retail');
             $status = $request->input('status', 'all');
             $search = $request->input('search', '');
-            
-            $query = Order::with(['details.productVariant.product', 'payment'])
-                ->where('order_code', $type);
-            
+
+            $query = Order::with(['details.productVariant.product', 'payment'])->where('order_code', $type);
+
             if ($status !== 'all') {
                 $statusMap = [
                     'pending' => 0, 'processing' => 1, 'shipping' => 2,
@@ -531,7 +467,7 @@ class OrderController extends Controller
                     $query->where('order_status', $statusMap[$status]);
                 }
             }
-            
+
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('id', 'LIKE', "%{$search}%")
@@ -541,27 +477,19 @@ class OrderController extends Controller
                       ->orWhere('receiver_phone', 'LIKE', "%{$search}%");
                 });
             }
-            
+
             $orders = $query->latest()->get();
-            
             if ($orders->isEmpty()) {
                 return back()->with('error', 'Không có đơn hàng nào để xuất');
             }
-            
-            $formattedOrders = $orders->map(function ($order) {
-                return $this->formatOrderForExport($order);
-            });
-            
-            $export = new OrdersExport($type, $formattedOrders);
-            
+
+            $formatted = $orders->map(fn($o) => $this->formatOrderForExport($o));
+            $export = new OrdersExport($type, $formatted);
+
             $typeLabels = ['retail' => 'ban_le', 'wholesale' => 'ban_si', 'preorder' => 'preorder'];
             $typeLabel = $typeLabels[$type] ?? 'don_hang';
             $statusLabel = $status !== 'all' ? "_" . $status : "";
-            $date = now()->format('Ymd');
-            $filename = "{$date}_don_hang_{$typeLabel}{$statusLabel}.xlsx";
-            
-            return Excel::download($export, $filename);
-            
+            return Excel::download($export, now()->format('Ymd') . "_don_hang_{$typeLabel}{$statusLabel}.xlsx");
         } catch (\Exception $e) {
             Log::error('Export filtered orders error: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi xảy ra khi xuất file: ' . $e->getMessage());
@@ -569,7 +497,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Format order data for export
+     * Format dữ liệu đơn hàng cho xuất Excel
      */
     protected function formatOrderForExport($order)
     {
@@ -590,22 +518,19 @@ class OrderController extends Controller
         $final = $subtotal + $shipping - $discount;
 
         $payment = 'COD';
-        if ($order->payment && $order->payment->payment_method === 'bank_transfer') {
-            $payment = 'Chuyển khoản';
-        } elseif ($order->payment && $order->payment->payment_method === 'ewallet') {
-            $payment = 'Ví điện tử';
+        if ($order->payment) {
+            $method = $order->payment->payment_method;
+            if ($method === 'bank_transfer') $payment = 'Chuyển khoản';
+            elseif ($method === 'ewallet') $payment = 'Ví điện tử';
         }
 
-        $productList = $products->map(function ($item) {
-            return $item['name'] . ' x' . $item['quantity'] . ' = ' . number_format($item['subtotal']) . 'đ';
-        })->implode('; ');
-
-        $displayCode = $this->generateOrderDisplayCode($order);
+        $productList = $products->map(fn($item) => $item['name'] . ' x' . $item['quantity'] . ' = ' . number_format($item['subtotal']) . 'đ')
+            ->implode('; ');
 
         return (object) [
             'id' => $order->id,
-            'code' => $displayCode,
-            'display_code' => $displayCode,
+            'code' => $order->order_number,
+            'display_code' => $order->order_number,
             'type' => $order->order_code ?? 'retail',
             'customer_name' => $order->customer_name ?? $order->receiver_name,
             'customer_phone' => $order->customer_phone ?? $order->receiver_phone,
@@ -619,43 +544,8 @@ class OrderController extends Controller
             'discount_amount' => $discount,
             'final_amount' => $final,
             'payment_method' => $payment,
-            'status' => $order->getStatusLabel(),
+            'status' => $order->status_label,
             'note' => $order->note ?? '',
         ];
-    }
-
-    protected function getStatusText($order)
-    {
-        $orderCode = $order->order_code ?? 'retail';
-        $status = $order->order_status;
-        $maps = [
-            'retail' => [0 => 'pending', 1 => 'processing', 2 => 'shipping', 3 => 'completed', 4 => 'cancelled'],
-            'wholesale' => [0 => 'pending', 1 => 'approved', 2 => 'production', 3 => 'shipping', 4 => 'completed', 5 => 'cancelled'],
-            'preorder' => [0 => 'pending', 1 => 'confirmed', 2 => 'waiting', 3 => 'shipping', 4 => 'completed', 5 => 'cancelled'],
-        ];
-        return $maps[$orderCode][$status] ?? 'pending';
-    }
-
-    protected function getStatusLabel($order)
-    {
-        $orderCode = $order->order_code ?? 'retail';
-        $status = $order->order_status;
-        $maps = [
-            'retail' => [0 => 'Chờ xử lý', 1 => 'Đang xử lý', 2 => 'Đang giao', 3 => 'Hoàn thành', 4 => 'Đã hủy'],
-            'wholesale' => [0 => 'Chờ xác nhận', 1 => 'Đã duyệt', 2 => 'Đang sản xuất', 3 => 'Đang giao', 4 => 'Hoàn thành', 5 => 'Đã hủy'],
-            'preorder' => [0 => 'Chờ xác nhận', 1 => 'Đã xác nhận', 2 => 'Chờ hàng', 3 => 'Đang giao', 4 => 'Hoàn thành', 5 => 'Đã hủy'],
-        ];
-        return $maps[$orderCode][$status] ?? 'Chờ xử lý';
-    }
-
-    protected function getStatusMapForOrder($order)
-    {
-        $orderCode = $order->order_code ?? 'retail';
-        $maps = [
-            'retail' => ['pending' => 0, 'processing' => 1, 'shipping' => 2, 'completed' => 3, 'cancelled' => 4],
-            'wholesale' => ['pending' => 0, 'approved' => 1, 'production' => 2, 'shipping' => 3, 'completed' => 4, 'cancelled' => 5],
-            'preorder' => ['pending' => 0, 'confirmed' => 1, 'waiting' => 2, 'shipping' => 3, 'completed' => 4, 'cancelled' => 5],
-        ];
-        return $maps[$orderCode] ?? [];
     }
 }

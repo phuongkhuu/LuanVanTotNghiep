@@ -19,7 +19,6 @@ class PaymentController extends Controller
 
     public function __construct()
     {
-        // Sử dụng Admin\OrderController để tạo đơn hàng
         $this->orderController = app(\App\Http\Controllers\Admin\OrderController::class);
     }
 

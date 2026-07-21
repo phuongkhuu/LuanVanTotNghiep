@@ -190,7 +190,7 @@ class SettingController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
                 'password' => 'required|string|min:6',
-                'role' => 'required|in:admin,staff,user',
+                'role' => 'required|in:admin, user',
                 'status' => 'boolean'
             ]);
             
@@ -216,7 +216,7 @@ class SettingController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $id,
-                'role' => 'required|in:admin,staff,user',
+                'role' => 'required|in:admin,user',
                 'status' => 'boolean'
             ]);
             

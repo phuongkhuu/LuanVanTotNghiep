@@ -10,18 +10,23 @@ const props = defineProps({
     },
     type: {
         type: String,
-        default: 'retail'
+        default: 'all'
+    },
+    counts: {
+        type: Object,
+        default: () => ({ all: 0, retail: 0, wholesale: 0, preorder: 0 })
     }
 });
 
 const search = ref('');
-const activeType = ref(['retail', 'wholesale', 'preorder'].includes(props.type) ? props.type : 'retail');
+const activeType = ref(['retail', 'wholesale', 'preorder', 'all'].includes(props.type) ? props.type : 'all');
 
 // Pagination - 5 items per page
 const currentPage = ref(1);
 const perPage = ref(5);
 
 const customerTypes = [
+    { value: 'all', label: 'Tất cả', icon: '👥' },
     { value: 'retail', label: 'Khách lẻ', icon: '👤' },
     { value: 'wholesale', label: 'Khách doanh nghiệp', icon: '🏢' },
     { value: 'preorder', label: 'Pre-order', icon: '⏳' }
@@ -102,8 +107,7 @@ const formatDate = (date) => {
 };
 
 const getTypeCount = (type) => {
-    if (!props.customers?.data) return 0;
-    return props.customers.data.length;
+    return props.counts?.[type] || 0;
 };
 
 const viewDetail = async (customer) => {
@@ -116,7 +120,9 @@ const viewDetail = async (customer) => {
     detailLoading.value = true;
     errorMessage.value = '';
     try {
-        const response = await fetch(`/admin/customers/${encodeURIComponent(customer.phone)}`);
+        // Gọi API với tham số type để lọc đơn hàng
+        const url = `/admin/customers/${encodeURIComponent(customer.phone)}?type=${activeType.value}`;
+        const response = await fetch(url);
         const data = await response.json();
         if (data && !data.error) {
             customerOrders.value = data.orders || [];
@@ -159,7 +165,7 @@ const changeActiveType = (typeValue) => {
 
 // Khi props.type thay đổi, cập nhật activeType
 watch(() => props.type, (newType) => {
-    if (newType && ['retail', 'wholesale', 'preorder'].includes(newType)) {
+    if (newType && ['retail', 'wholesale', 'preorder', 'all'].includes(newType)) {
         activeType.value = newType;
         search.value = '';
         currentPage.value = 1;

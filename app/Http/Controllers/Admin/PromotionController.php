@@ -9,6 +9,8 @@ use App\Models\Campaign;
 use App\Models\CampaignConfig;
 use App\Models\Category;
 use App\Models\Discount;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
@@ -58,13 +60,14 @@ class PromotionController extends Controller
                     $currentSalePrice = 0;
                     $currentDiscount = 0;
                     $productImage = null;
+                    $totalOrders = 0;
+                    $totalQuantity = 0;
+                    $uniqueUsers = 0;
 
-                    
                     if ($campaign->type === 'preorder' && $campaign->product_id) {
                         $product = $campaign->product;
                         $productImage = null;
                         if ($product) {
-                            // Lấy ảnh sản phẩm
                             if ($product->image_url && is_array($product->image_url) && count($product->image_url) > 0) {
                                 $productImage = $product->image_url[0];
                             }
@@ -95,6 +98,31 @@ class PromotionController extends Controller
                         
                         $currentSalePrice = $basePrice * (1 - $currentDiscount / 100);
                         $currentSalePrice = round($currentSalePrice);
+
+                        // ===== TÍNH TOÁN THỐNG KÊ DỰA TRÊN CAMPAIGN_ID =====
+                        $campaignId = $campaign->id;
+
+                        // Số đơn hàng (chỉ đơn pre-order, không bị hủy)
+                        $totalOrders = Order::where('campaign_id', $campaignId)
+                            ->where('order_code', 'preorder')
+                            ->where('order_status', '!=', 4) // giả định 4 là hủy
+                            ->count();
+
+                        // Tổng số lượng sản phẩm đã đặt
+                        $totalQuantity = OrderDetail::whereHas('order', function ($q) use ($campaignId) {
+                                $q->where('campaign_id', $campaignId)
+                                  ->where('order_code', 'preorder')
+                                  ->where('order_status', '!=', 4);
+                            })
+                            ->sum('quantity');
+
+                        // Số người đặt duy nhất
+                        $uniqueUsers = Order::where('campaign_id', $campaignId)
+                            ->where('order_code', 'preorder')
+                            ->where('order_status', '!=', 4)
+                            ->whereNotNull('user_id')
+                            ->distinct('user_id')
+                            ->count('user_id');
                     }
                     
                     return [
@@ -120,7 +148,7 @@ class PromotionController extends Controller
                         'discount' => $config ? (float) $config->discount_percent . '%' : '0%',
                         'products' => $campaign->productVariants->pluck('id')->toArray(),
                         'product_id' => $campaign->product_id,
-                        'product_image' => $productImage, // Thêm ảnh sản phẩm
+                        'product_image' => $productImage,
                         'tiers' => $campaign->tiers,
                         'current_buyers' => $campaign->current_buyers ?? 0,
                         'base_price' => $basePrice,
@@ -138,6 +166,9 @@ class PromotionController extends Controller
                         ] : null,
                         'banner_image' => $bannerImage,
                         'banner_url' => $campaign->banner_url,
+                        'total_orders'   => $totalOrders,
+                        'total_quantity' => $totalQuantity,
+                        'unique_users'   => $uniqueUsers,
                     ];
                 });
 
@@ -213,7 +244,7 @@ class PromotionController extends Controller
                             'category_name' => $variant->product->category ? $variant->product->category->name : null,
                             'image' => $variant->product->image_url && is_array($variant->product->image_url) && count($variant->product->image_url) > 0 
                                 ? $variant->product->image_url[0] 
-                                : null, // Thêm ảnh sản phẩm
+                                : null,
                         ] : null,
                         'color' => $variant->color ? [
                             'id' => $variant->color->id,
@@ -230,7 +261,6 @@ class PromotionController extends Controller
                 ->latest()
                 ->get()
                 ->map(function ($product) {
-                    // Lấy ảnh đầu tiên từ image_url
                     $image = null;
                     if ($product->image_url && is_array($product->image_url) && count($product->image_url) > 0) {
                         $image = $product->image_url[0];
@@ -243,7 +273,7 @@ class PromotionController extends Controller
                         'brand_name' => $product->brand ? $product->brand->name : null,
                         'category_id' => $product->category_id,
                         'category_name' => $product->category ? $product->category->name : null,
-                        'image' => $image, // Thêm ảnh sản phẩm
+                        'image' => $image,
                         'variants' => $product->variants->map(function ($variant) {
                             return [
                                 'id' => $variant->id,
@@ -872,24 +902,18 @@ class PromotionController extends Controller
             
             $campaign = Campaign::findOrFail($id);
             
-            // Lấy ID campaign trước khi xóa
             $campaignId = $campaign->id;
             
-            // Reset sale price cho sản phẩm
             $this->resetRetailSalePrice($campaign);
             
-            // Cập nhật banner: xóa liên kết campaign_id (không xóa banner)
             Banner::where('campaign_id', $campaignId)->update(['campaign_id' => null]);
             
-            // Cập nhật news: chuyển thành Nháp (0) - THÊM PHẦN NÀY
             \App\Models\News::where('campaign_id', $campaignId)
                 ->update(['status' => 0]);
             
-            // Xóa các liên kết
             $campaign->configs()->delete();
             $campaign->productVariants()->detach();
             
-            // Xóa campaign
             $campaign->delete();
 
             DB::commit();

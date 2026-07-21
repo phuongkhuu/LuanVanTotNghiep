@@ -464,7 +464,11 @@ const props = defineProps({
     type: { type: String, default: 'normal' },
     categories: { type: Array, default: () => [] },
     brands: { type: Array, default: () => [] },
-    colors: { type: Array, default: () => [] }
+    colors: { type: Array, default: () => [] },
+    counts: { 
+        type: Object,
+        default: () => ({ normal: 0, preorder: 0 })
+    }
 });
 
 const search = ref('');
@@ -609,12 +613,7 @@ const displayedPages = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
-const typeCounts = computed(() => ({
-    normal: products.value.filter(p => p.type === 'normal').length,
-    preorder: products.value.filter(p => p.type === 'preorder').length
-}));
-
-const getTypeCount = (type) => typeCounts.value[type] || 0;
+const getTypeCount = (type) => props.counts[type] || 0;
 
 const formatPrice = (value) => {
     if (!value || value === 0) return '---';

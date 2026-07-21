@@ -40,14 +40,17 @@ class DashboardController extends Controller
         $totalCustomers = User::where('role', 'user')->count();
         $lowStockProducts = ProductVariant::where('stock', '<', 10)->count();
 
-        // Đơn hàng gần đây (5 đơn)
+        // Đơn hàng gần đây (5 đơn) - sử dụng order_number
         $recentOrders = Order::with(['details.productVariant.product'])
             ->latest()
             ->limit(5)
             ->get()
             ->map(function ($order) {
+                // Lấy mã đơn hàng từ order_number (đã được sinh tự động)
+                $code = $order->order_number ?? '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
+                
                 return [
-                    'code' => '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+                    'code' => $code,
                     'customer' => $order->customer_name ?? $order->receiver_name,
                     'type' => $this->getTypeLabel($order->order_code),
                     'amount' => number_format($order->final_amount, 0, ',', '.') . '₫',
