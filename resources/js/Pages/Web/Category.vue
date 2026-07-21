@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Head :title="`${categoryName || 'Danh mục'} - BigBag Premium Utility Carry Gear`" />
+    <Head :title="`${pageTitle} - BigBag Premium Utility Carry Gear`" />
     
     <AppHeader />
 
@@ -10,16 +10,16 @@
           <nav class="flex items-center text-gray-500 mb-4 space-x-2 text-sm">
             <Link :href="route('home')" class="hover:text-primary">Trang chủ</Link>
             <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span class="text-gray-800 font-medium">{{ categoryName || 'Danh mục' }}</span>
+            <span class="text-gray-800 font-medium">{{ pageTitle }}</span>
           </nav>
-          <h1 class="font-display-lg text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ categoryName || 'Danh mục' }}</h1>
-          <p class="text-gray-500 max-w-2xl">Khám phá bộ sưu tập {{ categoryName || 'này' }} cao cấp, được thiết kế cho những chuyến đi xa với độ bền vượt trội và tính năng thông minh.</p>
+          <h1 class="font-display-lg text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ pageTitle }}</h1>
+          <p class="text-gray-500 max-w-2xl">{{ pageDescription }}</p>
         </div>
       </section>
       
       <section class="px-4 md:px-8 max-w-[1440px] mx-auto flex flex-col md:flex-row gap-6">
-        <!-- Sidebar Filters -->
-        <aside class="w-full md:w-64 flex-shrink-0 space-y-6">
+        <!-- Sidebar Filters - ẩn khi đang tìm kiếm hoặc slug không phải danh mục thật -->
+        <aside v-if="!search && isValidCategory" class="w-full md:w-64 flex-shrink-0 space-y-6">
           <!-- Danh mục -->
           <div v-if="filters.categories && filters.categories.length">
             <h3 class="font-semibold mb-4">Danh mục</h3>
@@ -170,55 +170,91 @@
         </aside>
 
         <!-- Product List -->
-        <!-- Phần Product List trong Category.vue -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <template v-if="productList && productList.length">
-            <div v-for="product in productList" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
-              <Link :href="route('product.detail', { slug: product.slug })" class="block">
-                <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
-                  <img :src="product.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform" :alt="product.name">
-                  
-                  <!-- Badge container -->
-                  <div class="absolute top-4 left-4 flex flex-wrap gap-2">
-                    <!-- Badge giảm giá -->
-                    <span v-if="product.badge" class="px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
-                      {{ product.badge }}
-                    </span>
-                    <!-- Badge Pre-order -->
-                    <span v-if="product.is_preorder" class="px-3 py-1 text-xs rounded-full bg-purple-600 text-white font-bold">
-                      Pre-Order
-                    </span>
+        <div class="flex-1">
+          <!-- Thông báo số lượng kết quả khi tìm kiếm -->
+          <div v-if="search" class="mb-4 text-sm text-gray-500">
+            Tìm thấy <span class="font-semibold text-gray-800">{{ totalItems }}</span> kết quả cho "{{ search }}"
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            <template v-if="productList && productList.length">
+              <div v-for="product in productList" :key="product.id" class="product-card-hover group bg-white border border-gray-100 rounded-lg overflow-hidden flex flex-col">
+                <Link :href="route('product.detail', { slug: product.slug })" class="block">
+                  <div class="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                    <img 
+                      :src="product.image || '/images/default-product.jpg'" 
+                      class="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                      :alt="product.name"
+                      @error="(e) => e.target.src = '/images/default-product.jpg'"
+                    >
+                    
+                    <!-- Badge container -->
+                    <div class="absolute top-4 left-4 flex flex-wrap gap-2">
+                      <span v-if="product.badge" class="px-3 py-1 text-xs rounded-full" :class="product.badgeClass">
+                        {{ product.badge }}
+                      </span>
+                      <span v-if="product.is_preorder" class="px-3 py-1 text-xs rounded-full bg-purple-600 text-white font-bold">
+                        Pre-Order
+                      </span>
+                    </div>
+                    
+                    <button class="absolute top-4 right-4 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span class="material-symbols-outlined text-sm">favorite</span>
+                    </button>
                   </div>
-                  
-                  <button class="absolute top-4 right-4 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span class="material-symbols-outlined text-sm">favorite</span>
+                  <div class="p-4 flex flex-col">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ product.brandCategory }}</p>
+                    <h3 class="font-semibold text-base mb-1 line-clamp-1">{{ product.name }}</h3>
+                    <div class="flex items-baseline space-x-2 mt-auto">
+                      <span v-if="product.is_on_sale" class="font-bold text-red-500">
+                        {{ product.sale_price || product.price }}
+                      </span>
+                      <span v-else class="font-bold text-primary">
+                        {{ product.price }}
+                      </span>
+                      <span v-if="product.oldPrice" class="text-sm line-through text-gray-400">{{ product.oldPrice }}</span>
+                    </div>
+                  </div>
+                </Link>
+                <div class="px-4 pb-4">
+                  <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm">
+                    Xem chi tiết
                   </button>
                 </div>
-                <div class="p-4 flex flex-col flex-grow">
-                  <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ product.brandCategory }}</p>
-                  <h3 class="font-semibold text-base mb-1 line-clamp-1">{{ product.name }}</h3>
-                  <div class="flex items-baseline space-x-2 mt-auto">
-                    <!-- Hiển thị giá sale nếu có -->
-                    <span v-if="product.is_on_sale" class="font-bold text-red-500">
-                      {{ product.sale_price || product.price }}
-                    </span>
-                    <span v-else class="font-bold text-primary">
-                      {{ product.price }}
-                    </span>
-                    <!-- Giá gốc có gạch ngang -->
-                    <span v-if="product.oldPrice" class="text-sm line-through text-gray-400">{{ product.oldPrice }}</span>
-                  </div>
-                </div>
-              </Link>
-              <div class="px-4 pb-4">
-                <button @click="addToCart(product)" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm">
-                  Xem chi tiết
-                </button>
               </div>
+            </template>
+            <div v-else class="col-span-full text-center py-12 text-gray-500">
+              {{ search ? `Không tìm thấy sản phẩm nào cho "${search}"` : 'Không có sản phẩm nào phù hợp với bộ lọc.' }}
             </div>
-          </template>
-          <div v-else class="col-span-full text-center py-12 text-gray-500">
-            Không có sản phẩm nào phù hợp với bộ lọc.
+          </div>
+
+          <!-- Phân trang -->
+          <div v-if="totalPages > 1" class="mt-6 flex justify-center">
+            <nav class="flex items-center gap-1">
+              <button
+                @click="goToPage(null, currentPage - 1)"
+                :disabled="currentPage === 1"
+                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ◄
+              </button>
+              <button
+                v-for="page in displayedPages"
+                :key="page"
+                @click="goToPage(null, page)"
+                class="px-3.5 py-1.5 text-sm rounded-lg transition-colors font-medium"
+                :class="currentPage === page ? 'bg-primary text-white' : 'border border-gray-300 hover:bg-gray-50'"
+              >
+                {{ page }}
+              </button>
+              <button
+                @click="goToPage(null, currentPage + 1)"
+                :disabled="currentPage === totalPages"
+                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ►
+              </button>
+            </nav>
           </div>
         </div>
       </section>
@@ -248,12 +284,33 @@ const props = defineProps({
     minPrice: 0,
     maxPrice: 10000000
   }) },
-  selectedFilters: { type: Object, default: () => ({}) }
+  selectedFilters: { type: Object, default: () => ({}) },
+  search: { type: String, default: '' }
+})
+
+// ---------- XÁC ĐỊNH TRẠNG THÁI HỢP LỆ ----------
+const isValidCategory = computed(() => {
+  // Slug hợp lệ khi có giá trị và không phải 'tim-kiem' (vì slug đó chỉ dùng cho tìm kiếm)
+  return props.slug && props.slug !== 'tim-kiem'
+})
+
+// ---------- PAGE TITLE ----------
+const pageTitle = computed(() => {
+  if (props.search) return `Kết quả tìm kiếm "${props.search}"`
+  return props.categoryName || 'Danh mục'
+})
+
+const pageDescription = computed(() => {
+  if (props.search) {
+    const count = totalItems.value
+    return `Tìm thấy ${count} sản phẩm phù hợp với từ khóa "${props.search}"`
+  }
+  return `Khám phá bộ sưu tập ${props.categoryName || 'này'} cao cấp, được thiết kế cho những chuyến đi xa với độ bền vượt trội và tính năng thông minh.`
 })
 
 // ---------- PHÂN TRANG ----------
 const currentPage = ref(1)
-const perPage = ref(5)
+const perPage = ref(6)
 
 const isServerPaginated = computed(() => {
   return props.products && typeof props.products === 'object' && 
@@ -261,10 +318,16 @@ const isServerPaginated = computed(() => {
 })
 
 const totalItems = computed(() => {
-  if (isServerPaginated.value) {
-    return props.products.meta?.total || 0
+  if (props.products?.meta?.total !== undefined) {
+    return props.products.meta.total
   }
-  return Array.isArray(props.products) ? props.products.length : 0
+  if (Array.isArray(props.products)) {
+    return props.products.length
+  }
+  if (props.products?.data && Array.isArray(props.products.data)) {
+    return props.products.data.length
+  }
+  return 0
 })
 
 const totalPages = computed(() => {
@@ -283,41 +346,35 @@ const productList = computed(() => {
   return (Array.isArray(props.products) ? props.products : []).slice(start, end)
 })
 
-const paginationData = computed(() => {
-  if (isServerPaginated.value) {
-    return props.products
+const displayedPages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const maxDisplay = 5
+  
+  if (total <= maxDisplay) {
+    return Array.from({ length: total }, (_, i) => i + 1)
   }
-  const links = []
-  links.push({
-    url: currentPage.value > 1 ? '#' : null,
-    label: '&laquo;',
-    active: false,
-    page: currentPage.value > 1 ? currentPage.value - 1 : null
-  })
-  for (let i = 1; i <= totalPages.value; i++) {
-    links.push({
-      url: '#',
-      label: String(i),
-      active: i === currentPage.value,
-      page: i
-    })
+  
+  let start = Math.max(1, current - 2)
+  let end = Math.min(total, start + maxDisplay - 1)
+  
+  if (end - start < maxDisplay - 1) {
+    start = Math.max(1, end - maxDisplay + 1)
   }
-  links.push({
-    url: currentPage.value < totalPages.value ? '#' : null,
-    label: '&raquo;',
-    active: false,
-    page: currentPage.value < totalPages.value ? currentPage.value + 1 : null
-  })
-  return {
-    links,
-    meta: {
-      total: totalItems.value,
-      last_page: totalPages.value
-    }
-  }
+  
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
 
 const goToPage = (url, page) => {
+  // Nếu đang tìm kiếm, chỉ chuyển trang client-side
+  if (props.search) {
+    if (page && page >= 1 && page <= totalPages.value) {
+      currentPage.value = page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    return
+  }
+
   if (isServerPaginated.value) {
     if (url) {
       router.get(url, {}, { preserveState: true, preserveScroll: true })
@@ -336,6 +393,10 @@ watch(() => props.products, (newVal) => {
   }
 }, { deep: false })
 
+watch(() => props.search, () => {
+  currentPage.value = 1
+})
+
 // ---------- BỘ LỌC ----------
 const tempBrands = ref([])
 const tempMaterials = ref([])
@@ -352,13 +413,6 @@ const appliedCategories = ref([])
 const appliedColors = ref([])
 const appliedPriceMin = ref(null)
 const appliedPriceMax = ref(null)
-
-const sortOptions = [
-  { value: 'newest', label: 'Mới nhất' },
-  { value: 'price_asc', label: 'Giá: Thấp đến Cao' },
-  { value: 'price_desc', label: 'Giá: Cao đến Thấp' },
-  { value: 'popular', label: 'Phổ biến nhất' }
-]
 
 const getColorName = (colorId) => {
   if (!props.filters.colors || props.filters.colors.length === 0) return ''
@@ -391,6 +445,12 @@ const formatPrice = (price) => {
 }
 
 const applyFilters = () => {
+  // KHÔNG cho phép áp dụng bộ lọc nếu đang tìm kiếm hoặc slug không hợp lệ
+  if (props.search || !isValidCategory.value) {
+    console.warn('⚠️ Không thể áp dụng bộ lọc khi đang tìm kiếm hoặc slug không hợp lệ')
+    return
+  }
+
   const params = new URLSearchParams()
   
   appliedBrands.value = [...tempBrands.value]
@@ -424,11 +484,20 @@ const applyFilters = () => {
     params.append('sort', sortBy.value)
   }
   
-  const url = route('category', { slug: props.slug }) + '?' + params.toString()
-  router.get(url, {}, { preserveState: true, preserveScroll: true })
+  try {
+    const url = route('category', { slug: props.slug }) + '?' + params.toString()
+    router.get(url, {}, { preserveState: true, preserveScroll: true })
+  } catch (e) {
+    console.error('❌ Lỗi tạo URL:', e)
+  }
 }
 
 const resetFilters = () => {
+  if (props.search || !isValidCategory.value) {
+    console.warn('⚠️ Không thể reset bộ lọc khi đang tìm kiếm hoặc slug không hợp lệ')
+    return
+  }
+
   tempBrands.value = []
   tempMaterials.value = []
   tempCategories.value = []
@@ -456,6 +525,9 @@ const addToCart = (product) => {
 }
 
 onMounted(() => {
+  // Chỉ khôi phục filter nếu slug hợp lệ
+  if (!isValidCategory.value) return
+
   const params = new URLSearchParams(window.location.search)
   
   if (params.has('brands')) {
@@ -486,8 +558,7 @@ onMounted(() => {
   if (params.has('price_max')) {
     const val = Number(params.get('price_max'))
     tempPriceMax.value = val
-    appliedPriceMax.value = val 
-    appliedPriceMax.value = val 
+    appliedPriceMax.value = val
   }
   if (params.has('sort')) {
     sortBy.value = params.get('sort')

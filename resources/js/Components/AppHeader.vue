@@ -289,7 +289,7 @@ const handleLogout = async () => {
 // Xử lý tìm kiếm
 const handleSearch = () => {
   if (searchKeyword.value.trim()) {
-    router.get(route('category', { slug: 'tim-kiem' }), { q: searchKeyword.value })
+    router.get(route('search', { q: searchKeyword.value }))
   }
 }
 

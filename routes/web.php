@@ -25,6 +25,10 @@ use App\Http\Controllers\ChatbotMessageController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
 use App\Http\Controllers\HomeController;
+use App\Models\Product;
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Color;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -53,7 +57,46 @@ Route::get('/image/{filename}', function ($filename) {
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/tim-kiem', function (Request $request) {
-    return Inertia::render('Web/Category', ['search' => $request->get('q')]);
+    $q = $request->query('q');
+    $products = collect();
+    $categoryName = 'Tìm kiếm';
+
+    if (!empty($q)) {
+        $products = Product::where('name', 'like', "%{$q}%")
+            ->orWhere('description', 'like', "%{$q}%")
+            ->orWhereHas('brand', function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%");
+            })
+            ->orWhereHas('category', function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%");
+            })
+            ->where('status', 1)
+            ->with(['category', 'brand', 'variants.color'])
+            ->paginate(12);
+
+        $products->getCollection()->transform(function ($product) {
+            $product->image = $product->image_url[0] ?? null;
+            return $product;
+        });
+
+        $categoryName = 'Kết quả tìm kiếm "' . $q . '"';
+    }
+
+    $filters = [
+        'brands' => Brand::orderBy('name')->get(),
+        'categories' => Category::orderBy('name')->get(),
+        'materials' => Product::distinct()->pluck('material')->filter()->values(),
+        'colors' => Color::orderBy('name')->get(),
+        'minPrice' => 0,
+        'maxPrice' => 10000000,
+    ];
+
+    return Inertia::render('Web/Category', [
+        'search' => $q,
+        'products' => $products,
+        'categoryName' => $categoryName,
+        'filters' => $filters,
+    ]);
 })->name('search');
 
 // Product routes - PUBLIC
