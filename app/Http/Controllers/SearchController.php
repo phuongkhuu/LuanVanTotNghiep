@@ -2,229 +2,76 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\Product;
 use App\Models\Brand;
+use App\Models\Category;
 use App\Models\Color;
 use App\Models\Campaign;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class CategoryController extends Controller
+class SearchController extends Controller
 {
-    public function show(Request $request, $slug)
+    public function index(Request $request)
     {
-        // Các slug đặc biệt: hiển thị tất cả sản phẩm
-        if (in_array($slug, ['san-pham', 'danh-muc', 'tat-ca', 'thuong-hieu'])) {
-            return $this->showAllProducts($request, $slug);
-        }
-
-        // Slug đặc biệt: sản phẩm mới
-        if ($slug === 'new-arrivals') {
-            return $this->showNewArrivals($request);
-        }
-
-        // Tìm danh mục theo slug
-        $category = Category::where('slug', $slug)->first();
-        if ($category) {
-            return $this->showProductsByCategory($request, $slug, $category);
-        }
-
-        // Tìm kiếm danh mục theo từ khóa (fallback)
-        $keywords = explode('-', $slug);
-        $query = Category::query();
-        foreach ($keywords as $kw) {
-            $kw = trim($kw);
-            if ($kw) {
-                $query->orWhere('slug', 'like', "%{$kw}%")
-                      ->orWhere('name', 'like', "%{$kw}%");
-            }
-        }
-        $matchingCategories = $query->get();
-        if ($matchingCategories->isNotEmpty()) {
-            return $this->showProductsByMultipleCategories($request, $slug, $matchingCategories);
-        }
-
-        // Tìm thương hiệu
-        $brand = Brand::where('slug', $slug)->first();
-        if ($brand) {
-            return $this->showProductsByBrand($request, $slug, $brand);
-        }
-
-        abort(404, 'Không tìm thấy danh mục hoặc thương hiệu phù hợp');
-    }
-
-    /**
-     * Hiển thị tất cả sản phẩm (không phân trang)
-     */
-    private function showAllProducts(Request $request, $slug)
-    {
-        $categoryName = ($slug === 'san-pham') ? 'Sản phẩm' : 'Tất cả sản phẩm';
-        
-        $query = Product::with(['category', 'brand', 'variants.color'])
-            ->where('status', 1);
-        
-        $query = $this->applyFilters($query, $request);
-        
-        $products = $query->latest()->get();
-        
-        $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
-
-        $allProducts = Product::with(['category', 'brand', 'variants.color'])
-            ->where('status', 1)
-            ->get();
-        $filterData = $this->getFilterData($allProducts);
-
-        return Inertia::render('Web/Category', [
-            'slug' => $slug,
-            'categoryName' => $categoryName,
-            'products' => $mappedProducts,
-            'filters' => $filterData,
-            'selectedFilters' => $request->all(),
-        ]);
-    }
-
-    /**
-     * Hiển thị sản phẩm mới (phân trang, sắp xếp mới nhất, giới hạn 2 trang)
-     */
-    private function showNewArrivals(Request $request)
-    {
-        $categoryName = 'Sản phẩm mới';
+        $q = $request->query('q');
+        $categoryName = 'Tìm kiếm';
 
         $query = Product::with(['category', 'brand', 'variants.color'])
             ->where('status', 1);
 
+        // Tìm kiếm theo từ khóa
+        if (!empty($q)) {
+            $query->where(function($subQuery) use ($q) {
+                $subQuery->where('name', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%")
+                    ->orWhereHas('brand', function ($brandQuery) use ($q) {
+                        $brandQuery->where('name', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('category', function ($catQuery) use ($q) {
+                        $catQuery->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        // Áp dụng bộ lọc (tương tự CategoryController)
         $query = $this->applyFilters($query, $request);
 
-        // Sắp xếp theo ngày tạo mới nhất
-        $query->orderBy('created_at', 'desc');
-
-        // Phân trang 12 sản phẩm/trang, giữ query string
+        // Phân trang
         $products = $query->paginate(12)->withQueryString();
-
-        // Giới hạn số trang tối đa là 2
-        if ($products->lastPage() > 2) {
-            // Nếu trang hiện tại > 2, redirect về trang 2
-            if ($products->currentPage() > 2) {
-                $queryParams = $request->query();
-                $queryParams['page'] = 2;
-                return redirect()->route('category', ['slug' => 'new-arrivals'] + $queryParams);
-            }
-
-            // Điều chỉnh last_page và total để chỉ hiển thị 2 trang
-            $products->setLastPage(2);
-            $products->setTotal($products->perPage() * 2);
-        }
 
         // Transform dữ liệu
         $products->getCollection()->transform(fn($product) => $this->mapProduct($product));
 
-        // Lấy dữ liệu cho bộ lọc (dựa trên tất cả sản phẩm mới)
-        $allProducts = Product::with(['category', 'brand', 'variants.color'])
-            ->where('status', 1)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Lấy dữ liệu cho bộ lọc (dựa trên tất cả sản phẩm khớp với từ khóa, có filter)
+        $allProductsQuery = Product::with(['category', 'brand', 'variants.color'])
+            ->where('status', 1);
+        if (!empty($q)) {
+            $allProductsQuery->where(function($subQuery) use ($q) {
+                $subQuery->where('name', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%")
+                    ->orWhereHas('brand', function ($brandQuery) use ($q) {
+                        $brandQuery->where('name', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('category', function ($catQuery) use ($q) {
+                        $catQuery->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
+        $allProducts = $allProductsQuery->get();
         $filterData = $this->getFilterData($allProducts);
 
         return Inertia::render('Web/Category', [
-            'slug' => 'new-arrivals',
-            'categoryName' => $categoryName,
+            'search' => $q,
             'products' => $products,
-            'filters' => $filterData,
-            'selectedFilters' => $request->all(),
-        ]);
-    }
-
-    private function showProductsByCategory(Request $request, $slug, $category)
-    {
-        $categoryName = $category->name;
-        
-        $query = Product::with(['category', 'brand', 'variants.color'])
-            ->where('category_id', $category->id)
-            ->where('status', 1);
-        
-        $query = $this->applyFilters($query, $request);
-        
-        $products = $query->latest()->get();
-        
-        $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
-
-        $allProducts = Product::with(['category', 'brand', 'variants.color'])
-            ->where('category_id', $category->id)
-            ->where('status', 1)
-            ->get();
-        $filterData = $this->getFilterData($allProducts);
-
-        return Inertia::render('Web/Category', [
-            'slug' => $slug,
             'categoryName' => $categoryName,
-            'products' => $mappedProducts,
             'filters' => $filterData,
             'selectedFilters' => $request->all(),
+            'slug' => 'tim-kiem',
         ]);
     }
 
-    private function showProductsByMultipleCategories(Request $request, $slug, $categories)
-    {
-        $keywords = explode('-', $slug);
-        $displayName = collect($keywords)->map(fn($kw) => ucfirst($kw))->implode(' ');
-        $categoryIds = $categories->pluck('id')->toArray();
-
-        $query = Product::with(['category', 'brand', 'variants.color'])
-            ->whereIn('category_id', $categoryIds)
-            ->where('status', 1);
-        
-        $query = $this->applyFilters($query, $request);
-        
-        $products = $query->latest()->get();
-        
-        $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
-
-        $allProducts = Product::with(['category', 'brand', 'variants.color'])
-            ->whereIn('category_id', $categoryIds)
-            ->where('status', 1)
-            ->get();
-        $filterData = $this->getFilterData($allProducts);
-
-        return Inertia::render('Web/Category', [
-            'slug' => $slug,
-            'categoryName' => $displayName,
-            'products' => $mappedProducts,
-            'filters' => $filterData,
-            'selectedFilters' => $request->all(),
-        ]);
-    }
-
-    private function showProductsByBrand(Request $request, $slug, $brand)
-    {
-        $categoryName = $brand->name;
-        
-        $query = Product::with(['category', 'brand', 'variants.color'])
-            ->where('brand_id', $brand->id)
-            ->where('status', 1);
-        
-        $query = $this->applyFilters($query, $request);
-        
-        $products = $query->latest()->get();
-        
-        $mappedProducts = $products->map(fn($product) => $this->mapProduct($product));
-
-        $allProducts = Product::with(['category', 'brand', 'variants.color'])
-            ->where('brand_id', $brand->id)
-            ->where('status', 1)
-            ->get();
-        $filterData = $this->getFilterData($allProducts);
-
-        return Inertia::render('Web/Category', [
-            'slug' => $slug,
-            'categoryName' => $categoryName,
-            'products' => $mappedProducts,
-            'filters' => $filterData,
-            'selectedFilters' => $request->all(),
-        ]);
-    }
-
+    // === Các helper giống trong CategoryController ===
     private function applyFilters($query, Request $request)
     {
         if ($request->has('brands') && !empty($request->brands)) {
@@ -252,7 +99,6 @@ class CategoryController extends Controller
         if ($request->has('price_min') && $request->has('price_max')) {
             $minPrice = (int) $request->price_min;
             $maxPrice = (int) $request->price_max;
-            
             $query->whereHas('variants', function($q) use ($minPrice, $maxPrice) {
                 $q->whereBetween('price', [$minPrice, $maxPrice]);
             });
@@ -339,9 +185,6 @@ class CategoryController extends Controller
         ];
     }
 
-    /**
-     * Tính giá sale cho sản phẩm
-     */
     private function calculateSalePrice($product)
     {
         $minPrice = $product->variants->min('price') ?? 0;
@@ -350,7 +193,6 @@ class CategoryController extends Controller
         $isOnSale = false;
         $now = now();
 
-        // ============ KIỂM TRA PRE-ORDER ============
         if ($product->is_preorder) {
             $preorder = Campaign::where('type', 'preorder')
                 ->where('status', 'active')
@@ -358,16 +200,16 @@ class CategoryController extends Controller
                 ->where(function($query) use ($now) {
                     $query->where(function($q) use ($now) {
                         $q->where('start_time', '<=', $now)
-                        ->where('end_time', '>=', $now);
+                          ->where('end_time', '>=', $now);
                     })->orWhere(function($q) {
                         $q->whereNull('start_time')
-                        ->whereNull('end_time');
+                          ->whereNull('end_time');
                     });
                 })
                 ->first();
 
             if ($preorder) {
-                $currentBuyers = $preorder->current_buyers ?? 0;
+                
                 $tiers = $preorder->tiers ?? [];
                 
                 foreach ($tiers as $tier) {
@@ -379,7 +221,6 @@ class CategoryController extends Controller
                     }
                 }
                 
-                // Nếu chưa ở tier nào, lấy tier đầu tiên
                 if ($discountPercent == 0 && !empty($tiers)) {
                     $discountPercent = $tiers[0]['discount'] ?? 0;
                 }
@@ -391,7 +232,6 @@ class CategoryController extends Controller
             }
         }
 
-        // ============ KIỂM TRA CAMPAIGN (RETAIL) ============
         if (!$product->is_preorder) {
             $variantIds = $product->variants->pluck('id')->toArray();
             
@@ -402,10 +242,10 @@ class CategoryController extends Controller
                     ->where(function($query) use ($now) {
                         $query->where(function($q) use ($now) {
                             $q->where('start_time', '<=', $now)
-                            ->where('end_time', '>=', $now);
+                              ->where('end_time', '>=', $now);
                         })->orWhere(function($q) {
                             $q->whereNull('start_time')
-                            ->whereNull('end_time');
+                              ->whereNull('end_time');
                         });
                     })
                     ->whereHas('productVariants', function($query) use ($variantIds) {
@@ -442,14 +282,12 @@ class CategoryController extends Controller
         $minPrice = $product->variants->min('price') ?? 0;
         $maxPrice = $product->variants->max('price') ?? $minPrice;
         
-        // Tính sale price
         $saleInfo = $this->calculateSalePrice($product);
         
         $displayPrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $minPrice;
         $originalPrice = $saleInfo['is_on_sale'] ? $minPrice : ($maxPrice > $minPrice ? $maxPrice : null);
         $discount = $saleInfo['is_on_sale'] ? $saleInfo['discount_percent'] . '%' : null;
 
-        // Xác định badge
         if ($discount) {
             $badge = "-$discount";
             $badgeClass = 'bg-primary text-white';

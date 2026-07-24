@@ -25,10 +25,9 @@ use App\Http\Controllers\ChatbotMessageController;
 use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
 use App\Http\Controllers\HomeController;
-use App\Models\Product;
-use App\Models\Brand;
-use App\Models\Category;
-use App\Models\Color;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\WholesaleController;         // <-- import mới
+use App\Http\Controllers\QuoteRequestController;     // <-- import mới
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -56,57 +55,20 @@ Route::get('/image/{filename}', function ($filename) {
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-Route::get('/tim-kiem', function (Request $request) {
-    $q = $request->query('q');
-    $products = collect();
-    $categoryName = 'Tìm kiếm';
+Route::get('/gioi-thieu', function () {
+    return Inertia::render('Web/About');
+})->name('about');
 
-    if (!empty($q)) {
-        $products = Product::where('name', 'like', "%{$q}%")
-            ->orWhere('description', 'like', "%{$q}%")
-            ->orWhereHas('brand', function ($query) use ($q) {
-                $query->where('name', 'like', "%{$q}%");
-            })
-            ->orWhereHas('category', function ($query) use ($q) {
-                $query->where('name', 'like', "%{$q}%");
-            })
-            ->where('status', 1)
-            ->with(['category', 'brand', 'variants.color'])
-            ->paginate(12);
-
-        $products->getCollection()->transform(function ($product) {
-            $product->image = $product->image_url[0] ?? null;
-            return $product;
-        });
-
-        $categoryName = 'Kết quả tìm kiếm "' . $q . '"';
-    }
-
-    $filters = [
-        'brands' => Brand::orderBy('name')->get(),
-        'categories' => Category::orderBy('name')->get(),
-        'materials' => Product::distinct()->pluck('material')->filter()->values(),
-        'colors' => Color::orderBy('name')->get(),
-        'minPrice' => 0,
-        'maxPrice' => 10000000,
-    ];
-
-    return Inertia::render('Web/Category', [
-        'search' => $q,
-        'products' => $products,
-        'categoryName' => $categoryName,
-        'filters' => $filters,
-    ]);
-})->name('search');
+Route::get('/tim-kiem', [SearchController::class, 'index'])->name('search');
 
 // Product routes - PUBLIC
 Route::get('/san-pham/{slug}', [WebProductController::class, 'show'])->name('product.detail');
 Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
 // Other public frontend routes
-Route::get('/mua-si', function () {
-    return Inertia::render('Web/Wholesale');
-})->name('wholesale');
+Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
+Route::post('/mua-si', [QuoteRequestController::class, 'store'])->name('wholesale.submit');
+Route::post('/mua-si/order', [WholesaleController::class, 'storeOrder'])->name('wholesale.order');
 
 // Promotion route - Sử dụng PromotionController (Web)
 Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotion');

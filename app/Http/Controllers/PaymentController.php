@@ -121,11 +121,9 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
-        // Lấy voucher từ session
         $voucherCode = $request->session()->get('voucher_code', null);
         $voucherDiscount = $request->session()->get('voucher_discount', 0);
 
-        // Lấy cart từ request
         $cartItems = [];
         if ($request->has('cart')) {
             $cartJson = $request->query('cart', '{}');
@@ -156,7 +154,6 @@ class PaymentController extends Controller
                     continue;
                 }
 
-                // Bỏ qua pre-order
                 if ($variant->product && ($variant->product->is_preorder ?? false)) {
                     continue;
                 }
@@ -250,7 +247,7 @@ class PaymentController extends Controller
             return redirect()->route('cart')->with('error', 'Giỏ hàng trống');
         }
 
-        // Nếu có voucher, tính lại discount dựa trên giá trị mới nhất
+        // Nếu có voucher, tính lại discount
         if ($voucherCode && $voucherDiscount > 0) {
             $voucher = Campaign::where('code', $voucherCode)
                 ->where('type', 'voucher')
@@ -268,11 +265,9 @@ class PaymentController extends Controller
                 }
                 $voucherDiscount = round($voucherDiscount);
                 
-                // Cập nhật session với giá trị mới
                 session(['voucher_discount' => $voucherDiscount]);
                 session()->save();
             } else {
-                // Voucher không còn hiệu lực, xóa session
                 session()->forget(['voucher_code', 'voucher_discount']);
                 session()->save();
                 $voucherCode = null;
@@ -326,7 +321,7 @@ class PaymentController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
-            'order_type' => 'required|in:retail,preorder',
+            'order_type' => 'required|in:retail,preorder,wholesale',
             'promo_code' => 'nullable|string',
             'discount_amount' => 'nullable|numeric|min:0',
         ]);
@@ -337,9 +332,27 @@ class PaymentController extends Controller
             'promo_code' => $validated['promo_code'] ?? null,
             'discount_amount' => $validated['discount_amount'] ?? 0,
             'total_amount' => $validated['total_amount'],
+            'order_type' => $orderType,
         ]);
 
-        // Tạo request mới với đầy đủ dữ liệu
+        // ===== TÍNH TOÁN TIỀN CỌC CHO ĐƠN SỈ =====
+        $depositAmount = 0;
+        $remainingAmount = 0;
+        $paymentStatus = 'pending';
+
+        if ($orderType === 'wholesale') {
+            // Cọc 50% cho đơn sỉ
+            $depositAmount = round($validated['total_amount'] * 0.5);
+            $remainingAmount = $validated['total_amount'] - $depositAmount;
+            $paymentStatus = 'pending'; // Chờ thanh toán cọc
+        } else {
+            // Đơn thường hoặc pre-order: thanh toán toàn bộ
+            $depositAmount = $validated['total_amount'];
+            $remainingAmount = 0;
+            $paymentStatus = 'pending';
+        }
+
+        // Tạo request mới với đầy đủ dữ liệu (bao gồm cả trường mới)
         $orderRequest = new Request([
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
@@ -354,10 +367,12 @@ class PaymentController extends Controller
             'order_type' => $orderType,
             'promo_code' => $validated['promo_code'] ?? null,
             'discount_amount' => $validated['discount_amount'] ?? 0,
+            'deposit_amount' => $depositAmount,
+            'remaining_amount' => $remainingAmount,
+            'payment_status' => $paymentStatus,
         ]);
 
         try {
-            // Gọi Admin Order Controller để tạo đơn hàng
             $response = $this->orderController->store($orderRequest);
             $responseData = $response->getData();
 
@@ -385,7 +400,6 @@ class PaymentController extends Controller
                     return redirect()->route('payment.create', ['order_id' => $responseData->order->id]);
                 }
 
-                // Các phương thức khác vẫn về trang success
                 return redirect()->route('checkout.success');
             }
 
@@ -427,6 +441,7 @@ class PaymentController extends Controller
      */
     public function applyVoucher(Request $request)
     {
+        // ... giữ nguyên ...
         try {
             $request->validate([
                 'code' => 'required|string',
@@ -436,7 +451,6 @@ class PaymentController extends Controller
             $code = strtoupper($request->code);
             $subtotal = $request->subtotal;
 
-            // Luôn lấy từ database để có giá trị mới nhất
             $voucher = Campaign::where('code', $code)
                 ->where('type', 'voucher')
                 ->where('status', 'active')
@@ -482,7 +496,6 @@ class PaymentController extends Controller
 
             $discountAmount = round($discountAmount);
 
-            // Lưu vào session
             session([
                 'voucher_code' => $voucher->code,
                 'voucher_discount' => $discountAmount,
@@ -595,19 +608,38 @@ class PaymentController extends Controller
 
         $payment = $order->payment;
         $paymentMethod = $payment ? $payment->payment_method : 'cod';
-        $paymentStatus = 'pending';
 
-        // ===== LOGIC XÁC ĐỊNH TRẠNG THÁI =====
-        if (in_array($paymentMethod, ['vnpay', 'momo', 'ewallet'])) {
-            $paymentStatus = 'paid';
+        // ===== LẤY TRẠNG THÁI THANH TOÁN TỪ BẢNG ORDERS =====
+        $paymentStatus = $order->payment_status ?? 'pending';
+
+        // ===== XỬ LÝ ĐƠN SỈ =====
+        if ($order->order_code === 'wholesale') {
+            // Nếu đã có payment và status = success => cọc đã được thanh toán
+            if ($payment && ($payment->status === 'success' || $payment->status === 'paid')) {
+                $paymentStatus = 'deposit_paid';
+                $order->payment_status = 'deposit_paid';
+                $order->save();
+            } else {
+                // Chưa thanh toán cọc, giữ pending
+                $paymentStatus = 'pending';
+            }
+        } else {
+            // Đơn thường / pre-order
+            if ($payment && ($payment->status === 'success' || $payment->status === 'paid')) {
+                $paymentStatus = 'paid';
+                $order->payment_status = 'paid';
+                $order->save();
+            } else {
+                $paymentStatus = 'pending';
+            }
         }
-        // cod, bank_transfer, payos giữ nguyên 'pending'
 
-        // ===== CẬP NHẬT CHỈ KHI CHƯA CÓ TRẠNG THÁI XÁC NHẬN =====
+        // ===== CẬP NHẬT PAYMENT STATUS (nếu chưa được cập nhật) =====
         if ($payment && in_array($payment->status, ['pending', null])) {
-            // Chỉ cập nhật nếu trạng thái hiện tại là pending hoặc null
-            $payment->status = $paymentStatus;
-            $payment->save();
+            if ($paymentStatus === 'paid' || $paymentStatus === 'deposit_paid') {
+                $payment->status = 'success';
+                $payment->save();
+            }
         }
 
         $orderData = [
@@ -623,6 +655,8 @@ class PaymentController extends Controller
             'shipping_fee' => (int) $order->shipping_fee,
             'discount_amount' => (int) $order->discount_amount,
             'final_amount' => (int) $order->final_amount,
+            'deposit_amount' => (int) ($order->deposit_amount ?? 0),
+            'remaining_amount' => (int) ($order->remaining_amount ?? 0),
             'status' => $order->getStatusText(),
             'order_code' => $order->order_code ?? 'retail',
             'payment_method' => $paymentMethod,

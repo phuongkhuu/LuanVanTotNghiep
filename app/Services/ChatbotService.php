@@ -366,7 +366,7 @@ class ChatbotService
 
         return $preorders->map(function ($preorder) {
             $tiers = $preorder->tiers ?? [];
-            $currentBuyers = $preorder->current_buyers ?? 0;
+            
             $currentDiscount = 0;
             foreach ($tiers as $tier) {
                 $from = $tier['from'] ?? 0;
@@ -390,7 +390,7 @@ class ChatbotService
                 'product_name' => $preorder->product->name ?? 'Sản phẩm',
                 'product_id' => $preorder->product_id,
                 'product_slug' => $preorder->product->slug ?? null,
-                'current_buyers' => $currentBuyers,
+                
                 'tiers' => $tiers,
                 'current_discount' => $currentDiscount . '%',
                 'next_tier' => $nextTier ? "Cần thêm " . ($nextTier['from'] - $currentBuyers) . " đơn hàng để đạt giảm " . $nextTier['discount'] . '%' : 'Đã đạt mức giảm cao nhất',

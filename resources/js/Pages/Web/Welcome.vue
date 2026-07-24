@@ -70,7 +70,8 @@
         <div class="text-center mb-12">
           <div class="flex flex-col md:flex-row justify-center items-center gap-6 mb-4">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900">Sale Cực Sốc</h2>
-            <div class="flex items-center gap-2 text-gray-700">
+            <!-- Chỉ hiển thị countdown khi có saleCampaign -->
+            <div v-if="saleCampaign" class="flex items-center gap-2 text-gray-700">
               <span class="font-medium">Kết thúc sau:</span>
               <div class="flex gap-1">
                 <span class="bg-gray-800 text-white px-2 py-1 rounded text-sm font-bold">{{ countdown.hours }}</span>:
@@ -79,9 +80,10 @@
               </div>
             </div>
           </div>
-          <p class="text-gray-500">Ưu đãi giới hạn chỉ trong hôm nay</p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Hiển thị sản phẩm nếu có -->
+        <div v-if="hotSales && hotSales.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
             v-for="product in hotSales" 
             :key="product.id" 
@@ -140,21 +142,18 @@
                 </div>
               </div>
             </Link>
-            <!-- <div class="px-4 pb-4">
-              <button 
-                @click="handleBuyNow(product)" 
-                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
-              >
-                Mua Ngay
-              </button>
-            </div> -->
           </div>
+        </div>
+
+        <!-- Thông báo khi không có sản phẩm -->
+        <div v-else class="text-center py-12">
+          <p class="text-gray-500 text-lg">Hiện tại không có sản phẩm giảm giá</p>
         </div>
       </div>
     </section>
 
     <!-- TRENDING PRODUCTS -->
-    <section class="py-16 bg-white">
+    <section v-if="trending && trending.length > 0" class="py-16 bg-white">
       <div class="max-w-[1440px] mx-auto px-4">
         <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Đang Được Săn Đón</h2>
@@ -208,21 +207,13 @@
                 </div>
               </div>
             </Link>
-            <!-- <div class="px-4 pb-4">
-              <button 
-                @click="handleBuyNow(product)" 
-                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
-              >
-                Mua Ngay
-              </button>
-            </div> -->
           </div>
         </div>
       </div>
     </section>
 
     <!-- NEW ARRIVALS -->
-    <section class="py-16 bg-gray-50">
+    <section v-if="newProducts && newProducts.length > 0" class="py-16 bg-gray-50">
       <div class="max-w-[1440px] mx-auto px-4">
         <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Sản Phẩm Mới Nhất</h2>
@@ -279,21 +270,13 @@
                 </div>
               </div>
             </Link>
-            <!-- <div class="px-4 pb-4">
-              <button 
-                @click="handleBuyNow(product)" 
-                class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors"
-              >
-                Mua Ngay
-              </button>
-            </div> -->
           </div>
         </div>
       </div>
     </section>
 
     <!-- NEWS & PROMOTIONS -->
-    <section class="py-16 bg-white">
+    <section v-if="newsList && newsList.length > 0" class="py-16 bg-white">
       <div class="max-w-[1440px] mx-auto px-4">
         <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Tin Tức & Khuyến Mãi</h2>
@@ -337,7 +320,6 @@
   </div>
 </template>
 
-
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
@@ -368,6 +350,11 @@ const props = defineProps({
   newsList: { 
     type: Array, 
     default: () => [] 
+  },
+  // Thêm prop saleCampaign từ backend
+  saleCampaign: {
+    type: Object,
+    default: null
   }
 })
 
@@ -384,8 +371,8 @@ const newsList = ref(props.newsList || [])
 const loading = ref(false)
 const isProcessing = ref(false)
 
-// Countdown
-const countdown = ref({ hours: '23', minutes: '45', seconds: '12' })
+// Countdown - khởi tạo mặc định 00:00:00, sẽ được cập nhật nếu có saleCampaign
+const countdown = ref({ hours: '00', minutes: '00', seconds: '00' })
 let countdownInterval = null
 let autoPlayInterval = null
 let carouselInitialized = false
@@ -442,7 +429,6 @@ const formatPrice = (price) => {
 // ==================== HÀM LƯU VÀO LOCALSTORAGE ====================
 const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false) => {
   try {
-    // Lấy giỏ hàng hiện tại
     let cartData = {}
     const existingCart = localStorage.getItem('cart')
     if (existingCart) {
@@ -454,10 +440,8 @@ const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false
       }
     }
     
-    // Lấy giá sản phẩm
     const price = product.sale_price || product.price || 0
     
-    // Thêm hoặc cập nhật sản phẩm
     cartData[variantId] = {
       quantity: quantity,
       price: price,
@@ -469,7 +453,6 @@ const saveToLocalStorage = (variantId, product, quantity = 1, isPreOrder = false
     
     localStorage.setItem('cart', JSON.stringify(cartData))
     
-    // Tính tổng số lượng
     const totalCount = Object.values(cartData).reduce((sum, item) => sum + (item.quantity || 0), 0)
     
     return { success: true, cartData, totalCount }
@@ -509,23 +492,18 @@ const callAddToCartAPI = async (variantId, quantity = 1) => {
 
 // ==================== HÀM MUA NGAY ====================
 const handleBuyNow = async (product) => {
-  // Chặn click liên tục
   if (isProcessing.value) {
     console.log('Đang xử lý, vui lòng chờ...')
     return
   }
 
-  // KIỂM TRA ĐĂNG NHẬP
   if (!isAuthenticated.value) {
     sessionStorage.setItem('redirectAfterLogin', window.location.href)
     router.get(route('login'))
     return
   }
 
-  // Kiểm tra xem có phải pre-order không
   const isPreOrder = product.discount_type === 'preorder' || product.is_pre_order || false
-
-  // Lấy variant_id từ sản phẩm
   let variantId = product.default_variant_id || product.variants?.[0]?.id
 
   isProcessing.value = true
@@ -533,17 +511,12 @@ const handleBuyNow = async (product) => {
 
   try {
     if (isPreOrder) {
-      
-      // Nếu không có variant, tạo variant ảo
       const finalVariantId = variantId || `product_${product.id}`
-      
-      // Lưu vào localStorage
       const result = saveToLocalStorage(finalVariantId, product, 1, true)
       
       if (result.success) {
         loading.value = false
         isProcessing.value = false
-        
         router.get(route('checkout'))
         return
       } else {
@@ -554,8 +527,6 @@ const handleBuyNow = async (product) => {
       }
     }
 
-    
-    // Nếu không có variant, tạo variant ảo và lưu thẳng
     if (!variantId) {
       const fakeVariantId = `product_${product.id}`
       const result = saveToLocalStorage(fakeVariantId, product, 1, false)
@@ -568,21 +539,16 @@ const handleBuyNow = async (product) => {
       }
     }
 
-    // Gọi API thêm vào giỏ hàng
     const apiResult = await callAddToCartAPI(variantId, 1)
     
     if (apiResult.success) {
-      
       loading.value = false
       isProcessing.value = false
-      
       router.get(route('checkout'))
       return
     } else {
-      // API thất bại
       console.warn('❌ API add to cart failed:', apiResult.message)
       
-      // Nếu lỗi là hết hàng
       if (apiResult.message?.toLowerCase().includes('hết hàng') || 
           apiResult.message?.toLowerCase().includes('stock')) {
         alert(apiResult.message)
@@ -591,7 +557,6 @@ const handleBuyNow = async (product) => {
         return
       }
       
-      // FALLBACK: Lưu trực tiếp vào localStorage
       const finalVariantId = variantId || `product_${product.id}`
       const result = saveToLocalStorage(finalVariantId, product, 1, false)
       
@@ -611,7 +576,6 @@ const handleBuyNow = async (product) => {
   } catch (error) {
     console.error('❌ Buy now error:', error)
     
-    // Fallback cuối cùng: lưu trực tiếp vào localStorage
     try {
       const finalVariantId = variantId || `product_${product.id}`
       const result = saveToLocalStorage(finalVariantId, product, 1, isPreOrder)
@@ -633,31 +597,41 @@ const handleBuyNow = async (product) => {
 }
 
 // ==================== COUNTDOWN ====================
-const startCountdown = () => {
-  let hours = 23, minutes = 45, seconds = 12
+const startCountdown = (endTime) => {
   if (countdownInterval) clearInterval(countdownInterval)
-  countdownInterval = setInterval(() => {
-    seconds--
-    if (seconds < 0) { 
-      seconds = 59
-      minutes-- 
+  if (!endTime) {
+    // Nếu không có endTime, set về 00:00:00
+    countdown.value = { hours: '00', minutes: '00', seconds: '00' }
+    return
+  }
+
+  const end = new Date(endTime).getTime()
+  
+  const updateCountdown = () => {
+    const now = new Date().getTime()
+    const distance = end - now
+    
+    if (distance <= 0) {
+      clearInterval(countdownInterval)
+      countdown.value = { hours: '00', minutes: '00', seconds: '00' }
+      return
     }
-    if (minutes < 0) { 
-      minutes = 59
-      hours-- 
-    }
-    if (hours < 0) { 
-      hours = 0
-      minutes = 0
-      seconds = 0
-      clearInterval(countdownInterval) 
-    }
+    
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000)
+    
     countdown.value = {
       hours: hours.toString().padStart(2, '0'),
       minutes: minutes.toString().padStart(2, '0'),
       seconds: seconds.toString().padStart(2, '0')
     }
-  }, 1000)
+  }
+  
+  // Cập nhật ngay lập tức
+  updateCountdown()
+  // Sau đó cập nhật mỗi giây
+  countdownInterval = setInterval(updateCountdown, 1000)
 }
 
 // ==================== CAROUSEL ====================
@@ -760,7 +734,14 @@ const initCarousel = () => {
 
 // ==================== LIFECYCLE ====================
 onMounted(() => {
-  startCountdown()
+  // Khởi tạo countdown nếu có saleCampaign và end_time
+  if (props.saleCampaign?.end_time) {
+    startCountdown(props.saleCampaign.end_time)
+  } else {
+    // Không có sale campaign, set về 00:00:00
+    countdown.value = { hours: '00', minutes: '00', seconds: '00' }
+  }
+
   nextTick(() => {
     initCarousel()
   })

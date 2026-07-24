@@ -334,6 +334,15 @@
                 </button>
               </div>
               
+              <!-- Nút Mua sỉ (chỉ hiển thị cho sản phẩm thường, có hàng) -->
+              <button 
+                v-if="!product.is_preorder && selectedVariant && selectedVariant.stock > 0"
+                @click="goToWholesale"
+                class="w-full h-14 border-2 border-orange-500 text-orange-600 font-semibold rounded-xl hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
+              >
+                <span class="material-symbols-outlined">business</span> Mua sỉ
+              </button>
+
               <!-- Nút Tùy chỉnh (full width) -->
               <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
                 <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
@@ -586,7 +595,7 @@ const isCurrentTier = (tier) => {
   return current >= (tier.from || 0) && current <= (tier.to || 999999);
 };
 
-// Methods
+// ===== PHƯƠNG THỨC XỬ LÝ =====
 const selectSize = (size) => {
   selectedSize.value = size
   findVariant()
@@ -674,6 +683,25 @@ const showMessage = (msg, type = 'success') => {
 const goToLogin = () => {
   sessionStorage.setItem('redirectAfterLogin', window.location.href)
   router.get(route('login'))
+}
+
+// ===== CHUYỂN ĐẾN TRANG MUA SỈ =====
+const goToWholesale = () => {
+  if (!selectedVariant.value) {
+    showMessage('Vui lòng chọn màu sắc và kích thước', 'error')
+    return
+  }
+  
+  // Xây dựng query params
+  const params = new URLSearchParams({
+    variant_id: selectedVariant.value.id,
+    product_id: props.product.id,
+    quantity: quantity.value,
+    color: selectedColorName.value || '',
+    size: selectedSize.value || '',
+  })
+  
+  router.get(route('wholesale') + '?' + params.toString())
 }
 
 // ===== HÀM MUA NGAY (XỬ LÝ CẢ PRE-ORDER VÀ THƯỜNG) =====

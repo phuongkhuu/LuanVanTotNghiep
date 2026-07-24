@@ -224,14 +224,38 @@ onMounted(() => {
                         <h3 class="font-semibold text-gray-800">Đơn hàng gần đây</h3>
                         <Link :href="route('admin.orders.index')" class="text-sm text-orange-600 hover:underline">Xem tất cả →</Link>
                     </div>
+
+                    <!-- Grid header -->
+                    <div class="grid grid-cols-[1.2fr_2fr_0.8fr_0.8fr] gap-2 px-2 py-1 text-xs font-semibold text-gray-400 border-b border-gray-100 mb-1">
+                        <span>Mã đơn</span>
+                        <span>Khách hàng</span>
+                        <span>Trạng thái</span>
+                        <span class="text-right">Tổng tiền</span>
+                    </div>
+
+                    <!-- Danh sách đơn hàng -->
                     <div class="space-y-2">
-                        <div v-for="order in recentOrders" :key="order.code" class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                            <div>
-                                <p class="text-sm font-medium text-gray-800">{{ order.code }}</p>
-                                <p class="text-xs text-gray-400">{{ order.customer }} - {{ order.type }}</p>
+                        <div 
+                            v-for="order in recentOrders" 
+                            :key="order.code" 
+                            class="grid grid-cols-[1.2fr_2fr_0.8fr_0.8fr] gap-2 items-center px-2 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                            <!-- Mã đơn -->
+                            <span class="text-sm font-medium text-gray-800 truncate">{{ order.code }}</span>
+
+                            <!-- Khách hàng - loại -->
+                            <div class="flex flex-col">
+                                <span class="text-sm text-gray-700 truncate">{{ order.customer }}</span>
+                                <span class="text-xs text-gray-400">{{ order.type }}</span>
                             </div>
-                            <span class="text-xs px-2 py-1 rounded-full" :class="order.statusClass">{{ order.status }}</span>
-                            <span class="text-sm font-semibold text-gray-800">{{ order.amount }}</span>
+
+                            <!-- Trạng thái -->
+                            <span class="text-xs px-2 py-1 rounded-full text-center" :class="order.statusClass">
+                                {{ order.status }}
+                            </span>
+
+                            <!-- Số tiền (căn phải) -->
+                            <span class="text-sm font-semibold text-gray-800 text-right">{{ order.amount }}</span>
                         </div>
                     </div>
                 </div>

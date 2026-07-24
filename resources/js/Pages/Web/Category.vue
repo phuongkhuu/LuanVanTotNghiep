@@ -18,8 +18,8 @@
       </section>
       
       <section class="px-4 md:px-8 max-w-[1440px] mx-auto flex flex-col md:flex-row gap-6">
-        <!-- Sidebar Filters - ẩn khi đang tìm kiếm hoặc slug không phải danh mục thật -->
-        <aside v-if="!search && isValidCategory" class="w-full md:w-64 flex-shrink-0 space-y-6">
+        <!-- Sidebar Filters - hiển thị trên mọi trang (kể cả tìm kiếm) nếu slug hợp lệ -->
+        <aside v-if="isValidCategory" class="w-full md:w-64 flex-shrink-0 space-y-6">
           <!-- Danh mục -->
           <div v-if="filters.categories && filters.categories.length">
             <h3 class="font-semibold mb-4">Danh mục</h3>
@@ -290,13 +290,14 @@ const props = defineProps({
 
 // ---------- XÁC ĐỊNH TRẠNG THÁI HỢP LỆ ----------
 const isValidCategory = computed(() => {
-  // Slug hợp lệ khi có giá trị và không phải 'tim-kiem' (vì slug đó chỉ dùng cho tìm kiếm)
-  return props.slug && props.slug !== 'tim-kiem'
+  // Cho phép hiển thị filter trên mọi trang (kể cả tìm kiếm) nếu có slug
+  return props.slug && props.slug !== ''
 })
 
 // ---------- PAGE TITLE ----------
 const pageTitle = computed(() => {
   if (props.search) return `Kết quả tìm kiếm "${props.search}"`
+  // Sử dụng trực tiếp categoryName từ backend, không cần hardcode "Cap Tui"
   return props.categoryName || 'Danh mục'
 })
 
@@ -366,11 +367,14 @@ const displayedPages = computed(() => {
 })
 
 const goToPage = (url, page) => {
-  // Nếu đang tìm kiếm, chỉ chuyển trang client-side
+  // Nếu đang tìm kiếm, chuyển trang server-side để giữ filter
   if (props.search) {
     if (page && page >= 1 && page <= totalPages.value) {
-      currentPage.value = page
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const params = new URLSearchParams(window.location.search)
+      params.set('page', page)
+      if (!params.has('q')) params.set('q', props.search)
+      const newUrl = route('search') + '?' + params.toString()
+      router.get(newUrl, {}, { preserveState: true, preserveScroll: true })
     }
     return
   }
@@ -445,9 +449,8 @@ const formatPrice = (price) => {
 }
 
 const applyFilters = () => {
-  // KHÔNG cho phép áp dụng bộ lọc nếu đang tìm kiếm hoặc slug không hợp lệ
-  if (props.search || !isValidCategory.value) {
-    console.warn('⚠️ Không thể áp dụng bộ lọc khi đang tìm kiếm hoặc slug không hợp lệ')
+  if (!isValidCategory.value) {
+    console.warn('Không thể áp dụng bộ lọc khi slug không hợp lệ')
     return
   }
 
@@ -483,18 +486,24 @@ const applyFilters = () => {
   if (sortBy.value) {
     params.append('sort', sortBy.value)
   }
-  
-  try {
-    const url = route('category', { slug: props.slug }) + '?' + params.toString()
-    router.get(url, {}, { preserveState: true, preserveScroll: true })
-  } catch (e) {
-    console.error('❌ Lỗi tạo URL:', e)
+
+  // Nếu đang tìm kiếm, thêm tham số q
+  if (props.search) {
+    params.set('q', props.search)
   }
+  
+  let url
+  if (props.search) {
+    url = route('search') + '?' + params.toString()
+  } else {
+    url = route('category', { slug: props.slug }) + '?' + params.toString()
+  }
+  router.get(url, {}, { preserveState: true, preserveScroll: true })
 }
 
 const resetFilters = () => {
-  if (props.search || !isValidCategory.value) {
-    console.warn('⚠️ Không thể reset bộ lọc khi đang tìm kiếm hoặc slug không hợp lệ')
+  if (!isValidCategory.value) {
+    console.warn('⚠️ Không thể reset bộ lọc khi slug không hợp lệ')
     return
   }
 
@@ -516,7 +525,16 @@ const resetFilters = () => {
   
   const params = new URLSearchParams()
   params.set('page', '1')
-  const url = route('category', { slug: props.slug }) + '?' + params.toString()
+  if (props.search) {
+    params.set('q', props.search)
+  }
+  
+  let url
+  if (props.search) {
+    url = route('search') + '?' + params.toString()
+  } else {
+    url = route('category', { slug: props.slug }) + '?' + params.toString()
+  }
   router.get(url, {}, { preserveState: true, preserveScroll: true })
 }
 

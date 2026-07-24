@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->string('phone')->nullable();
             $table->string('avatar')->nullable();
-            $table->enum('role', ['admin', 'staff', 'user'])->default('user');
+            $table->enum('role', ['admin', 'user'])->default('user');
             $table->tinyInteger('status')->default(1);
             $table->softDeletes(); // thêm deleted_at
         });

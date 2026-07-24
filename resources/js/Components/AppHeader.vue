@@ -79,19 +79,16 @@
           </div>
 
           <!-- Các link đơn -->
-          <Link :href="route('wholesale')" 
-                class="font-label-md text-sm py-4 block transition-colors"
-                :class="isActiveRoute('wholesale') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
-            Mua sỉ
-          </Link>
           <Link :href="route('promotion')" 
                 class="font-label-md text-sm py-4 block transition-colors"
                 :class="isActiveRoute('promotion') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
             Khuyến mãi
           </Link>
-          <Link :href="route('home') + '#gioi-thieu'" 
-                class="font-label-md text-sm py-4 block transition-colors"
-                :class="isActiveHash('gioi-thieu') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'">
+          <Link 
+            :href="route('about')" 
+            class="font-label-md text-sm py-4 block transition-colors"
+            :class="route().current('about') ? 'font-bold text-primary underline decoration-primary underline-offset-4' : 'text-gray-700 hover:text-primary'"
+          >
             Giới thiệu
           </Link>
           <Link :href="route('category', { slug: 'new-arrivals' })" 
