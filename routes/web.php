@@ -67,8 +67,8 @@ Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('ca
 
 // Other public frontend routes
 Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
-Route::post('/mua-si', [QuoteRequestController::class, 'store'])->name('wholesale.submit');
-Route::post('/mua-si/order', [WholesaleController::class, 'storeOrder'])->name('wholesale.order');
+Route::post('/mua-si', [QuoteRequestController::class, 'submitRequest'])->name('wholesale.submit');
+Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])->name('wholesale.place-order-with-quote');
 
 // Promotion route - Sử dụng PromotionController (Web)
 Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotion');

@@ -306,28 +306,28 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         Log::info('PaymentController@store called', $request->all());
-    
+
         $validated = $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'required|email|max:255',
-            'receiver_name' => 'required|string|max:255',
-            'receiver_phone' => 'required|string|max:20',
-            'shipping_address' => 'required|string|max:500',
-            'note' => 'nullable|string|max:500',
-            'payment_method' => 'required|in:cod,ewallet,bank_transfer,vnpay,momo,payos',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'required|exists:product_variants,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
-            'order_type' => 'required|in:retail,preorder,wholesale',
-            'promo_code' => 'nullable|string',
+            'customer_name'   => 'required|string|max:255',
+            'customer_phone'  => 'required|string|max:20',
+            'customer_email'  => 'required|email|max:255',
+            'receiver_name'   => 'required|string|max:255',
+            'receiver_phone'  => 'required|string|max:20',
+            'shipping_address'=> 'required|string|max:500',
+            'note'            => 'nullable|string|max:500',
+            'payment_method'  => 'required|in:cod,ewallet,bank_transfer,vnpay,momo,payos',
+            'items'           => 'required|array|min:1',
+            'items.*.id'      => 'required|exists:product_variants,id',
+            'items.*.quantity'=> 'required|integer|min:1',
+            'items.*.price'   => 'required|numeric|min:0',
+            'total_amount'    => 'required|numeric|min:0',
+            'order_type'      => 'required|in:retail,preorder,wholesale',
+            'promo_code'      => 'nullable|string',
             'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         $orderType = $validated['order_type'];
-        
+
         Log::info('Order data:', [
             'promo_code' => $validated['promo_code'] ?? null,
             'discount_amount' => $validated['discount_amount'] ?? 0,
@@ -341,53 +341,53 @@ class PaymentController extends Controller
         $paymentStatus = 'pending';
 
         if ($orderType === 'wholesale') {
-            // Cọc 50% cho đơn sỉ
             $depositAmount = round($validated['total_amount'] * 0.5);
             $remainingAmount = $validated['total_amount'] - $depositAmount;
-            $paymentStatus = 'pending'; // Chờ thanh toán cọc
+            $paymentStatus = 'pending';
         } else {
-            // Đơn thường hoặc pre-order: thanh toán toàn bộ
             $depositAmount = $validated['total_amount'];
             $remainingAmount = 0;
             $paymentStatus = 'pending';
         }
 
-        // Tạo request mới với đầy đủ dữ liệu (bao gồm cả trường mới)
-        $orderRequest = new Request([
-            'customer_name' => $validated['customer_name'],
-            'customer_phone' => $validated['customer_phone'],
-            'customer_email' => $validated['customer_email'],
-            'receiver_name' => $validated['receiver_name'],
-            'receiver_phone' => $validated['receiver_phone'],
+        // Tạo request mới cho OrderController
+        $orderRequest = new \Illuminate\Http\Request([
+            'customer_name'    => $validated['customer_name'],
+            'customer_phone'   => $validated['customer_phone'],
+            'customer_email'   => $validated['customer_email'],
+            'receiver_name'    => $validated['receiver_name'],
+            'receiver_phone'   => $validated['receiver_phone'],
             'shipping_address' => $validated['shipping_address'],
-            'note' => $validated['note'] ?? null,
-            'payment_method' => $validated['payment_method'],
-            'items' => $validated['items'],
-            'total_amount' => $validated['total_amount'],
-            'order_type' => $orderType,
-            'promo_code' => $validated['promo_code'] ?? null,
-            'discount_amount' => $validated['discount_amount'] ?? 0,
-            'deposit_amount' => $depositAmount,
+            'note'             => $validated['note'] ?? null,
+            'payment_method'   => $validated['payment_method'],
+            'items'            => $validated['items'],
+            'total_amount'     => $validated['total_amount'],
+            'order_type'       => $orderType,
+            'promo_code'       => $validated['promo_code'] ?? null,
+            'discount_amount'  => $validated['discount_amount'] ?? 0,
+            'deposit_amount'   => $depositAmount,
             'remaining_amount' => $remainingAmount,
-            'payment_status' => $paymentStatus,
+            'payment_status'   => $paymentStatus,
         ]);
+
+        // CHỈ GÁN SESSION - KHÔNG CẦN setUserResolver
+        $orderRequest->setLaravelSession($request->session());
 
         try {
             $response = $this->orderController->store($orderRequest);
             $responseData = $response->getData();
 
             if ($responseData->success) {
-                // Xóa session
+                // Xóa session giỏ hàng / pre-order / voucher
                 if ($orderType === 'retail') {
                     $request->session()->forget('cart');
                 } else {
                     $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
                 }
-                
                 $request->session()->forget(['voucher_code', 'voucher_discount']);
-                
+
+                // Lưu order ID vào session để trang success
                 session(['last_order_id' => $responseData->order->id]);
-                
                 if (isset($responseData->order_display_code) && !empty($responseData->order_display_code)) {
                     session(['last_order_display_code' => $responseData->order_display_code]);
                 } else {
@@ -395,19 +395,49 @@ class PaymentController extends Controller
                     session(['last_order_display_code' => $displayCode]);
                 }
 
-                // Nếu chọn thanh toán qua PayOS -> chuyển sang tạo link thanh toán
+                // Xác định redirect URL
+                $orderId = $responseData->order->id;
+                $redirectUrl = null;
+
                 if ($validated['payment_method'] === 'payos') {
-                    return redirect()->route('payment.create', ['order_id' => $responseData->order->id]);
+                    $redirectUrl = route('payment.create', ['order_id' => $orderId]);
+                } else {
+                    $redirectUrl = route('checkout.success');
                 }
 
-                return redirect()->route('checkout.success');
+                // Nếu request là AJAX / JSON, trả về JSON
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success'      => true,
+                        'order_id'     => $orderId,
+                        'redirect_url' => $redirectUrl,
+                    ]);
+                }
+
+                // Ngược lại redirect thông thường
+                return redirect()->to($redirectUrl);
             }
 
-            return back()->withErrors(['error' => $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.']);
+            // Nếu không thành công
+            $errorMessage = $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.';
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 400);
+            }
+            return back()->withErrors(['error' => $errorMessage]);
 
         } catch (\Exception $e) {
             Log::error('Payment store error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+            $errorMessage = 'Có lỗi xảy ra: ' . $e->getMessage();
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 500);
+            }
+            return back()->withErrors(['error' => $errorMessage]);
         }
     }
 
@@ -441,7 +471,6 @@ class PaymentController extends Controller
      */
     public function applyVoucher(Request $request)
     {
-        // ... giữ nguyên ...
         try {
             $request->validate([
                 'code' => 'required|string',
@@ -551,8 +580,6 @@ class PaymentController extends Controller
     {
         $orderId = session('last_order_id');
         $displayCode = session('last_order_display_code');
-
-        Log::info('Checkout success - order_id: ' . $orderId . ', display_code: ' . $displayCode);
 
         if (!$orderId) {
             return redirect()->route('home')->with('error', 'Không tìm thấy thông tin đơn hàng');

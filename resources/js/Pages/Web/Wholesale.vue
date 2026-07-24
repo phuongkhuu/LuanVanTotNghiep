@@ -4,7 +4,6 @@
     <AppHeader />
 
     <main>
-      
       <!-- CTA Section -->
       <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16" id="contact">
         <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
@@ -74,7 +73,7 @@
                       @click="decreaseQuantity" 
                       class="w-10 h-10 border-2 border-gray-200 rounded-xl flex items-center justify-center hover:border-primary transition-colors"
                       :disabled="orderQuantity <= 1"
-                      >
+                    >
                       <span class="material-symbols-outlined text-lg">remove</span>
                     </button>
                     <input 
@@ -164,7 +163,7 @@
                 </div>
               </div>
 
-              <!-- Nút đặt hàng -->
+              <!-- Nút đặt hàng (gộp cả báo giá) -->
               <button 
                 @click="placeOrder"
                 :disabled="loading"
@@ -191,23 +190,23 @@
               </div>
             </div>
 
-            <!-- CỘT PHẢI: Form báo giá (giữ nguyên) -->
+            <!-- CỘT PHẢI: Thông tin doanh nghiệp (dùng chung cho đặt hàng + báo giá) -->
             <div class="p-6 md:p-8 bg-gray-50">
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                Yêu Cầu Báo Giá (B2B)
+                Thông tin doanh nghiệp
               </h3>
-              <form class="space-y-4" @submit.prevent="submitRequest">
+              <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Tên công ty</label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Nhập tên doanh nghiệp của bạn" type="text" v-model="form.company">
+                  <label class="block text-sm font-medium mb-1 text-gray-600">Tên công ty <span class="text-red-500">*</span></label>
+                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Nhập tên doanh nghiệp của bạn" type="text" v-model="form.company" required>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Email</label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="email@congty.com" type="email" v-model="form.email">
+                  <label class="block text-sm font-medium mb-1 text-gray-600">Email <span class="text-red-500">*</span></label>
+                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="email@congty.com" type="email" v-model="form.email" required>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Số điện thoại</label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="09xx xxx xxx" type="tel" v-model="form.phone">
+                  <label class="block text-sm font-medium mb-1 text-gray-600">Số điện thoại <span class="text-red-500">*</span></label>
+                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="09xx xxx xxx" type="tel" v-model="form.phone" required>
                 </div>
                 
                 <!-- ĐỊA CHỈ CHI TIẾT -->
@@ -216,7 +215,7 @@
                     <div>
                       <label class="block text-sm font-medium mb-1 text-gray-600">Tỉnh / Thành</label>
                       <select v-model="form.city" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                        <option value="">Chọn tỉnh / thành </option>
+                        <option value="">Chọn tỉnh / thành</option>
                         <option value="Hà Nội">Hà Nội</option>
                         <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
                         <option value="Đà Nẵng">Đà Nẵng</option>
@@ -230,7 +229,7 @@
                     <div>
                       <label class="block text-sm font-medium mb-1 text-gray-600">Quận / Huyện</label>
                       <select v-model="form.district" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                        <option value="">Chọn quận / huyện </option>
+                        <option value="">Chọn quận / huyện</option>
                         <option value="Quận 1">Quận 1</option>
                         <option value="Quận 2">Quận 2</option>
                         <option value="Quận 3">Quận 3</option>
@@ -255,7 +254,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-1 text-gray-600">Phường / Xã</label>
                     <select v-model="form.ward" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                      <option value="">Chọn phường / xã </option>
+                      <option value="">Chọn phường / xã</option>
                       <option value="Phường Bến Nghé">Phường Bến Nghé</option>
                       <option value="Phường Bến Thành">Phường Bến Thành</option>
                       <option value="Phường Cầu Kho">Phường Cầu Kho</option>
@@ -268,7 +267,7 @@
                   </div>
                   <div>
                     <label class="block text-sm font-medium mb-1 text-gray-600">Địa chỉ chi tiết <span class="text-red-500">*</span></label>
-                    <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Số nhà, tên đường..." type="text" v-model="form.address">
+                    <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Số nhà, tên đường..." type="text" v-model="form.address" required>
                   </div>
                   <div>
                     <label class="block text-sm font-medium mb-1 text-gray-600">Ghi chú giao hàng</label>
@@ -279,8 +278,8 @@
                     <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Ví dụ: In logo, bao bì thương hiệu..." type="text" v-model="form.requirements">
                   </div>
                 </div>
-                <p class="text-center text-xs text-gray-400 mt-2 italic">Chúng tôi sẽ phản hồi trong vòng 30 phút</p>
-              </form>
+                <p class="text-center text-xs text-gray-400 mt-2 italic">Thông tin này sẽ được dùng để tạo đơn hàng và gửi yêu cầu báo giá.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -294,7 +293,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
@@ -336,8 +335,6 @@ const orderQuantity = ref(props.defaultQuantity || 1)
 const selectedColor = ref('')
 const selectedSize = ref('')
 const loading = ref(false)
-const message = ref('')
-const messageType = ref('success')
 
 // ==================== FORM B2B ====================
 const form = ref({
@@ -375,25 +372,20 @@ const salePrice = computed(() => {
 const currentDiscountPercent = computed(() => {
   const qty = orderQuantity.value
   if (!props.discounts || props.discounts.length === 0) return 0
-  // Lọc discounts có min_quantity <= qty
   const applicable = props.discounts.filter(d => d.min_quantity <= qty)
   if (applicable.length === 0) return 0
-  // Lấy discount có min_quantity lớn nhất
   const maxDiscount = applicable.reduce((a, b) => a.min_quantity > b.min_quantity ? a : b)
   return maxDiscount.discount_percent || 0
 })
 
-// Tổng tiền trước chiết khấu
 const subtotal = computed(() => {
   return salePrice.value * orderQuantity.value
 })
 
-// Số tiền chiết khấu
 const discountAmount = computed(() => {
   return (subtotal.value * currentDiscountPercent.value) / 100
 })
 
-// Tổng tiền sau chiết khấu
 const totalPrice = computed(() => {
   return subtotal.value - discountAmount.value
 })
@@ -415,66 +407,26 @@ const decreaseQuantity = () => {
   }
 }
 
-// ===== SUBMIT REQUEST =====
-const submitRequest = async () => {
+// ===== PLACE ORDER (ĐẶT HÀNG SỈ + LƯU BÁO GIÁ) =====
+const placeOrder = async () => {
+  // Kiểm tra thông tin bắt buộc (cả thông tin doanh nghiệp)
+  if (!form.value.company) {
+    alert('Vui lòng nhập tên công ty để đặt hàng!')
+    return
+  }
+  if (!form.value.email) {
+    alert('Vui lòng nhập email để đặt hàng!')
+    return
+  }
+  if (!form.value.phone) {
+    alert('Vui lòng nhập số điện thoại để đặt hàng!')
+    return
+  }
   if (!form.value.address) {
-    alert('Vui lòng nhập địa chỉ chi tiết!')
+    alert('Vui lòng nhập địa chỉ chi tiết để đặt hàng!')
     return
   }
 
-  loading.value = true
-
-  try {
-    const response = await axios.post(route('wholesale.submit'), {
-      company: form.value.company,
-      email: form.value.email,
-      phone: form.value.phone,
-      city: form.value.city,
-      district: form.value.district,
-      ward: form.value.ward,
-      address: form.value.address,
-      note: form.value.note,
-      requirements: form.value.requirements,
-      product_id: selectedProduct.value?.id,
-      variant_id: selectedProduct.value?.variant_id,
-      quantity: orderQuantity.value,
-      color: selectedColor.value,
-      size: selectedSize.value,
-    }, {
-      headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    })
-
-    if (response.data.success) {
-      alert(response.data.message)
-      // Reset form
-      form.value = {
-        company: '',
-        email: '',
-        phone: '',
-        city: '',
-        district: '',
-        ward: '',
-        address: '',
-        note: '',
-        requirements: ''
-      }
-    } else {
-      alert(response.data.message || 'Có lỗi xảy ra, vui lòng thử lại!')
-    }
-  } catch (error) {
-    console.error('Error submitting quote:', error)
-    alert(error.response?.data?.message || 'Không thể gửi yêu cầu. Vui lòng thử lại!')
-  } finally {
-    loading.value = false
-  }
-}
-
-// ===== PLACE ORDER (Chỉ PayOS) =====
-const placeOrder = async () => {
   if (!selectedProduct.value) {
     alert('Vui lòng chọn sản phẩm!')
     return
@@ -505,16 +457,22 @@ const placeOrder = async () => {
   loading.value = true
 
   try {
-    const response = await axios.post(route('wholesale.order'), {
+    const response = await axios.post(route('wholesale.place-order-with-quote'), {
+      // Thông tin báo giá
+      company: form.value.company,
+      email: form.value.email,
+      phone: form.value.phone,
+      city: form.value.city,
+      district: form.value.district,
+      ward: form.value.ward,
+      address: form.value.address,
+      note: form.value.note,
+      requirements: form.value.requirements,
+      // Thông tin sản phẩm
       variant_id: selectedVariant.id,
       quantity: orderQuantity.value,
-      customer_name: form.value.company || 'Khách hàng',
-      customer_phone: form.value.phone || '0900000000',
-      customer_email: form.value.email || 'khachhang@example.com',
-      receiver_name: form.value.company || 'Khách hàng',
-      receiver_phone: form.value.phone || '0900000000',
-      shipping_address: form.value.address || 'Chưa nhập địa chỉ',
-      note: form.value.note || '',
+      color: selectedColor.value,
+      size: selectedSize.value,
     }, {
       headers: {
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
@@ -523,12 +481,9 @@ const placeOrder = async () => {
       }
     })
 
-    // Kiểm tra response
     if (response.data.redirect_url) {
-      // Chuyển hướng đến PayOS
       window.location.href = response.data.redirect_url
     } else if (response.data.order_id) {
-      // Chuyển đến trang tạo payment
       router.get(route('payment.create', { order_id: response.data.order_id }))
     } else {
       alert('Đặt hàng thành công! Chúng tôi sẽ liên hệ xác nhận trong 30 phút.')
@@ -546,7 +501,6 @@ const placeOrder = async () => {
 watch(() => props.selectedProduct, (newVal) => {
   if (newVal) {
     selectedProduct.value = newVal
-    // Set default color và size nếu có
     if (newVal.colors && newVal.colors.length > 0) {
       selectedColor.value = newVal.colors[0].name
     }
@@ -557,7 +511,6 @@ watch(() => props.selectedProduct, (newVal) => {
 }, { immediate: true })
 
 onMounted(() => {
-  // Set default từ props
   if (props.defaultColor) {
     selectedColor.value = props.defaultColor
   }

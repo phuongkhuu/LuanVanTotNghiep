@@ -79,15 +79,18 @@ class OrderController extends Controller
                 'receiver_phone'  => 'required|string|max:20',
                 'shipping_address'=> 'required|string|max:500',
                 'note'            => 'nullable|string|max:500',
-                'payment_method'  => 'required|in:cod,ewallet,bank_transfer,vnpay,momo',
+                'payment_method'  => 'required|in:cod,ewallet,bank_transfer,vnpay,momo,payos',
                 'items'           => 'required|array|min:1',
                 'items.*.id'      => 'required|exists:product_variants,id',
                 'items.*.quantity'=> 'required|integer|min:1',
                 'items.*.price'   => 'required|numeric|min:0',
                 'total_amount'    => 'required|numeric|min:0',
-                'order_type'      => 'required|in:retail,preorder',
+                'order_type'      => 'required|in:retail,preorder,wholesale',
                 'promo_code'      => 'nullable|string',
                 'discount_amount' => 'nullable|numeric|min:0',
+                'deposit_amount'  => 'nullable|numeric|min:0',
+                'remaining_amount'=> 'nullable|numeric|min:0',
+                'payment_status'  => 'nullable|string|in:pending,deposit_paid,paid,failed',
             ]);
 
             $orderType = $validated['order_type'];
@@ -123,11 +126,11 @@ class OrderController extends Controller
 
             DB::beginTransaction();
 
-            // Tạo đơn hàng (gán campaign_id nếu có)
+            // Tạo đơn hàng
             $order = Order::create([
                 'user_id'          => $userId,
                 'order_code'       => $orderType,
-                'campaign_id'      => $campaignId, // ĐÃ GÁN CAMPAIGN_ID
+                'campaign_id'      => $campaignId,
                 'customer_name'    => $validated['customer_name'],
                 'customer_phone'   => $validated['customer_phone'],
                 'customer_email'   => $validated['customer_email'],
@@ -140,8 +143,16 @@ class OrderController extends Controller
                 'discount_amount'  => $discountAmount,
                 'promo_code'       => $promoCode,
                 'final_amount'     => $finalAmount,
+                'deposit_amount'   => $validated['deposit_amount'] ?? 0,
+                'remaining_amount' => $validated['remaining_amount'] ?? 0,
+                'payment_status'   => $validated['payment_status'] ?? 'pending',
                 'order_status'     => 0, // Pending
             ]);
+
+            // ===== TẠO MÃ ĐƠN HÀNG DUY NHẤT =====
+            $orderNumber = $this->generateOrderNumber($order);
+            $order->order_number = $orderNumber;
+            $order->save();
 
             // Cập nhật lượt sử dụng voucher
             if ($promoCode) {
@@ -219,23 +230,50 @@ class OrderController extends Controller
 
             DB::commit();
 
-            $displayCode = $this->generateOrderDisplayCode($order);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Đặt hàng thành công',
                 'order' => $order->load(['details', 'payment']),
-                'order_display_code' => $displayCode,
+                'order_display_code' => $orderNumber,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Order creation error: ' . $e->getMessage());
+            Log::error('Order creation error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Tạo mã đơn hàng duy nhất (không trùng)
+     */
+    private function generateOrderNumber($order)
+    {
+        $prefix = match($order->order_code) {
+            'retail'    => 'L',
+            'wholesale' => 'S',
+            'preorder'  => 'P',
+            default     => 'DH',
+        };
+        $date = now()->format('dmY');
+        
+        // Lấy số thứ tự dựa trên ID (đã được auto increment)
+        $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
+        
+        $code = $prefix . $date . $sequence;
+        
+        // Kiểm tra xem mã đã tồn tại chưa (phòng trường hợp trùng do tạo nhanh)
+        $existing = Order::where('order_number', $code)->exists();
+        if ($existing) {
+            // Nếu trùng, thêm random suffix
+            $suffix = rand(10, 99);
+            $code = $prefix . $date . $sequence . $suffix;
+        }
+        
+        return $code;
     }
 
     /**
@@ -278,6 +316,9 @@ class OrderController extends Controller
                     } elseif ($method === 'ewallet') {
                         $payment = 'Ví điện tử';
                         $paymentClass = 'bg-purple-100 text-purple-800';
+                    } elseif ($method === 'payos') {
+                        $payment = 'PayOS';
+                        $paymentClass = 'bg-indigo-100 text-indigo-800';
                     }
                 }
 
@@ -347,6 +388,7 @@ class OrderController extends Controller
             $method = $order->payment->payment_method;
             if ($method === 'bank_transfer') $payment = 'Chuyển khoản';
             elseif ($method === 'ewallet') $payment = 'Ví điện tử';
+            elseif ($method === 'payos') $payment = 'PayOS';
         }
 
         return Inertia::render('Admin/Orders/Show', [
@@ -411,7 +453,6 @@ class OrderController extends Controller
             }
         }
 
-        // Luôn trả về order_number nếu có (đảm bảo từ model event)
         return $order->order_number ?? $this->fallbackOrderCode($order);
     }
 
@@ -522,6 +563,7 @@ class OrderController extends Controller
             $method = $order->payment->payment_method;
             if ($method === 'bank_transfer') $payment = 'Chuyển khoản';
             elseif ($method === 'ewallet') $payment = 'Ví điện tử';
+            elseif ($method === 'payos') $payment = 'PayOS';
         }
 
         $productList = $products->map(fn($item) => $item['name'] . ' x' . $item['quantity'] . ' = ' . number_format($item['subtotal']) . 'đ')

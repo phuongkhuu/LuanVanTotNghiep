@@ -83,7 +83,7 @@ class PayOSController extends Controller
         $paymentData = [
             'orderCode'   => $order->id,
             'amount'      => (int) $order->final_amount,
-            'description' => 'Thanh toán đơn hàng #' . $order->id,
+            'description' => $order->order_code,
             'items'       => $items,
             'cancelUrl'   => env('PAYOS_CANCEL_URL'),
             'returnUrl'   => env('PAYOS_RETURN_URL'),
@@ -142,8 +142,6 @@ class PayOSController extends Controller
 
                     $order->order_status = 2;
                     $order->save();
-
-                    \Log::info("PayOS webhook: Đơn hàng #{$order->id} đã thanh toán thành công.");
                 }
             }
 
@@ -186,7 +184,7 @@ class PayOSController extends Controller
      */
     public function cancel(Request $request)
     {
-        return redirect()->route('checkout.index')->with('error', 'Bạn đã hủy thanh toán.');
+        return redirect()->route('checkout')->with('error', 'Bạn đã hủy thanh toán.');
     }
 
     // ============ PRIVATE HELPERS ============
