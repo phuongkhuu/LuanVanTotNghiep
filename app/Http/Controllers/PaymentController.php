@@ -370,7 +370,6 @@ class PaymentController extends Controller
             'payment_status'   => $paymentStatus,
         ]);
 
-        // CHỈ GÁN SESSION - KHÔNG CẦN setUserResolver
         $orderRequest->setLaravelSession($request->session());
 
         try {
@@ -397,16 +396,14 @@ class PaymentController extends Controller
 
                 // Xác định redirect URL
                 $orderId = $responseData->order->id;
-                $redirectUrl = null;
+                $redirectUrl = $validated['payment_method'] === 'payos'
+                    ? route('payment.create', ['order_id' => $orderId])
+                    : route('checkout.success');
 
-                if ($validated['payment_method'] === 'payos') {
-                    $redirectUrl = route('payment.create', ['order_id' => $orderId]);
-                } else {
-                    $redirectUrl = route('checkout.success');
-                }
+                // ==== QUAN TRỌNG: Chỉ trả JSON nếu request là API thực sự (có Accept JSON và KHÔNG có X-Inertia) ====
+                $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
 
-                // Nếu request là AJAX / JSON, trả về JSON
-                if ($request->expectsJson() || $request->ajax()) {
+                if ($isApiRequest) {
                     return response()->json([
                         'success'      => true,
                         'order_id'     => $orderId,
@@ -414,29 +411,35 @@ class PaymentController extends Controller
                     ]);
                 }
 
-                // Ngược lại redirect thông thường
+                // Mặc định: redirect cho Inertia và trình duyệt thông thường
                 return redirect()->to($redirectUrl);
             }
 
-            // Nếu không thành công
+            // Lỗi từ OrderController
             $errorMessage = $responseData->message ?? 'Có lỗi xảy ra khi đặt hàng.';
-            if ($request->expectsJson() || $request->ajax()) {
+            $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
+
+            if ($isApiRequest) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage,
                 ], 400);
             }
+
             return back()->withErrors(['error' => $errorMessage]);
 
         } catch (\Exception $e) {
             Log::error('Payment store error: ' . $e->getMessage());
             $errorMessage = 'Có lỗi xảy ra: ' . $e->getMessage();
-            if ($request->expectsJson() || $request->ajax()) {
+            $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
+
+            if ($isApiRequest) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage,
                 ], 500);
             }
+
             return back()->withErrors(['error' => $errorMessage]);
         }
     }
@@ -574,15 +577,20 @@ class PaymentController extends Controller
     }
 
     /**
-     * Hiển thị trang thanh toán thành công
+     * Hiển thị trang thanh toán thành công (LUÔN trả về Inertia, không redirect)
      */
     public function success()
     {
         $orderId = session('last_order_id');
         $displayCode = session('last_order_display_code');
 
+        // Không redirect khi thiếu orderId, mà render Inertia với thông báo lỗi
         if (!$orderId) {
-            return redirect()->route('home')->with('error', 'Không tìm thấy thông tin đơn hàng');
+            return Inertia::render('Web/CheckoutSuccess', [
+                'error' => 'Không tìm thấy thông tin đơn hàng',
+                'order' => null,
+                'order_display_code' => null,
+            ]);
         }
 
         $order = Order::with([
@@ -593,7 +601,11 @@ class PaymentController extends Controller
         ])->find($orderId);
 
         if (!$order) {
-            return redirect()->route('home')->with('error', 'Không tìm thấy đơn hàng');
+            return Inertia::render('Web/CheckoutSuccess', [
+                'error' => 'Không tìm thấy đơn hàng',
+                'order' => null,
+                'order_display_code' => null,
+            ]);
         }
 
         if (empty($displayCode)) {
@@ -641,17 +653,14 @@ class PaymentController extends Controller
 
         // ===== XỬ LÝ ĐƠN SỈ =====
         if ($order->order_code === 'wholesale') {
-            // Nếu đã có payment và status = success => cọc đã được thanh toán
             if ($payment && ($payment->status === 'success' || $payment->status === 'paid')) {
                 $paymentStatus = 'deposit_paid';
                 $order->payment_status = 'deposit_paid';
                 $order->save();
             } else {
-                // Chưa thanh toán cọc, giữ pending
                 $paymentStatus = 'pending';
             }
         } else {
-            // Đơn thường / pre-order
             if ($payment && ($payment->status === 'success' || $payment->status === 'paid')) {
                 $paymentStatus = 'paid';
                 $order->payment_status = 'paid';
