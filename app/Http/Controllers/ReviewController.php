@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ReviewController extends Controller
 {
@@ -19,35 +20,50 @@ class ReviewController extends Controller
     // Thêm review mới
     public function store(Request $request)
     {
-        $request->validate([
-            'product_variant_id' => 'required|exists:product_variants,id',
-            'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:1000',
-        ]);
+        try {
+            // 1. Validate bắt buộc (Đã sửa nullable thành required)
+            $request->validate([
+                'product_variant_id' => 'required|exists:product_variants,id',
+                'rating' => 'required|integer|min:1|max:5',
+                'comment' => 'required|string|max:1000', 
+            ]);
 
-        // Kiểm tra người dùng đã đăng nhập
-        if (!Auth::check()) {
-            return response()->json(['message' => 'Vui lòng đăng nhập để đánh giá'], 401);
+            // Kiểm tra người dùng đã đăng nhập
+            if (!Auth::check()) {
+                return response()->json(['message' => 'Vui lòng đăng nhập để đánh giá'], 401);
+            }
+
+            // Kiểm tra xem người dùng đã review cho variant này chưa
+            $existing = Review::where('user_id', Auth::id())
+                              ->where('product_variant_id', $request->product_variant_id)
+                              ->first();
+            if ($existing) {
+                return response()->json(['message' => 'Bạn đã đánh giá sản phẩm này rồi'], 409);
+            }
+
+            $review = Review::create([
+                'user_id' => Auth::id(),
+                'product_variant_id' => $request->product_variant_id,
+                'rating' => $request->rating,
+                'comment' => $request->comment,
+            ]);
+
+            return response()->json([
+                'message' => 'Đánh giá thành công',
+                'review' => $review->load('user')
+            ], 201);
+
+        } catch (ValidationException $e) {
+            // 2. Ép kiểu trả về JSON khi lỗi validate (Quan trọng để Frontend bắt được)
+            return response()->json([
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            // 3. Bắt mọi lỗi hệ thống khác
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi hệ thống: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Kiểm tra xem người dùng đã review cho variant này chưa (tùy chọn)
-        $existing = Review::where('user_id', Auth::id())
-                          ->where('product_variant_id', $request->product_variant_id)
-                          ->first();
-        if ($existing) {
-            return response()->json(['message' => 'Bạn đã đánh giá sản phẩm này rồi'], 409);
-        }
-
-        $review = Review::create([
-            'user_id' => Auth::id(),
-            'product_variant_id' => $request->product_variant_id,
-            'rating' => $request->rating,
-            'comment' => $request->comment,
-        ]);
-
-        return response()->json([
-            'message' => 'Đánh giá thành công',
-            'review' => $review->load('user')
-        ], 201);
     }
 }

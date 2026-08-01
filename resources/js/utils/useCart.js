@@ -203,6 +203,20 @@ const addToCart = async (variantId, quantity = 1) => {
 
 const updateCart = async (variantId, quantity) => {
     try {
+        // ============ KIỂM TRA TỒN KHO TRƯỚC KHI GỌI API ============
+        // Lấy thông tin stock từ cartItems hiện tại
+        const currentItem = cartItems.value.find(item => item.id === variantId)
+        if (currentItem && quantity > currentItem.stock) {
+            // Ném lỗi để component xử lý
+            const error = new Error('Số lượng vượt quá tồn kho')
+            error.response = {
+                data: {
+                    message: `Số lượng vượt quá tồn kho. Sản phẩm chỉ còn ${currentItem.stock} sản phẩm.`
+                }
+            }
+            throw error
+        }
+
         await axios.put('/api/cart/update', {
             variant_id: variantId,
             quantity: quantity

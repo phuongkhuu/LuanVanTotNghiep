@@ -394,6 +394,14 @@
         <!-- Form đánh giá (chỉ hiển thị khi đã đăng nhập) -->
         <div v-if="isAuthenticated" class="mb-10 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Viết đánh giá của bạn</h3>
+          
+          <!-- Hiển thị lỗi validation của form review -->
+          <div v-if="reviewErrors.length > 0" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p v-for="(err, index) in reviewErrors" :key="index" class="text-sm text-red-600">
+              {{ err }}
+            </p>
+          </div>
+          
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Đánh giá của bạn</label>
             <div class="flex gap-2">
@@ -494,6 +502,7 @@ const messageType = ref('success')
 const newReview = ref({ rating: 0, comment: '' });
 const submitting = ref(false);
 const reviewList = ref([]);
+const reviewErrors = ref([]); // Thêm state lưu lỗi validation
 
 const isMagnifying = ref(false);
 const magnifierPos = ref({ x: 0, y: 0 });
@@ -833,16 +842,39 @@ const addToCartSimple = (item) => {
 
 // ===== GỬI ĐÁNH GIÁ =====
 const submitReview = async () => {
-  if (!selectedVariant.value) {
-    showMessage('Vui lòng chọn màu sắc và kích thước trước khi đánh giá', 'error')
-    return
-  }
+  // Reset errors
+  reviewErrors.value = [];
+  
+  // ============ VALIDATION ============
+  // Kiểm tra rating
   if (newReview.value.rating === 0) {
-    showMessage('Vui lòng chọn số sao đánh giá', 'error')
-    return
+    reviewErrors.value.push('Vui lòng chọn số sao đánh giá');
+  }
+  
+  // Kiểm tra nội dung đánh giá (comment)
+  if (!newReview.value.comment || newReview.value.comment.trim() === '') {
+    reviewErrors.value.push('Vui lòng nhập nội dung đánh giá');
+  }
+  
+  // Nếu có lỗi, dừng lại
+  if (reviewErrors.value.length > 0) {
+    // Tự động xóa lỗi sau 5 giây
+    setTimeout(() => {
+      reviewErrors.value = [];
+    }, 5000);
+    return;
+  }
+  
+  // Kiểm tra đã chọn variant chưa
+  if (!selectedVariant.value) {
+    reviewErrors.value.push('Vui lòng chọn màu sắc và kích thước trước khi đánh giá');
+    setTimeout(() => {
+      reviewErrors.value = [];
+    }, 5000);
+    return;
   }
 
-  submitting.value = true
+  submitting.value = true;
   try {
     const response = await axios.post('/reviews', {
       product_variant_id: selectedVariant.value.id,
@@ -859,16 +891,19 @@ const submitReview = async () => {
 
     if (response.status === 201) {
       // Thêm review mới vào đầu danh sách
-      reviewList.value.unshift(response.data.review)
+      reviewList.value.unshift(response.data.review);
       // Reset form
-      newReview.value = { rating: 0, comment: '' }
-      showMessage('Cảm ơn bạn đã đánh giá!', 'success')
+      newReview.value = { rating: 0, comment: '' };
+      showMessage('Cảm ơn bạn đã đánh giá!', 'success');
     }
   } catch (error) {
-    const msg = error.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.'
-    showMessage(msg, 'error')
+    const msg = error.response?.data?.message || 'Không thể gửi đánh giá. Vui lòng thử lại.';
+    reviewErrors.value.push(msg);
+    setTimeout(() => {
+      reviewErrors.value = [];
+    }, 5000);
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 

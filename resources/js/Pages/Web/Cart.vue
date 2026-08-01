@@ -42,6 +42,11 @@
                   {{ item.name }}
                 </Link>
                 <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color || 'Đen' }} | Size: {{ item.size || 'M' }}</p>
+                <!-- Hiển thị thông báo lỗi tồn kho cho từng sản phẩm -->
+                <p v-if="stockErrors[item.id]" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">error</span>
+                  {{ stockErrors[item.id] }}
+                </p>
                 <button @click="removeItem(idx)" class="text-primary text-sm flex items-center mt-2 hover:text-primary-dark">
                   <span class="material-symbols-outlined text-[18px] mr-1">delete</span> Xóa
                 </button>
@@ -191,6 +196,9 @@ const {
 
 const page = usePage()
 
+// State lưu lỗi tồn kho cho từng sản phẩm
+const stockErrors = ref({})
+
 // Tạo dữ liệu cart để gửi qua URL
 const cartDataForCheckout = computed(() => {
   const data = {}
@@ -213,7 +221,6 @@ const handleVoucherCleared = () => {
   
   // Xóa localStorage
   clearVoucherStorage()
- 
 }
 
 // Watch cartItems
@@ -252,10 +259,52 @@ const updateQuantity = async (index, delta) => {
     return
   }
 
+  // ============ KIỂM TRA TỒN KHO TRƯỚC KHI CẬP NHẬT ============
+  // Kiểm tra nếu tăng số lượng (delta > 0)
+  if (delta > 0 && item.stock !== undefined && newQuantity > item.stock) {
+    // Hiển thị thông báo lỗi cho sản phẩm này
+    stockErrors.value = {
+      ...stockErrors.value,
+      [item.id]: 'Số lượng vượt quá tồn kho'
+    }
+    
+    // Tự động xóa lỗi sau 3 giây
+    setTimeout(() => {
+      const newErrors = { ...stockErrors.value }
+      delete newErrors[item.id]
+      stockErrors.value = newErrors
+    }, 3000)
+    
+    return // Giữ nguyên số lượng hiện tại
+  }
+
+  // Xóa lỗi nếu có
+  if (stockErrors.value[item.id]) {
+    const newErrors = { ...stockErrors.value }
+    delete newErrors[item.id]
+    stockErrors.value = newErrors
+  }
+
   try {
     await updateCart(item.id, newQuantity)
   } catch (error) {
-    alert(error.response?.data?.message || 'Cập nhật thất bại')
+    const errorMessage = error.response?.data?.message || 'Cập nhật thất bại'
+    
+    // Kiểm tra nếu lỗi từ server liên quan đến tồn kho
+    if (errorMessage.includes('tồn kho') || errorMessage.includes('stock')) {
+      stockErrors.value = {
+        ...stockErrors.value,
+        [item.id]: 'Số lượng vượt quá tồn kho'
+      }
+      
+      setTimeout(() => {
+        const newErrors = { ...stockErrors.value }
+        delete newErrors[item.id]
+        stockErrors.value = newErrors
+      }, 3000)
+    } else {
+      alert(errorMessage)
+    }
   }
 }
 
@@ -264,6 +313,13 @@ const removeItem = async (index) => {
   if (!item) return
   
   if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
+
+  // Xóa lỗi của sản phẩm nếu có
+  if (stockErrors.value[item.id]) {
+    const newErrors = { ...stockErrors.value }
+    delete newErrors[item.id]
+    stockErrors.value = newErrors
+  }
 
   try {
     await removeFromCart(item.id)

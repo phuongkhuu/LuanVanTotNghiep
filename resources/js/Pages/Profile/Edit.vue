@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import AppHeader from '@/Components/AppHeader.vue';
 import AppFooter from '@/Components/AppFooter.vue';
 import Chatbot from '@/Components/Chatbot.vue';
@@ -20,11 +20,18 @@ const props = defineProps({
 const page = usePage();
 const user = page.props.auth.user;
 
-// Profile form - THÊM PHONE
+// Lưu giá trị ban đầu để so sánh
+const originalData = ref({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+});
+
+// Profile form
 const profileForm = useForm({
     name: user?.name || '',
     email: user?.email || '',
-    phone: user?.phone || '', // 🔥 Thêm trường phone
+    phone: user?.phone || '',
 });
 
 // Password form
@@ -42,12 +49,65 @@ const deleteForm = useForm({
 const showDeleteModal = ref(false);
 const passwordInput = ref(null);
 
+// Kiểm tra có thay đổi gì không
+const hasChanges = computed(() => {
+    return profileForm.name !== originalData.value.name ||
+           profileForm.email !== originalData.value.email ||
+           profileForm.phone !== originalData.value.phone;
+});
+
+// Hàm validate số điện thoại Việt Nam
+const validatePhone = (phone) => {
+    const phoneRegex = /^(0|84)(3[2-9]|5[6-9]|7[0-9]|8[1-9]|9[0-9])[0-9]{7}$/;
+    return phoneRegex.test(phone);
+};
+
+// Hàm validate email
+const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+};
+
 const updateProfile = () => {
+    // Rẽ nhánh 2: Không có thay đổi
+    if (!hasChanges.value) {
+        profileForm.setError('name', 'Không có thông tin nào được thay đổi.');
+        return;
+    }
+
+    // Rẽ nhánh 1: Lỗi thông tin
+    // Validate email
+    if (profileForm.email && !validateEmail(profileForm.email)) {
+        profileForm.setError('email', 'Email không đúng định dạng. Vui lòng nhập email hợp lệ.');
+        return;
+    }
+
+    // Validate số điện thoại
+    if (profileForm.phone && !validatePhone(profileForm.phone)) {
+        profileForm.setError('phone', 'Số điện thoại không hợp lệ.');
+        return;
+    }
+
+    // Xóa lỗi cũ trước khi submit
+    profileForm.clearErrors();
+
     profileForm.patch(route('profile.update'), {
         preserveScroll: true,
         onSuccess: () => {
+            // Cập nhật lại giá trị ban đầu sau khi lưu thành công
+            originalData.value = {
+                name: profileForm.name,
+                email: profileForm.email,
+                phone: profileForm.phone,
+            };
             profileForm.reset();
             refreshUserData();
+        },
+        onError: (errors) => {
+            // Rẽ nhánh 3: Email đã tồn tại
+            if (errors.email && errors.email.includes('already been taken')) {
+                profileForm.setError('email', 'Email đã được sử dụng.');
+            }
         },
     });
 };
@@ -166,6 +226,7 @@ const closeDeleteModal = () => {
                                     type="text" 
                                     v-model="profileForm.name" 
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-sm"
+                                    :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500': profileForm.errors.name }"
                                     required
                                 />
                                 <p v-if="profileForm.errors.name" class="mt-1 text-xs text-red-500">{{ profileForm.errors.name }}</p>
@@ -177,18 +238,21 @@ const closeDeleteModal = () => {
                                     type="email" 
                                     v-model="profileForm.email" 
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-sm"
+                                    :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500': profileForm.errors.email }"
                                     required
                                 />
                                 <p v-if="profileForm.errors.email" class="mt-1 text-xs text-red-500">{{ profileForm.errors.email }}</p>
                             </div>
 
-                            <!-- 🔥 THÊM TRƯỜNG SỐ ĐIỆN THOẠI -->
+                            <!-- Số điện thoại -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
                                 <input 
                                     type="tel" 
                                     v-model="profileForm.phone" 
                                     class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-sm"
+                                    :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500': profileForm.errors.phone }"
+                                    placeholder="0912345678"
                                 />
                                 <p v-if="profileForm.errors.phone" class="mt-1 text-xs text-red-500">{{ profileForm.errors.phone }}</p>
                             </div>

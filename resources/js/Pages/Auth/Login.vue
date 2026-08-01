@@ -19,7 +19,7 @@
       </div>
 
       <!-- Form -->
-      <form @submit.prevent="submit" class="mt-8 space-y-6">
+      <form @submit.prevent="submit" class="mt-8 space-y-6" novalidate>
         <!-- Email -->
         <div>
           <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
@@ -29,7 +29,6 @@
             id="email"
             v-model="form.email"
             type="email"
-            required
             autofocus
             class="appearance-none rounded-lg relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
             :class="{ 'border-red-500 focus:ring-red-500/50 focus:border-red-500': errors.email }"
@@ -51,7 +50,6 @@
               id="password"
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
-              required
               class="appearance-none rounded-lg relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors pr-12"
               :class="{ 'border-red-500 focus:ring-red-500/50 focus:border-red-500': errors.password }"
               placeholder="Mật khẩu của bạn"
@@ -145,14 +143,14 @@ const showPassword = ref(false)
 const translateError = (message) => {
   if (!message) return ''
   const translations = {
-    'These credentials do not match our records.': 'Email hoặc mật khẩu không đúng.',
-    'The email field is required.': 'Vui lòng nhập email.',
-    'The password field is required.': 'Vui lòng nhập mật khẩu.',
-    'The email must be a valid email address.': 'Email không hợp lệ (cần có ký tự @).',
+    'These credentials do not match our records.': 'Email hoặc mật khẩu không chính xác.',
+    'The email field is required.': 'Vui lòng nhập đầy đủ thông tin.',
+    'The password field is required.': 'Vui lòng nhập đầy đủ thông tin.',
+    'The email must be a valid email address.': 'Email không đúng định dạng.',
     'The email has already been taken.': 'Email này đã được sử dụng.',
     'The password must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
     'The password confirmation does not match.': 'Xác nhận mật khẩu không khớp.',
-    'The password must be at least 8 characters.': 'Mật khẩu phải có ít nhất 8 ký tự.',
+    'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.': 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
   }
   return translations[message] || message
 }
@@ -162,18 +160,16 @@ watch(() => page.props.errors, (newErrors) => {
   if (newErrors && Object.keys(newErrors).length > 0) {
     const translated = {}
     for (const [key, value] of Object.entries(newErrors)) {
-      // Nếu value là mảng, lấy phần tử đầu tiên
       const msg = Array.isArray(value) ? value[0] : value
       translated[key] = translateError(msg)
     }
     errors.value = translated
 
-    // Nếu có lỗi email/password, không hiển thị thông báo chung
     if (!translated.email && !translated.password) {
       const firstError = Object.values(translated)[0]
       errorMessage.value = firstError || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
     } else {
-      errorMessage.value = '' // xóa thông báo chung để tránh trùng lặp
+      errorMessage.value = ''
     }
   } else {
     errors.value = {}
@@ -200,8 +196,19 @@ const submit = async () => {
         router.visit('/')
       },
       onError: (err) => {
-        // Fallback nếu watch không bắt được (thường không cần)
-        // Không cần xử lý vì watch đã bắt từ page.props.errors
+        if (err) {
+          const translated = {}
+          for (const [key, value] of Object.entries(err)) {
+            const msg = Array.isArray(value) ? value[0] : value
+            translated[key] = translateError(msg)
+          }
+          errors.value = translated
+          
+          if (!translated.email && !translated.password) {
+            const firstError = Object.values(translated)[0]
+            errorMessage.value = firstError || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
+          }
+        }
       }
     })
   } catch (error) {

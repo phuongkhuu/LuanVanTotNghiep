@@ -284,19 +284,48 @@ class CartController extends Controller
     /**
      * Cập nhật giỏ hàng
      */
+    /**
+ * Cập nhật giỏ hàng
+ */
     public function update(Request $request)
     {
         try {
+            Log::info('CartController@update called', $request->all());
+            
             $request->validate([
                 'variant_id' => 'required|exists:product_variants,id',
                 'quantity' => 'required|integer|min:0'
             ]);
+
+            $variantId = $request->variant_id;
+            $quantity = $request->quantity;
+
+            // ============ KIỂM TRA TỒN KHO ============
+            $variant = ProductVariant::with('product')->find($variantId);
+            if (!$variant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sản phẩm không tồn tại'
+                ], 404);
+            }
+
+            // Kiểm tra nếu là pre-order thì bỏ qua kiểm tra stock
+            if (!($variant->product->is_preorder ?? false)) {
+                // Kiểm tra số lượng tồn kho
+                if ($quantity > $variant->stock) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {$variant->stock} sản phẩm."
+                    ], 400);
+                }
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Đã cập nhật giỏ hàng'
             ]);
         } catch (\Exception $e) {
+            Log::error('Cart update error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
