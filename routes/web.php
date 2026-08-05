@@ -166,15 +166,17 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     
     Route::prefix('orders')->group(function () {
-        Route::get('/{type?}', [AdminOrderController::class, 'index'])
-            ->where('type', 'retail|wholesale|preorder')
-            ->name('orders.index');
-        Route::get('/{id}', [AdminOrderController::class, 'show'])
-            ->where('id', '[0-9]+')
-            ->name('orders.show');
-        Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
-        Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
-        Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
+    Route::get('/{type?}', [AdminOrderController::class, 'index'])
+        ->where('type', 'retail|wholesale|preorder')
+        ->name('orders.index');
+    Route::get('/{id}', [AdminOrderController::class, 'show'])
+        ->where('id', '[0-9]+')
+        ->name('orders.show');
+    Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
+    Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
+    // THÊM ROUTE NÀY
+    Route::get('/{id}/print-html', [AdminOrderController::class, 'printOrderHtml'])->name('orders.print-html');
     });
     
     Route::prefix('products')->group(function () {

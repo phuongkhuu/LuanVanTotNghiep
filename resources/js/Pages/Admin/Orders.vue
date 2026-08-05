@@ -254,6 +254,49 @@ const updateStatusFromDetail = async () => {
     }
 };
 
+// ========== CHỨC NĂNG IN - GIỐNG HỆT ORDERHISTORY ==========
+const printOrder = (order) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert('Vui lòng cho phép popup để in đơn hàng');
+        return;
+    }
+    
+    // Hiển thị loading
+    printWindow.document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:18px;font-family:Arial,sans-serif;">Đang tạo hóa đơn...</div>');
+    
+    fetch(`/admin/orders/${order.id}/print-html`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Xóa nội dung cũ
+            printWindow.document.open();
+            printWindow.document.write(data.html.trim()); // Dùng trim() để loại bỏ khoảng trắng
+            printWindow.document.close();
+            printWindow.focus();
+            
+            // Đợi một chút rồi in
+            setTimeout(() => {
+                printWindow.print();
+            }, 300);
+        } else {
+            printWindow.document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:18px;color:red;font-family:Arial,sans-serif;">Có lỗi xảy ra khi tạo nội dung in</div>');
+        }
+    })
+    .catch(error => {
+        console.error('Print error:', error);
+        printWindow.document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-size:18px;color:red;font-family:Arial,sans-serif;">Có lỗi xảy ra khi in đơn hàng</div>');
+    });
+};
+// ========== KẾT THÚC CHỨC NĂNG IN ==========
+
 const changeActiveType = (typeValue) => {
     if (activeType.value === typeValue) return;
     activeType.value = typeValue;
@@ -439,6 +482,7 @@ const exportFilteredOrders = () => {
                                         Xem chi tiết
                                     </button>
                                     <button
+                                        @click="printOrder(order)"
                                         class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors font-medium"
                                         title="In đơn hàng"
                                     >

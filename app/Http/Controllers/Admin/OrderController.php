@@ -99,9 +99,8 @@ class OrderController extends Controller
             $totalAmount = (int) $validated['total_amount'];
             $discountAmount = (int) ($validated['discount_amount'] ?? 0);
             $promoCode = $validated['promo_code'] ?? null;
-            $finalAmount = $totalAmount; // shipping fee = 0
+            $finalAmount = $totalAmount;
 
-            // ============ TÌM CAMPAIGN ID CHO PRE-ORDER ============
             $campaignId = null;
             if ($orderType === 'preorder') {
                 foreach ($validated['items'] as $item) {
@@ -126,7 +125,6 @@ class OrderController extends Controller
 
             DB::beginTransaction();
 
-            // Tạo đơn hàng
             $order = Order::create([
                 'user_id'          => $userId,
                 'order_code'       => $orderType,
@@ -146,15 +144,13 @@ class OrderController extends Controller
                 'deposit_amount'   => $validated['deposit_amount'] ?? 0,
                 'remaining_amount' => $validated['remaining_amount'] ?? 0,
                 'payment_status'   => $validated['payment_status'] ?? 'pending',
-                'order_status'     => 0, // Pending
+                'order_status'     => 0,
             ]);
 
-            // ===== TẠO MÃ ĐƠN HÀNG DUY NHẤT =====
             $orderNumber = $this->generateOrderNumber($order);
             $order->order_number = $orderNumber;
             $order->save();
 
-            // Cập nhật lượt sử dụng voucher
             if ($promoCode) {
                 $voucher = Campaign::where('code', $promoCode)->where('type', 'voucher')->first();
                 if ($voucher) {
@@ -164,7 +160,6 @@ class OrderController extends Controller
 
             $productIds = [];
 
-            // Tạo chi tiết đơn hàng
             foreach ($validated['items'] as $item) {
                 $variant = ProductVariant::with('product')->find($item['id']);
                 $quantity = (int) $item['quantity'];
@@ -183,7 +178,6 @@ class OrderController extends Controller
                     $productIds[] = $variant->product->id;
                 }
 
-                // Trừ stock cho retail
                 if ($orderType === 'retail') {
                     if ($variant->stock < $quantity) {
                         throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
@@ -193,7 +187,6 @@ class OrderController extends Controller
                 }
             }
 
-            // Xử lý pre-order: cập nhật current_buyers và sale_price
             if ($orderType === 'preorder') {
                 $productIds = array_unique($productIds);
                 foreach ($productIds as $productId) {
@@ -218,7 +211,6 @@ class OrderController extends Controller
                 }
             }
 
-            // Tạo thanh toán
             Payment::create([
                 'order_id'          => $order->id,
                 'transaction_code'  => 'PAY-' . $order->id . '-' . time(),
@@ -247,9 +239,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Tạo mã đơn hàng duy nhất (không trùng)
-     */
     private function generateOrderNumber($order)
     {
         $prefix = match($order->order_code) {
@@ -259,16 +248,11 @@ class OrderController extends Controller
             default     => 'DH',
         };
         $date = now()->format('dmY');
-        
-        // Lấy số thứ tự dựa trên ID (đã được auto increment)
         $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
-        
         $code = $prefix . $date . $sequence;
         
-        // Kiểm tra xem mã đã tồn tại chưa (phòng trường hợp trùng do tạo nhanh)
         $existing = Order::where('order_number', $code)->exists();
         if ($existing) {
-            // Nếu trùng, thêm random suffix
             $suffix = rand(10, 99);
             $code = $prefix . $date . $sequence . $suffix;
         }
@@ -276,9 +260,6 @@ class OrderController extends Controller
         return $code;
     }
 
-    /**
-     * Danh sách đơn hàng theo loại
-     */
     public function index($type = 'retail')
     {
         $validTypes = ['retail', 'wholesale', 'preorder'];
@@ -328,6 +309,7 @@ class OrderController extends Controller
                     'display_code'    => $order->order_number,
                     'customer'        => $order->customer_name ?? $order->receiver_name,
                     'customer_phone'  => $order->customer_phone ?? $order->receiver_phone,
+                    'customer_email'  => $order->customer_email ?? 'N/A',
                     'receiver'        => $order->receiver_name,
                     'receiver_phone'  => $order->receiver_phone,
                     'date'            => $order->created_at->format('d/m/Y'),
@@ -359,9 +341,6 @@ class OrderController extends Controller
         ]);
     }
 
-    /**
-     * Chi tiết đơn hàng
-     */
     public function show($id)
     {
         $order = Order::with(['details.productVariant.product', 'payment'])->findOrFail($id);
@@ -417,9 +396,6 @@ class OrderController extends Controller
         ]);
     }
 
-    /**
-     * Cập nhật trạng thái đơn hàng
-     */
     public function updateStatus($id, Request $request)
     {
         try {
@@ -441,9 +417,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Sinh mã hiển thị cho đơn hàng (ưu tiên order_number)
-     */
     public function generateOrderDisplayCode($order)
     {
         if (is_numeric($order)) {
@@ -456,9 +429,6 @@ class OrderController extends Controller
         return $order->order_number ?? $this->fallbackOrderCode($order);
     }
 
-    /**
-     * Fallback cho đơn hàng cũ (chỉ khi chưa có order_number)
-     */
     private function fallbackOrderCode($order)
     {
         $prefix = match($order->order_code) {
@@ -469,6 +439,217 @@ class OrderController extends Controller
         };
         return $prefix . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * ==========================================
+     * CHỨC NĂNG IN ĐƠN HÀNG
+     * ==========================================
+     */
+    public function printOrderHtml($id)
+    {
+        try {
+            // Xóa tất cả output buffer
+            if (ob_get_length()) {
+                ob_clean();
+            }
+            
+            $order = Order::with([
+                'details.productVariant.product',
+                'details.productVariant.color',
+                'payment',
+                'user'
+            ])->findOrFail($id);
+
+            $html = $this->generatePrintHtml($order);
+
+            // Trả về response với content-type là text/html
+            return response()->json([
+                'success' => true,
+                'html' => $html
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Print order HTML error: ' . $e->getMessage(), [
+                'order_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi in đơn hàng: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function generatePrintHtml($order)
+    {
+        // Bắt đầu output buffer
+        ob_start();
+        
+        $displayCode = $this->generateOrderDisplayCode($order);
+        
+        $email = $order->customer_email;
+        if (empty($email) || $email === 'N/A') {
+            $email = $order->user?->email ?? 'N/A';
+        }
+
+        $detailsHtml = '';
+        foreach ($order->details as $detail) {
+            $variant = $detail->productVariant;
+            $product = $variant ? $variant->product : null;
+            $productName = $product ? $product->name : 'Sản phẩm không xác định';
+            
+            $detailsHtml .= '<tr>
+                <td style="padding: 8px 12px; border: 1px solid #ddd;">' . $productName . '</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center;">' . $detail->quantity . '</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: right;">' . number_format($detail->unit_price) . '₫</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: right;">' . number_format($detail->subtotal) . '₫</td>
+            </tr>';
+        }
+
+        $statusBadge = [
+            'pending' => 'badge-pending',
+            'processing' => 'badge-processing',
+            'shipping' => 'badge-shipping',
+            'completed' => 'badge-completed',
+            'cancelled' => 'badge-cancelled'
+        ];
+        $statusClass = $statusBadge[$order->status_text] ?? 'badge-pending';
+
+        $paymentMethod = 'COD';
+        if ($order->payment) {
+            $method = $order->payment->payment_method;
+            $paymentMethod = match($method) {
+                'bank_transfer' => 'Chuyển khoản ngân hàng',
+                'ewallet' => 'Ví điện tử',
+                'vnpay' => 'VNPay',
+                'momo' => 'MoMo',
+                'payos' => 'PayOS',
+                default => 'COD'
+            };
+        }
+
+        $paymentStatus = 'Chờ thanh toán';
+        if ($order->payment) {
+            $status = $order->payment->status;
+            $paymentStatus = match($status) {
+                'paid' => 'Đã thanh toán',
+                'failed' => 'Thanh toán thất bại',
+                'refunded' => 'Đã hoàn tiền',
+                'pending' => 'Chờ thanh toán',
+                default => $status
+            };
+        }
+
+        // Tạo HTML hoàn chỉnh, KHÔNG có khoảng trắng trước DOCTYPE
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đơn hàng #' . $displayCode . '</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#333}
+h1{color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:10px;margin-bottom:20px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0}
+.info-box{background:#f9fafb;padding:15px;border-radius:8px}
+.info-box h3{margin:0 0 10px 0;color:#6b7280;font-size:14px;text-transform:uppercase}
+.info-box p{margin:5px 0;font-size:14px}
+table{width:100%;border-collapse:collapse;margin:20px 0}
+th{background:#f9fafb;text-align:left;padding:10px 12px;border:1px solid #ddd}
+td{padding:8px 12px;border:1px solid #ddd}
+.footer{margin-top:40px;text-align:center;color:#6b7280;font-size:12px;border-top:1px solid #ddd;padding-top:20px}
+.badge{display:inline-block;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:bold}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-processing{background:#dbeafe;color:#1e40af}
+.badge-shipping{background:#f3e8ff;color:#6b21a8}
+.badge-completed{background:#d1fae5;color:#065f46}
+.badge-cancelled{background:#fee2e2;color:#991b1b}
+.text-center{text-align:center}
+.text-right{text-align:right}
+.font-bold{font-weight:bold}
+.text-red{color:red}
+</style>
+</head>
+<body>
+<h1>HÓA ĐƠN ĐẶT HÀNG</h1>
+<p><strong>Mã đơn hàng:</strong> ' . $displayCode . '</p>
+<p><strong>Ngày đặt:</strong> ' . ($order->created_at ? date('d/m/Y H:i', strtotime($order->created_at)) : 'N/A') . '</p>
+<div class="info-grid">
+<div class="info-box">
+<h3>Thông tin người đặt</h3>
+<p><strong>Họ tên:</strong> ' . $order->customer_name . '</p>
+<p><strong>Email:</strong> ' . $email . '</p>
+<p><strong>SĐT:</strong> ' . $order->customer_phone . '</p>
+</div>
+<div class="info-box">
+<h3>Thông tin người nhận</h3>
+<p><strong>Họ tên:</strong> ' . $order->receiver_name . '</p>
+<p><strong>SĐT:</strong> ' . $order->receiver_phone . '</p>
+<p><strong>Địa chỉ:</strong> ' . $order->shipping_address . '</p>
+</div>
+</div>
+<h3>Danh sách sản phẩm</h3>
+<table>
+<thead>
+<tr>
+<th>Sản phẩm</th>
+<th style="text-align:center;">Số lượng</th>
+<th style="text-align:right;">Đơn giá</th>
+<th style="text-align:right;">Thành tiền</th>
+</tr>
+</thead>
+<tbody>' . $detailsHtml . '</tbody>
+<tfoot>
+<tr>
+<td colspan="3" style="text-align:right;font-weight:bold;">Tạm tính</td>
+<td style="text-align:right;">' . number_format($order->total_amount) . '₫</td>
+</tr>';
+
+        if ($order->shipping_fee > 0) {
+            $html .= '<tr>
+<td colspan="3" style="text-align:right;">Phí vận chuyển</td>
+<td style="text-align:right;">' . number_format($order->shipping_fee) . '₫</td>
+</tr>';
+        }
+
+        if ($order->discount_amount > 0) {
+            $html .= '<tr>
+<td colspan="3" style="text-align:right;">Giảm giá</td>
+<td style="text-align:right;color:red;">-' . number_format($order->discount_amount) . '₫</td>
+</tr>';
+        }
+
+        $html .= '<tr>
+<td colspan="3" style="text-align:right;font-weight:bold;font-size:18px;">Tổng cộng</td>
+<td style="text-align:right;font-weight:bold;font-size:18px;color:#1a56db;">' . number_format($order->final_amount) . '₫</td>
+</tr>
+</tfoot>
+</table>
+<div style="margin-top:20px;">
+<p><strong>Trạng thái:</strong> <span class="badge ' . $statusClass . '">' . $order->status_label . '</span></p>
+<p><strong>Phương thức thanh toán:</strong> ' . $paymentMethod . '</p>
+<p><strong>Trạng thái thanh toán:</strong> ' . $paymentStatus . '</p>
+</div>';
+
+        if ($order->note) {
+            $html .= '<p><strong>Ghi chú:</strong> ' . $order->note . '</p>';
+        }
+
+        $html .= '<div class="footer">
+<p>Cảm ơn bạn đã mua hàng tại BigBag!</p>
+<p>Hotline: 1900 1234 | Email: support@bigbag.vn</p>
+<p style="font-size:10px;color:#9ca3af;">Hóa đơn được tạo tự động</p>
+</div>
+</body>
+</html>';
+
+        // Xóa output buffer và trả về HTML
+        ob_end_clean();
+        
+        return $html;
+    }
+
 
     /* -------------------- EXPORT -------------------- */
 
@@ -537,9 +718,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Format dữ liệu đơn hàng cho xuất Excel
-     */
     protected function formatOrderForExport($order)
     {
         $products = $order->details->map(function ($detail) {
