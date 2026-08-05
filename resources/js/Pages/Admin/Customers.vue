@@ -21,7 +21,6 @@ const props = defineProps({
 const search = ref('');
 const activeType = ref(['retail', 'wholesale', 'preorder', 'all'].includes(props.type) ? props.type : 'all');
 
-// Pagination - 5 items per page
 const currentPage = ref(1);
 const perPage = ref(5);
 
@@ -38,7 +37,6 @@ const customerOrders = ref([]);
 const detailLoading = ref(false);
 const errorMessage = ref('');
 
-// Lấy danh sách khách hàng từ props
 const customersList = computed(() => {
     if (!props.customers || !props.customers.data || !Array.isArray(props.customers.data)) {
         return [];
@@ -46,7 +44,6 @@ const customersList = computed(() => {
     return props.customers.data;
 });
 
-// Lọc khách hàng theo tên hoặc số điện thoại (client-side)
 const filteredCustomers = computed(() => {
     if (!customersList.value || customersList.value.length === 0) return [];
     if (!search.value) return customersList.value;
@@ -59,7 +56,6 @@ const filteredCustomers = computed(() => {
     });
 });
 
-// Pagination
 const paginatedCustomers = computed(() => {
     const start = (currentPage.value - 1) * perPage.value;
     const end = start + perPage.value;
@@ -70,7 +66,6 @@ const totalPages = computed(() => {
     return Math.ceil(filteredCustomers.value.length / perPage.value);
 });
 
-// Hiển thị số trang (tối đa 5 trang)
 const displayedPages = computed(() => {
     const total = totalPages.value;
     const current = currentPage.value;
@@ -90,7 +85,6 @@ const displayedPages = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
-// Reset về trang 1 khi tìm kiếm
 watch(search, () => {
     currentPage.value = 1;
 });
@@ -120,8 +114,7 @@ const viewDetail = async (customer) => {
     detailLoading.value = true;
     errorMessage.value = '';
     try {
-        // Gọi API với tham số type để lọc đơn hàng
-        const url = `/admin/customers/${encodeURIComponent(customer.phone)}?type=${activeType.value}`;
+        const url = `/admin/customers/${customer.phone}?type=${activeType.value}`;
         const response = await fetch(url);
         const data = await response.json();
         if (data && !data.error) {
@@ -147,8 +140,10 @@ const viewDetail = async (customer) => {
     }
 };
 
+// HÀM EXPORT - SỬ DỤNG GET VỚI TYPE HIỆN TẠI
 const exportExcel = () => {
-    router.post('/admin/customers/export', { type: activeType.value });
+    const url = `/admin/customers/export?type=${activeType.value}`;
+    window.open(url, '_blank');
 };
 
 const changeActiveType = (typeValue) => {
@@ -163,7 +158,6 @@ const changeActiveType = (typeValue) => {
     });
 };
 
-// Khi props.type thay đổi, cập nhật activeType
 watch(() => props.type, (newType) => {
     if (newType && ['retail', 'wholesale', 'preorder', 'all'].includes(newType)) {
         activeType.value = newType;
@@ -264,14 +258,12 @@ watch(() => props.type, (newType) => {
                     </table>
                 </div>
                 
-                <!-- Footer với phân trang căn giữa -->
+                <!-- Footer với phân trang -->
                 <div class="p-4 border-t border-gray-200">
-                    <!-- Thông tin số lượng -->
                     <div class="text-center text-sm text-gray-500 mb-3">
                         Hiển thị {{ paginatedCustomers.length }} / {{ filteredCustomers.length }} khách hàng
                     </div>
                     
-                    <!-- Phân trang căn giữa -->
                     <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
                         <button
                             @click="currentPage--"
@@ -332,7 +324,6 @@ watch(() => props.type, (newType) => {
                 </div>
                 
                 <div v-else-if="selectedCustomer" class="space-y-4">
-                    <!-- Avatar & tên -->
                     <div class="flex items-center gap-4 pb-4 border-b">
                         <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-2xl font-bold text-orange-600 flex-shrink-0">
                             {{ selectedCustomer.name ? selectedCustomer.name.charAt(0).toUpperCase() : '?' }}
@@ -343,7 +334,6 @@ watch(() => props.type, (newType) => {
                         </div>
                     </div>
                     
-                    <!-- Thông tin tổng quan -->
                     <div class="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg">
                         <div>
                             <p class="text-xs text-gray-500">Địa chỉ</p>
@@ -363,7 +353,6 @@ watch(() => props.type, (newType) => {
                         </div>
                     </div>
                     
-                    <!-- Lịch sử đơn hàng -->
                     <div>
                         <h5 class="font-semibold text-gray-800 mb-2">📦 Lịch sử đơn hàng</h5>
                         <div class="space-y-2 max-h-64 overflow-y-auto">

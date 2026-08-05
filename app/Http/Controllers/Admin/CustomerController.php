@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Exports\MultiSheetCustomersExport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
 {
@@ -15,7 +18,6 @@ class CustomerController extends Controller
     {
         $type = $request->get('type', 'retail');
 
-        // Xác định danh sách order_code dựa trên type
         $orderCodes = match ($type) {
             'retail'    => ['retail'],
             'wholesale' => ['wholesale'],
@@ -53,6 +55,18 @@ class CustomerController extends Controller
         $customers = $query->paginate(15);
 
         $customers->getCollection()->transform(function ($item) {
+            $orderTypes = Order::where('customer_phone', $item->customer_phone)
+                ->distinct('order_code')
+                ->pluck('order_code')
+                ->toArray();
+            
+            $type = 'retail';
+            if (in_array('preorder', $orderTypes)) {
+                $type = 'preorder';
+            } elseif (in_array('wholesale', $orderTypes)) {
+                $type = 'wholesale';
+            }
+            
             return [
                 'phone'           => $item->customer_phone ?? '',
                 'name'            => $item->name ?? 'Khách hàng',
@@ -61,10 +75,10 @@ class CustomerController extends Controller
                 'orders_count'    => (int) ($item->orders_count ?? 0),
                 'total_spent'     => (float) ($item->total_spent ?? 0),
                 'join_date'       => $item->join_date ? Carbon::parse($item->join_date)->format('d/m/Y') : null,
+                'type'            => $type,
             ];
         });
 
-        // Đếm số lượng khách hàng theo từng loại
         $counts = [
             'all'       => Order::whereNotNull('customer_phone')->distinct('customer_phone')->count('customer_phone'),
             'retail'    => Order::whereNotNull('customer_phone')->where('order_code', 'retail')->distinct('customer_phone')->count('customer_phone'),
@@ -75,7 +89,7 @@ class CustomerController extends Controller
         return Inertia::render('Admin/Customers', [
             'customers' => $customers,
             'type'      => $type,
-            'counts'    => $counts, // Thêm counts
+            'counts'    => $counts,
         ]);
     }
 
@@ -83,7 +97,6 @@ class CustomerController extends Controller
     {
         $type = $request->input('type', 'all');
 
-        // Xác định danh sách order_code dựa trên type
         $orderCodes = match ($type) {
             'retail'    => ['retail'],
             'wholesale' => ['wholesale'],
@@ -92,7 +105,6 @@ class CustomerController extends Controller
             default     => ['retail', 'wholesale', 'preorder'],
         };
 
-        // Lấy danh sách đơn hàng theo type
         $orders = Order::where('customer_phone', $phone)
             ->whereIn('order_code', $orderCodes)
             ->with('details')
@@ -137,7 +149,6 @@ class CustomerController extends Controller
         $totalSpent = $orders->sum('total_amount');
         $ordersCount = $orders->count();
 
-        // Lấy thông tin khách hàng (vẫn lấy từ tất cả đơn hàng, không phân biệt type)
         $customer = Order::where('customer_phone', $phone)
             ->select(
                 'customer_phone as phone',
@@ -165,8 +176,103 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * EXPORT CUSTOMERS - LỌC ĐÚNG THEO TAB
+     */
     public function export(Request $request)
     {
-        return back()->with('error', 'Tính năng đang phát triển');
+        try {
+            // Lấy type từ query parameter (GET)
+            $type = $request->query('type', 'all');
+
+            // Xác định order codes dựa trên type
+            $orderCodes = match ($type) {
+                'retail'    => ['retail'],
+                'wholesale' => ['wholesale'],
+                'preorder'  => ['preorder'],
+                'all'       => ['retail', 'wholesale', 'preorder'],
+                default     => ['retail', 'wholesale', 'preorder'],
+            };
+
+            // Lấy danh sách khách hàng dựa trên order codes
+            $customers = Order::select(
+                'customer_phone',
+                DB::raw('MAX(customer_name) as name'),
+                DB::raw('MAX(shipping_address) as address'),
+                DB::raw('MAX(created_at) as last_order_date'),
+                DB::raw('COUNT(*) as orders_count'),
+                DB::raw('SUM(
+                    COALESCE((SELECT SUM(subtotal) FROM order_details WHERE order_details.order_id = orders.id), 0)
+                    + COALESCE(shipping_fee, 0)
+                    - COALESCE(discount_amount, 0)
+                ) as total_spent'),
+                DB::raw('MIN(created_at) as join_date')
+            )
+                ->whereNotNull('customer_phone')
+                ->whereIn('order_code', $orderCodes)
+                ->groupBy('customer_phone')
+                ->orderByDesc('total_spent')
+                ->get();
+
+            if ($customers->isEmpty()) {
+                $typeLabel = match ($type) {
+                    'retail' => 'bán lẻ',
+                    'wholesale' => 'doanh nghiệp',
+                    'preorder' => 'pre-order',
+                    'all' => '',
+                    default => '',
+                };
+                return back()->with('error', 'Không có khách hàng ' . $typeLabel . ' nào để xuất');
+            }
+
+            // Format dữ liệu khách hàng
+            $formattedCustomers = $customers->map(function ($item) {
+                // Lấy tất cả loại đơn hàng của khách hàng này
+                $allOrderTypes = Order::where('customer_phone', $item->customer_phone)
+                    ->distinct('order_code')
+                    ->pluck('order_code')
+                    ->toArray();
+                
+                // Xác định loại khách hàng chính
+                $customerType = 'retail';
+                if (in_array('preorder', $allOrderTypes)) {
+                    $customerType = 'preorder';
+                } elseif (in_array('wholesale', $allOrderTypes)) {
+                    $customerType = 'wholesale';
+                }
+
+                return [
+                    'phone' => $item->customer_phone ?? '',
+                    'name' => $item->name ?? 'Khách hàng',
+                    'address' => $item->address ?? '',
+                    'last_order_date' => $item->last_order_date ? Carbon::parse($item->last_order_date)->format('d/m/Y') : '',
+                    'orders_count' => (int) ($item->orders_count ?? 0),
+                    'total_spent' => (float) ($item->total_spent ?? 0),
+                    'join_date' => $item->join_date ? Carbon::parse($item->join_date)->format('d/m/Y') : '',
+                    'type' => $customerType,
+                ];
+            });
+
+            // Tạo export với dữ liệu đã format
+            $export = new MultiSheetCustomersExport($type, $formattedCustomers);
+
+            // Tạo tên file dựa trên type
+            $typeLabels = [
+                'all' => 'tat_ca',
+                'retail' => 'khach_le',
+                'wholesale' => 'khach_doanh_nghiep',
+                'preorder' => 'preorder'
+            ];
+            $typeLabel = $typeLabels[$type] ?? 'khach_hang';
+
+            // Trả về file download
+            return Excel::download($export, now()->format('Ymd') . '_danh_sach_khach_hang_' . $typeLabel . '.xlsx');
+
+        } catch (\Exception $e) {
+            Log::error('Export customers error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Có lỗi xảy ra khi xuất file: ' . $e->getMessage());
+        }
     }
 }
