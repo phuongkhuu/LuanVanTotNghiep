@@ -304,7 +304,6 @@ if (requests.value.length === 0) {
                     @click="openQuoteModal()" 
                     class="bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-green-800 transition-colors"
                 >
-                    <span class="material-symbols-outlined text-lg">request_quote</span>
                     Tạo báo giá
                 </button>
             </div>

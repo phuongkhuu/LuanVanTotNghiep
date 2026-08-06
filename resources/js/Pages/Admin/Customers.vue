@@ -25,10 +25,10 @@ const currentPage = ref(1);
 const perPage = ref(5);
 
 const customerTypes = [
-    { value: 'all', label: 'Tất cả', icon: '👥' },
-    { value: 'retail', label: 'Khách lẻ', icon: '👤' },
-    { value: 'wholesale', label: 'Khách doanh nghiệp', icon: '🏢' },
-    { value: 'preorder', label: 'Pre-order', icon: '⏳' }
+    { value: 'all', label: 'Tất cả' },
+    { value: 'retail', label: 'Khách lẻ' },
+    { value: 'wholesale', label: 'Khách doanh nghiệp' },
+    { value: 'preorder', label: 'Pre-order'}
 ];
 
 const showDetailModal = ref(false);

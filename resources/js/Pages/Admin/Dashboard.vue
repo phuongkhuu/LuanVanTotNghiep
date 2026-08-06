@@ -3,39 +3,27 @@ import { ref, onMounted, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, Link, usePage, router } from '@inertiajs/vue3';
 
-// Nhận props từ controller
 const props = defineProps({
-    stats: Object,          // { todayRevenue: { retail, wholesale, preorder }, totalOrders, totalCustomers, lowStockProducts }
-    growth: Object,         // { retail, wholesale, preorder }
+    stats: Object,
+    growth: Object,
     recentOrders: Array,
     topRetail: Array,
     topWholesale: Array,
     topPreorder: Array,
-    chartWeek: Object,      // { labels, retail, wholesale, preorder }
-    chartMonth: Object,     // { labels, retail, wholesale, preorder }
-    currentPeriod: String,  // 'week' or 'month'
+    chartWeek: Object,
+    chartMonth: Object,
+    currentPeriod: String,
 });
 
 const page = usePage();
-
-// Period state
 const selectedPeriod = ref(props.currentPeriod || 'week');
 let revenueChart = null;
 
-// Format currency
 const formatPrice = (value) => {
-    if (!value && value !== 0) return '0₫';
-    return value.toLocaleString('vi-VN') + '₫';
+    if (value === undefined || value === null || isNaN(value)) return '0₫';
+    return new Intl.NumberFormat('vi-VN').format(value) + '₫';
 };
 
-// Format growth with sign
-const formatGrowth = (value) => {
-    if (value > 0) return `↑ +${value}% so với hôm qua`;
-    if (value < 0) return `↓ ${value}% so với hôm qua`;
-    return '0% so với hôm qua';
-};
-
-// Khởi tạo biểu đồ với dữ liệu từ props
 const initChart = () => {
     const canvas = document.getElementById('revenueByTypeChart');
     if (!canvas) return;
@@ -43,15 +31,17 @@ const initChart = () => {
     const ctx = canvas.getContext('2d');
     if (revenueChart) revenueChart.destroy();
     
-    // Lấy dữ liệu tương ứng với period
     const data = selectedPeriod.value === 'week' ? props.chartWeek : props.chartMonth;
-    
-    // Nếu không có dữ liệu, dùng mảng rỗng
     const labels = data?.labels || [];
     const retail = data?.retail || [];
     const wholesale = data?.wholesale || [];
     const preorder = data?.preorder || [];
     
+    // Sử dụng phông chữ Inter mặc định của hệ thống hoặc Tailwind
+    const chartFont = {
+        family: "Inter, ui-sans-serif, system-ui, -apple-system, sans-serif"
+    };
+
     revenueChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -60,38 +50,51 @@ const initChart = () => {
                 { 
                     label: 'Bán lẻ', 
                     data: retail, 
-                    backgroundColor: '#f97316', 
+                    backgroundColor: '#ea580c', 
                     borderRadius: 6,
-                    barPercentage: 0.7
+                    barPercentage: 0.55
                 },
                 { 
                     label: 'Bán sỉ', 
                     data: wholesale, 
-                    backgroundColor: '#436651', 
+                    backgroundColor: '#059669', 
                     borderRadius: 6,
-                    barPercentage: 0.7
+                    barPercentage: 0.55
                 },
                 { 
                     label: 'Pre-order', 
                     data: preorder, 
-                    backgroundColor: '#f59e0b', 
+                    backgroundColor: '#d97706', 
                     borderRadius: 6,
-                    barPercentage: 0.7
+                    barPercentage: 0.55
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: { 
                 legend: { 
                     position: 'top',
-                    labels: { font: { size: 12 } }
+                    align: 'end',
+                    labels: { 
+                        font: { ...chartFont, size: 12, weight: '500' }, 
+                        padding: 16,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 8
+                    }
                 },
                 tooltip: {
+                    backgroundColor: '#0f172a',
+                    titleFont: { ...chartFont, size: 12, weight: 'bold' },
+                    bodyFont: { ...chartFont, size: 12 },
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: true,
                     callbacks: {
                         label: function(context) {
-                            return context.dataset.label + ': ' + context.raw.toFixed(1) + ' triệu ₫';
+                            return ` ${context.dataset.label}: ${context.raw.toFixed(1)} triệu ₫`;
                         }
                     }
                 }
@@ -99,36 +102,34 @@ const initChart = () => {
             scales: { 
                 y: { 
                     beginAtZero: true, 
-                    title: { display: true, text: 'Doanh thu (triệu ₫)', font: { size: 11 } },
-                    grid: { color: '#e5e7eb' }
+                    title: { display: true, text: 'Đơn vị: Triệu ₫', font: { ...chartFont, size: 11, weight: '500' }, color: '#64748b' },
+                    grid: { color: '#f1f5f9' },
+                    border: { dash: [4, 4] },
+                    ticks: { font: { ...chartFont, size: 11 }, color: '#64748b' }
                 },
                 x: { 
                     grid: { display: false },
-                    ticks: { font: { size: 11 } }
+                    ticks: { font: { ...chartFont, size: 11 }, color: '#64748b' }
                 }
             }
         }
     });
 };
 
-// Xử lý khi đổi period: gọi lại controller để lấy dữ liệu mới
 const handlePeriodChange = () => {
     router.visit(route('admin.dashboard'), {
         method: 'get',
         data: { period: selectedPeriod.value },
         preserveScroll: true,
         preserveState: true,
-        only: ['chartWeek', 'chartMonth', 'currentPeriod'], // Chỉ cập nhật các props liên quan đến chart
+        only: ['chartWeek', 'chartMonth', 'currentPeriod'],
         onSuccess: () => {
-            // Sau khi cập nhật props, khởi tạo lại biểu đồ
             initChart();
         }
     });
 };
 
-// Theo dõi props thay đổi (khi có Inertia reload)
 watch(() => [props.chartWeek, props.chartMonth, props.currentPeriod], () => {
-    // Cập nhật selectedPeriod nếu currentPeriod thay đổi
     if (props.currentPeriod && props.currentPeriod !== selectedPeriod.value) {
         selectedPeriod.value = props.currentPeriod;
     }
@@ -144,160 +145,172 @@ onMounted(() => {
     <Head title="Dashboard - BigBag Admin" />
     
     <AdminLayout>
-        <div class="p-5">
-            <!-- Welcome -->
-            <div class="mb-6">
-                <h1 class="text-xl font-semibold text-gray-800">Chào mừng trở lại, Admin</h1>
-            </div>
-
-            <!-- Stats Cards - 3 loại hình bán hàng -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-                <!-- Bán lẻ -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium">Bán lẻ hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.retail) }}</p>
-                        <p class="text-xs" :class="growth.retail >= 0 ? 'text-green-600' : 'text-red-600'">
-                            {{ formatGrowth(growth.retail) }}
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Bán sỉ -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium">Bán sỉ hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.wholesale) }}</p>
-                        <p class="text-xs" :class="growth.wholesale >= 0 ? 'text-green-600' : 'text-red-600'">
-                            {{ formatGrowth(growth.wholesale) }}
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Pre-order -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium">Pre-order hôm nay</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(stats.todayRevenue.preorder) }}</p>
-                        <p class="text-xs" :class="growth.preorder >= 0 ? 'text-green-600' : 'text-red-600'">
-                            {{ formatGrowth(growth.preorder) }}
-                        </p>
-                    </div>
+        <!-- Font chữ Inter mặc định được Tailwind áp dụng cho toàn bộ page -->
+        <div class="p-4 md:p-6 space-y-6 bg-slate-50/50 min-h-screen">
+            <!-- Header Welcome -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-1 border-b border-gray-200 pb-4 mb-6">
+                <div>
+                    <!-- Font-size và font-weight tương đồng với page tham khảo -->
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">Chào mừng trở lại, Admin</h1>
                 </div>
             </div>
 
-            <!-- Thêm các thông số tổng quan (tùy chọn) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium">Tổng đơn hàng</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.totalOrders }}</p>
+            <!-- Stats Cards - 6 thẻ chỉ số -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 mb-6">
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <!-- Text style tương đồng với "MÃ ĐƠN", "NGƯỜI ĐẶT" của page tham khảo -->
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Bán lẻ</p>
+                    <!-- Font chữ số được cân bằng lại, không quá to và không dùng font-mono -->
+                    <p class="text-lg font-bold text-gray-800 my-1.5 tracking-tight tabular-nums">{{ formatPrice(stats.todayRevenue.retail) }}</p>
                 </div>
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium">Tổng khách hàng</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.totalCustomers }}</p>
+
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Bán sỉ</p>
+                    <p class="text-lg font-bold text-gray-800 my-1.5 tracking-tight tabular-nums">{{ formatPrice(stats.todayRevenue.wholesale) }}</p>
                 </div>
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium">Sản phẩm tồn kho thấp</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-2">{{ stats.lowStockProducts }}</p>
+
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Pre-order</p>
+                    <p class="text-lg font-bold text-gray-800 my-1.5 tracking-tight tabular-nums">{{ formatPrice(stats.todayRevenue.preorder) }}</p>
+                </div>
+
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Đơn hàng</p>
+                    <!-- Số lượng đơn hàng cũng được cân bằng font-size -->
+                    <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ stats.totalOrders }}</p>
+                </div>
+
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Khách hàng</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1 tabular-nums">{{ stats.totalCustomers }}</p>
+                </div>
+
+                <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                    <p class="text-[11px] text-gray-600 font-semibold uppercase tracking-wider">Tồn kho thấp</p>
+                    <p class="text-2xl font-bold text-amber-600 mt-1 tabular-nums">{{ stats.lowStockProducts }}</p>
                 </div>
             </div>
 
             <!-- Charts & Recent Orders -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-semibold text-gray-800">Doanh thu theo loại hình</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-6">
+                <!-- Biểu đồ doanh thu (3 cột) -->
+                <div class="lg:col-span-3 bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800">Doanh thu theo loại hình</h3>
+                            <p class="text-[11px] text-gray-500">Thống kê phân bỏ doanh thu kinh doanh</p>
+                        </div>
                         <select 
                             v-model="selectedPeriod" 
                             @change="handlePeriodChange"
-                            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-gray-400"
+                            class="text-xs border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer"
                         >
                             <option value="week">7 ngày qua</option>
                             <option value="month">4 tuần qua</option>
                         </select>
                     </div>
-                    <canvas id="revenueByTypeChart" style="height: 280px; width: 100%;"></canvas>
+                    <div class="relative w-full h-[240px]">
+                        <canvas id="revenueByTypeChart"></canvas>
+                    </div>
                 </div>
                 
-                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-semibold text-gray-800">Đơn hàng gần đây</h3>
-                        <Link :href="route('admin.orders.index')" class="text-sm text-orange-600 hover:underline">Xem tất cả →</Link>
+                <!-- Đơn hàng gần đây (2 cột) -->
+                <div class="lg:col-span-2 bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800">Đơn hàng gần đây</h3>
+                            <p class="text-[11px] text-gray-500">Cập nhật danh sách đơn mới</p>
+                        </div>
+                        <!-- Link style tương đồng với "Xem chi tiết" của page tham khảo -->
+                        <Link :href="route('admin.orders.index')" class="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors">
+                            Xem tất cả &rarr;
+                        </Link>
                     </div>
 
-                    <!-- Grid header -->
-                    <div class="grid grid-cols-[1.2fr_2fr_0.8fr_0.8fr] gap-2 px-2 py-1 text-xs font-semibold text-gray-400 border-b border-gray-100 mb-1">
-                        <span>Mã đơn</span>
-                        <span>Khách hàng</span>
-                        <span>Trạng thái</span>
-                        <span class="text-right">Tổng tiền</span>
-                    </div>
-
-                    <!-- Danh sách đơn hàng -->
-                    <div class="space-y-2">
+                    <div class="space-y-2 overflow-y-auto max-h-[240px] pr-1">
                         <div 
-                            v-for="order in recentOrders" 
+                            v-for="order in recentOrders.slice(0, 5)" 
                             :key="order.code" 
-                            class="grid grid-cols-[1.2fr_2fr_0.8fr_0.8fr] gap-2 items-center px-2 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                            class="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-orange-50/30 hover:border-orange-100 transition-all text-xs"
                         >
-                            <!-- Mã đơn -->
-                            <span class="text-sm font-medium text-gray-800 truncate">{{ order.code }}</span>
-
-                            <!-- Khách hàng - loại -->
-                            <div class="flex flex-col">
-                                <span class="text-sm text-gray-700 truncate">{{ order.customer }}</span>
-                                <span class="text-xs text-gray-400">{{ order.type }}</span>
+                            <div class="flex flex-col min-w-0 pr-2">
+                                <!-- Font-size và font-weight cho mã đơn tương đồng với page tham khảo -->
+                                <span class="font-medium text-gray-800 truncate text-[12px] tabular-nums">{{ order.code }}</span>
+                                <span class="text-gray-500 truncate text-[11px]">{{ order.customer }}</span>
                             </div>
-
-                            <!-- Trạng thái -->
-                            <span class="text-xs px-2 py-1 rounded-full text-center" :class="order.statusClass">
-                                {{ order.status }}
-                            </span>
-
-                            <!-- Số tiền (căn phải) -->
-                            <span class="text-sm font-semibold text-gray-800 text-right">{{ order.amount }}</span>
+                            <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                                <span class="font-semibold text-gray-800 text-[12px] tabular-nums">{{ order.amount }}</span>
+                                <!-- Status class style được kế thừa, tạo ra giao diện tương đồng với page tham khảo -->
+                                <span class="text-[10px] px-2.5 py-0.5 rounded-full font-medium tracking-tight border" :class="order.statusClass">
+                                    {{ order.status }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Top sản phẩm theo loại -->
+            <!-- Top Products - 3 Bảng xếp hạng -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                    <h3 class="font-semibold text-gray-800 mb-3">Top bán lẻ</h3>
-                    <div class="space-y-2">
-                        <div v-for="(p, idx) in topRetail" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
-                            <div class="flex items-center gap-2">
-                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
-                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                <!-- Top Bán Lẻ -->
+                <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs">
+                    <div class="mb-3 pb-2 border-b border-gray-200">
+                        <!-- Uppercase text style tương đồng với header bảng của page tham khảo -->
+                        <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Top bán lẻ</h3>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div v-for="(p, idx) in topRetail.slice(0, 4)" :key="idx" 
+                            class="flex justify-between items-center p-2 rounded-lg hover:bg-slate-50 transition-colors text-xs border-b border-gray-100 last:border-b-0">
+                            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                                <span class="w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center flex-shrink-0 tabular-nums"
+                                      :class="idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'">
+                                    {{ idx + 1 }}
+                                </span>
+                                <!-- Font-size và weight của tên SP tương đồng với page tham khảo -->
+                                <span class="text-gray-700 font-medium truncate text-[12px]">{{ p.name }}</span>
                             </div>
-                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
+                            <!-- Font-size và weight của con số bán được tương đồng với page tham khảo -->
+                            <span class="text-gray-800 font-semibold bg-gray-100 px-2 py-0.5 rounded text-[11px] flex-shrink-0 tabular-nums">{{ p.sold }} SP</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                    <h3 class="font-semibold text-gray-800 mb-3">Top bán sỉ</h3>
-                    <div class="space-y-2">
-                        <div v-for="(p, idx) in topWholesale" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
-                            <div class="flex items-center gap-2">
-                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
-                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                <!-- Top Bán Sỉ -->
+                <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs">
+                    <div class="mb-3 pb-2 border-b border-gray-200">
+                        <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Top bán sỉ</h3>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div v-for="(p, idx) in topWholesale.slice(0, 4)" :key="idx" 
+                            class="flex justify-between items-center p-2 rounded-lg hover:bg-slate-50 transition-colors text-xs border-b border-gray-100 last:border-b-0">
+                            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                                <span class="w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center flex-shrink-0 tabular-nums"
+                                      :class="idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'">
+                                    {{ idx + 1 }}
+                                </span>
+                                <span class="text-gray-700 font-medium truncate text-[12px]">{{ p.name }}</span>
                             </div>
-                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
+                            <span class="text-gray-800 font-semibold bg-gray-100 px-2 py-0.5 rounded text-[11px] flex-shrink-0 tabular-nums">{{ p.sold }} SP</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                    <h3 class="font-semibold text-gray-800 mb-3">Pre-order nổi bật</h3>
-                    <div class="space-y-2">
-                        <div v-for="(p, idx) in topPreorder" :key="idx" class="flex justify-between items-center py-2 border-b border-gray-100">
-                            <div class="flex items-center gap-2">
-                                <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium">{{ idx+1 }}</span>
-                                <span class="text-sm text-gray-700">{{ p.name }}</span>
+                <!-- Top Pre-order -->
+                <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs">
+                    <div class="mb-3 pb-2 border-b border-gray-200">
+                        <h3 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pre-order nổi bật</h3>
+                    </div>
+                    <div class="space-y-1.5">
+                        <div v-for="(p, idx) in topPreorder.slice(0, 4)" :key="idx" 
+                            class="flex justify-between items-center p-2 rounded-lg hover:bg-slate-50 transition-colors text-xs border-b border-gray-100 last:border-b-0">
+                            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                                <span class="w-5 h-5 rounded-md text-xs font-bold flex items-center justify-center flex-shrink-0 tabular-nums"
+                                      :class="idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'">
+                                    {{ idx + 1 }}
+                                </span>
+                                <span class="text-gray-700 font-medium truncate text-[12px]">{{ p.name }}</span>
                             </div>
-                            <span class="text-sm font-medium text-gray-800">{{ p.sold }} cái</span>
+                            <span class="text-gray-800 font-semibold bg-gray-100 px-2 py-0.5 rounded text-[11px] flex-shrink-0 tabular-nums">{{ p.sold }} SP</span>
                         </div>
                     </div>
                 </div>
@@ -305,3 +318,32 @@ onMounted(() => {
         </div>
     </AdminLayout>
 </template>
+
+<style scoped>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Kế thừa style scrollbar từ page tham khảo */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+</style>
