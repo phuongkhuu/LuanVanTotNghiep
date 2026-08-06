@@ -3,161 +3,222 @@
     <Head title="Tùy chỉnh sản phẩm - BigBag Premium Utility Carry Gear" />
     <AppHeader />
 
-    <main class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 bg-gray-50">
-      <div class="flex flex-col lg:flex-row gap-6">
-        <!-- Left Side: Customization Form -->
-        <section class="flex-1 space-y-6">
-          <div class="space-y-2">
-            <h1 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900">Tùy chỉnh sản phẩm</h1>
-            <p class="text-gray-600 text-sm">Cá nhân hóa chiếc balo của bạn với logo hoặc hình ảnh riêng biệt. Đội ngũ thiết kế của chúng tôi sẽ xem xét và phản hồi trong vòng 24h.</p>
-          </div>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-slate-50/50 min-h-[calc(100vh-80px)]">
+      <!-- Tiêu đề trang -->
+      <div class="mb-8">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Tùy chỉnh sản phẩm</h1>
+      </div>
 
-          <form class="space-y-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm" @submit.prevent="submitRequest">
-            <div v-if="message" class="p-3 rounded-lg text-sm text-center" :class="messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
-              {{ message }}
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Bên trái: Form Tùy Chỉnh (7 Cột) -->
+        <section class="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm space-y-6">
+          <form class="space-y-6" @submit.prevent="submitRequest">
+            <!-- Thông báo trạng thái -->
+            <transition name="fade">
+              <div 
+                v-if="message" 
+                class="p-4 rounded-xl text-sm font-medium flex items-center gap-3"
+                :class="messageType === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'"
+              >
+                <span class="material-symbols-outlined text-xl">
+                  {{ messageType === 'success' ? 'check_circle' : 'error' }}
+                </span>
+                <span>{{ message }}</span>
+              </div>
+            </transition>
+
+            <!-- Khối 1: Thông tin liên hệ -->
+            <div class="space-y-4">
+              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">1. Thông tin liên hệ</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Họ và tên <span class="text-rose-500">*</span></label>
+                  <input 
+                    v-model="form.fullName" 
+                    type="text" 
+                    required 
+                    placeholder="Nguyễn Văn A" 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border"
+                  >
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Email <span class="text-rose-500">*</span></label>
+                  <input 
+                    v-model="form.email" 
+                    type="email" 
+                    required 
+                    placeholder="email@example.com" 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border"
+                  >
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại <span class="text-rose-500">*</span></label>
+                  <input 
+                    v-model="form.phone" 
+                    type="tel" 
+                    required 
+                    placeholder="090 xxx xxxx" 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border"
+                  >
+                </div>
+              </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <hr class="border-gray-100" />
+
+            <!-- Khối 2: Tùy chỉnh vị trí & kích thước -->
+            <div class="space-y-4">
+              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">2. Thông số bản in</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Vị trí in <span class="text-rose-500">*</span></label>
+                  <select 
+                    v-model="form.position" 
+                    required 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border text-gray-700"
+                  >
+                    <option value="">-- Chọn vị trí --</option>
+                    <option value="front">Mặt trước</option>
+                    <option value="back">Mặt sau</option>
+                    <option value="side">Bên hông</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Kích thước in <span class="text-rose-500">*</span></label>
+                  <select 
+                    v-model="form.size" 
+                    required 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border text-gray-700"
+                  >
+                    <option value="">-- Chọn kích thước --</option>
+                    <option value="small">Nhỏ (S)</option>
+                    <option value="medium">Vừa (M)</option>
+                    <option value="large">Lớn (L)</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Họ và tên <span class="text-red-500">*</span></label>
-                <input class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50" placeholder="Nhập tên của bạn" type="text" v-model="form.fullName" required>
-              </div>
-              <div>
-                <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Email <span class="text-red-500">*</span></label>
-                <input class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50" placeholder="email@example.com" type="email" v-model="form.email" required>
-              </div>
-              <div class="md:col-span-2">
-                <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Số điện thoại <span class="text-red-500">*</span></label>
-                <input class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50" placeholder="090 xxx xxxx" type="tel" v-model="form.phone" required>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Ghi chú thiết kế</label>
+                <textarea 
+                  v-model="form.note" 
+                  rows="3" 
+                  placeholder="Mô tả chi tiết mong muốn (màu sắc, vị trí chính xác...)" 
+                  class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border resize-none"
+                ></textarea>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Vị trí in <span class="text-red-500">*</span></label>
-                <select class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50 text-gray-700" v-model="form.position" required>
-                  <option value="">Chọn vị trí</option>
-                  <option value="front">Mặt trước</option>
-                  <option value="back">Mặt sau</option>
-                  <option value="side">Bên hông</option>
-                </select>
+            <hr class="border-gray-100" />
+
+            <!-- Khối 3: Upload file -->
+            <div class="space-y-2">
+              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">3. Tải lên tệp thiết kế</h2>
+              <div 
+                class="border-2 border-dashed border-gray-200 rounded-xl p-5 hover:border-primary/50 hover:bg-slate-50/50 transition-all cursor-pointer text-center group"
+                @click="triggerFileUpload"
+              >
+                <span class="material-symbols-outlined text-3xl text-gray-400 group-hover:text-primary transition-colors mb-1">cloud_upload</span>
+                <p class="text-sm font-semibold text-gray-700">Tải tệp logo/hình ảnh</p>
+                <p class="text-xs text-gray-400 mt-0.5">PNG, JPG, AI, PDF (Tối đa 10MB)</p>
+                <input ref="fileInput" type="file" class="hidden" accept=".png,.jpg,.jpeg,.ai,.pdf" @change="handleFileUpload">
               </div>
-              <div>
-                <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Kích thước in <span class="text-red-500">*</span></label>
-                <select class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50 text-gray-700" v-model="form.size" required>
-                  <option value="">Chọn kích thước</option>
-                  <option value="small">Nhỏ (S)</option>
-                  <option value="medium">Vừa (M)</option>
-                  <option value="large">Lớn (L)</option>
-                </select>
+              <div v-if="uploadedFileName" class="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100">
+                <span class="material-symbols-outlined text-base">description</span>
+                <span class="font-medium truncate">{{ uploadedFileName }}</span>
               </div>
+              <p v-if="uploadError" class="text-xs text-rose-500 mt-1">{{ uploadError }}</p>
             </div>
 
-            <div>
-              <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Ghi chú</label>
-              <textarea class="w-full border border-gray-200 focus:border-primary focus:ring-0 rounded-lg p-3 bg-gray-50" placeholder="Nhập ghi chú hoặc yêu cầu chi tiết của bạn tại đây..." rows="4" v-model="form.note"></textarea>
-            </div>
-
-            <div>
-              <label class="font-semibold text-xs text-gray-600 px-1 uppercase tracking-wider">Tải lên Logo/Hình in</label>
-              <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer group hover:border-primary transition-colors" @click="triggerFileUpload">
-                <span class="material-symbols-outlined text-4xl text-gray-400 group-hover:text-primary transition-colors mb-2">cloud_upload</span>
-                <p class="font-semibold text-sm text-gray-700">Kéo và thả hoặc nhấp để tải lên</p>
-                <p class="text-xs text-gray-500 mt-1">PNG, JPG, AI, PDF (Tối đa 10MB)</p>
-                <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" accept=".png,.jpg,.jpeg,.ai,.pdf">
-              </div>
-              <p v-if="uploadedFileName" class="text-xs text-green-600 mt-2">Đã tải lên: {{ uploadedFileName }}</p>
-              <p v-if="uploadError" class="text-xs text-red-600 mt-2">{{ uploadError }}</p>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 pt-4">
-              <button class="flex-1 bg-primary text-white py-4 px-8 rounded-lg hover:bg-primary-dark transition-colors flex items-center justify-center gap-2" type="submit" :disabled="isSubmitting">
-                <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span v-else class="material-symbols-outlined">add_shopping_cart</span>
+            <!-- Nút hành động -->
+            <div class="pt-2 flex flex-col sm:flex-row gap-3">
+              <button 
+                type="submit" 
+                :disabled="isSubmitting"
+                class="flex-1 bg-gray-900 text-white font-semibold py-3 px-6 rounded-xl hover:bg-primary transition-colors flex items-center justify-center gap-2 text-sm shadow-sm disabled:opacity-50"
+              >
+                <span v-if="isSubmitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span v-else class="material-symbols-outlined text-lg">shopping_bag</span>
                 {{ isSubmitting ? 'Đang xử lý...' : 'Thêm vào giỏ hàng' }}
               </button>
-              <button class="flex-1 border border-gray-300 text-gray-700 py-4 px-8 rounded-lg hover:bg-gray-100 transition-all flex items-center justify-center gap-2" type="button" @click="saveDesign">
-                <span class="material-symbols-outlined">save</span> Lưu thiết kế
-              </button>
             </div>
-            <p class="text-xs text-gray-400 text-center">Sản phẩm sẽ được thêm vào giỏ hàng với phí in logo.</p>
           </form>
         </section>
 
-        <!-- Right Side: Product Info & Price Table -->
-        <aside class="flex-1 flex flex-col gap-4">
-          <!-- Product Image & Info -->
-          <div v-if="product" class="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-            <div class="aspect-square bg-gray-100 relative">
-              <img 
-                :src="product.image || '/images/default-product.jpg'" 
-                :alt="product.name || 'Sản phẩm'" 
-                class="w-full h-full object-cover"
-                @error="handleImageError"
-              >
-            </div>
-            <div class="p-4">
-              <div class="flex items-start justify-between">
-                <div>
-                  <p v-if="product.brand" class="text-xs text-gray-500 uppercase">{{ product.brand }}</p>
-                  <h3 class="font-bold text-lg text-gray-800">{{ product.name || 'Sản phẩm' }}</h3>
-                  <p v-if="product.category" class="text-xs text-gray-400">{{ product.category }}</p>
+        <!-- Bên phải: Thông tin sản phẩm & Bảng giá (5 Cột) -->
+        <aside class="lg:col-span-5 space-y-6">
+          <!-- Thông tin sản phẩm (Đã thiết kế lại với ảnh nhỏ gọn) -->
+          <div v-if="product" class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div class="flex gap-4 items-center">
+              <!-- Ảnh sản phẩm nhỏ gọn -->
+              <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
+                <img 
+                  :src="product.image || '/images/default-product.jpg'" 
+                  :alt="product.name || 'Sản phẩm'" 
+                  class="w-full h-full object-cover object-center"
+                  @error="handleImageError"
+                >
+              </div>
+
+              <!-- Thông tin cơ bản -->
+              <div class="flex-1 min-w-0 space-y-1">
+                <span v-if="product.brand" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ product.brand }}</span>
+                <h3 class="font-bold text-gray-900 text-base line-clamp-1" :title="product.name">{{ product.name || 'Sản phẩm' }}</h3>
+                <p v-if="product.category" class="text-xs text-gray-500">{{ product.category }}</p>
+                <div class="text-sm font-semibold text-gray-900 pt-1">
+                  Giá gốc: {{ formatPrice(product.price) }}
                 </div>
               </div>
-              <p v-if="product.description" class="text-sm text-gray-600 mt-2 line-clamp-2">{{ product.description }}</p>
+            </div>
+
+            <!-- Tính toán giá in ước tính khi user chọn thông số -->
+            <div v-if="calculatedPrintFee > 0" class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+              <span class="text-xs font-semibold text-gray-600">Phí in ước tính:</span>
+              <span class="text-sm font-bold text-primary">+ {{ formatPrice(calculatedPrintFee) }}</span>
             </div>
           </div>
 
-          <!-- No product selected -->
-          <div v-else class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center text-gray-400">
-            <span class="material-symbols-outlined text-6xl block mb-2">shopping_bag</span>
-            <p class="font-medium">Chưa có sản phẩm được chọn</p>
-            <p class="text-sm">Vui lòng chọn sản phẩm từ trang chi tiết</p>
-            <Link :href="route('home')" class="inline-block mt-3 text-primary hover:underline text-sm">Về trang chủ</Link>
+          <!-- Chưa chọn sản phẩm -->
+          <div v-else class="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm text-center text-gray-400">
+            <span class="material-symbols-outlined text-4xl mb-2 text-gray-300">work_off</span>
+            <p class="text-sm font-medium">Chưa có sản phẩm được chọn</p>
+            <Link :href="route('home')" class="mt-2 text-xs text-primary font-semibold hover:underline inline-block">Về danh mục sản phẩm</Link>
           </div>
 
-          <!-- Price Table (tính toán dựa trên giá sản phẩm) -->
-          <div v-if="product && product.price > 0" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <h3 class="font-bold text-lg text-gray-800 mb-3">Bảng giá tham khảo</h3>
+          <!-- Bảng giá tham khảo dịch vụ in -->
+          <div v-if="product && product.price > 0" class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
+            <h3 class="font-bold text-sm text-gray-900">Bảng giá in theo yêu cầu</h3>
             <div class="overflow-x-auto">
-              <table class="w-full text-sm">
+              <table class="w-full text-xs text-left">
                 <thead>
-                  <tr class="bg-gray-50 border-b border-gray-200">
-                    <th class="text-left py-2 px-3 font-semibold text-gray-600">Vị trí in</th>
-                    <th class="text-left py-2 px-3 font-semibold text-gray-600">Nhỏ (S)</th>
-                    <th class="text-left py-2 px-3 font-semibold text-gray-600">Vừa (M)</th>
-                    <th class="text-left py-2 px-3 font-semibold text-gray-600">Lớn (L)</th>
+                  <tr class="text-gray-400 border-b border-gray-100">
+                    <th class="pb-2 font-medium">Vị trí</th>
+                    <th class="pb-2 font-medium">S (Nhỏ)</th>
+                    <th class="pb-2 font-medium">M (Vừa)</th>
+                    <th class="pb-2 font-medium">L (Lớn)</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr class="border-b border-gray-100">
-                    <td class="py-2 px-3 font-medium text-gray-700">Mặt trước</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.1) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.15) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.2) }}</td>
-                  </tr>
-                  <tr class="border-b border-gray-100">
-                    <td class="py-2 px-3 font-medium text-gray-700">Mặt sau</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.12) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.18) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.25) }}</td>
+                <tbody class="divide-y divide-gray-50 text-gray-600">
+                  <tr>
+                    <td class="py-2.5 font-medium text-gray-800">Mặt trước</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.1) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.15) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.2) }}</td>
                   </tr>
                   <tr>
-                    <td class="py-2 px-3 font-medium text-gray-700">Bên hông</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.08) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.12) }}</td>
-                    <td class="py-2 px-3 text-gray-600">{{ formatPrice(product.price * 0.18) }}</td>
+                    <td class="py-2.5 font-medium text-gray-800">Mặt sau</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.12) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.18) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.25) }}</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 font-medium text-gray-800">Bên hông</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.08) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.12) }}</td>
+                    <td class="py-2.5">{{ formatPrice(product.price * 0.18) }}</td>
                   </tr>
                 </tbody>
               </table>
-            </div>
-            <div class="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-              <p class="text-xs text-amber-700">
-                * Giá in chưa bao gồm VAT và phí vận chuyển. Giá thực tế sẽ được cập nhật khi thêm vào giỏ hàng.
-              </p>
-              <p class="text-xs text-amber-700 mt-1">
-                * Số lượng càng lớn, chiết khấu càng cao. Liên hệ để được báo giá tốt nhất.
-              </p>
             </div>
           </div>
         </aside>
@@ -178,7 +239,6 @@ import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 import { useCart } from '@/utils/useCart'
 
-// Lấy dữ liệu từ page props
 const page = usePage()
 const props = defineProps({
   selectedProduct: {
@@ -189,18 +249,16 @@ const props = defineProps({
 
 const { addToCart } = useCart()
 
-// Ưu tiên dùng props, nếu không thì dùng page.props
 const product = computed(() => {
   return props.selectedProduct || page.props.selectedProduct || null
 })
 
-// Format price
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0₫'
   return new Intl.NumberFormat('vi-VN').format(Math.round(price)) + '₫'
 }
 
-// Form state
+// State Form
 const form = ref({
   fullName: '',
   email: '',
@@ -217,25 +275,36 @@ const isSubmitting = ref(false)
 const message = ref('')
 const messageType = ref('success')
 
-// Trigger file upload
+// Tính toán chi phí in tạm tính
+const calculatedPrintFee = computed(() => {
+  if (!product.value || !product.value.price || !form.value.position || !form.value.size) return 0
+  
+  const basePrice = product.value.price
+  const rateMap = {
+    front: { small: 0.1, medium: 0.15, large: 0.2 },
+    back: { small: 0.12, medium: 0.18, large: 0.25 },
+    side: { small: 0.08, medium: 0.12, large: 0.18 }
+  }
+
+  const rate = rateMap[form.value.position]?.[form.value.size] || 0
+  return basePrice * rate
+})
+
 const triggerFileUpload = () => {
   fileInput.value.click()
 }
 
-// Handle file upload
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
   uploadError.value = ''
   if (!file) return
 
-  // Validate file size (10MB)
   if (file.size > 10 * 1024 * 1024) {
     uploadError.value = 'File vượt quá 10MB. Vui lòng chọn file nhỏ hơn.'
     event.target.value = ''
     return
   }
 
-  // Validate file type
   const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf', 'application/postscript', 'image/ai']
   if (!allowedTypes.includes(file.type) && !file.name.match(/\.(png|jpg|jpeg|ai|pdf)$/i)) {
     uploadError.value = 'Định dạng file không hỗ trợ. Chấp nhận: PNG, JPG, AI, PDF.'
@@ -246,46 +315,35 @@ const handleFileUpload = (event) => {
   uploadedFileName.value = file.name
 }
 
-// Handle image error
 const handleImageError = (e) => {
   e.target.src = '/images/default-product.jpg'
 }
 
-// Submit request: thêm vào giỏ hàng với meta
 const submitRequest = async () => {
-  // Reset message
   message.value = ''
   messageType.value = 'success'
 
-  // Validation
   if (!form.value.fullName || !form.value.email || !form.value.phone) {
-    message.value = 'Vui lòng điền đầy đủ thông tin bắt buộc (Họ tên, Email, Số điện thoại)'
+    message.value = 'Vui lòng điền đầy đủ thông tin liên hệ.'
     messageType.value = 'error'
     return
   }
 
-  if (!form.value.position) {
-    message.value = 'Vui lòng chọn vị trí in'
-    messageType.value = 'error'
-    return
-  }
-
-  if (!form.value.size) {
-    message.value = 'Vui lòng chọn kích thước in'
+  if (!form.value.position || !form.value.size) {
+    message.value = 'Vui lòng chọn vị trí và kích thước in.'
     messageType.value = 'error'
     return
   }
 
   if (!product.value) {
-    message.value = 'Không tìm thấy sản phẩm. Vui lòng quay lại trang chi tiết sản phẩm.'
+    message.value = 'Không tìm thấy sản phẩm.'
     messageType.value = 'error'
     return
   }
 
-  // Lấy variant đầu tiên (có thể cải thiện: cho phép chọn màu/size)
   const variant = product.value.variants?.[0]
   if (!variant) {
-    message.value = 'Sản phẩm không có biến thể'
+    message.value = 'Sản phẩm không có biến thể khả dụng.'
     messageType.value = 'error'
     return
   }
@@ -294,7 +352,6 @@ const submitRequest = async () => {
 
   try {
     let logoPath = ''
-    // Upload logo nếu có file
     if (fileInput.value && fileInput.value.files[0]) {
       const file = fileInput.value.files[0]
       const uploadForm = new FormData()
@@ -305,14 +362,13 @@ const submitRequest = async () => {
       if (uploadRes.data.success) {
         logoPath = uploadRes.data.path
       } else {
-        message.value = 'Không thể tải lên file logo'
+        message.value = 'Không thể tải lên file logo.'
         messageType.value = 'error'
         isSubmitting.value = false
         return
       }
     }
 
-    // Tạo meta
     const meta = {
       logo: {
         position: form.value.position,
@@ -325,21 +381,18 @@ const submitRequest = async () => {
       }
     }
 
-    // Thêm vào giỏ hàng
     await addToCart(variant.id, 1, meta)
 
-    message.value = '✅ Đã thêm sản phẩm tùy chỉnh vào giỏ hàng!'
+    message.value = 'Đã thêm sản phẩm tùy chỉnh vào giỏ hàng thành công!'
     messageType.value = 'success'
     
-    // Reset form
     form.value = { fullName: '', email: '', phone: '', position: '', size: '', note: '' }
     uploadedFileName.value = ''
     fileInput.value.value = ''
 
-    // Chuyển đến giỏ hàng sau 1.5s
     setTimeout(() => {
       window.location.href = route('cart')
-    }, 1500)
+    }, 1200)
 
   } catch (error) {
     console.error('Error:', error)
@@ -350,9 +403,8 @@ const submitRequest = async () => {
   }
 }
 
-// Save design (demo)
 const saveDesign = () => {
-  alert('Tính năng lưu thiết kế đang được phát triển. Vui lòng gửi yêu cầu để được hỗ trợ.')
+  alert('Tính năng lưu mẫu thiết kế đang được phát triển.')
 }
 </script>
 
@@ -364,10 +416,16 @@ const saveDesign = () => {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-.line-clamp-2 {
+.line-clamp-1 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>

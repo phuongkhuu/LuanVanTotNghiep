@@ -13,7 +13,6 @@
             <span class="text-gray-800 font-medium">{{ pageTitle }}</span>
           </nav>
           <h1 class="font-display-lg text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ pageTitle }}</h1>
-          <p class="text-gray-500 max-w-2xl">{{ pageDescription }}</p>
         </div>
       </section>
       
