@@ -1,157 +1,242 @@
 <template>
-  <div>
-    <Head title="Mua sỉ - BigBag Premium Utility Carry Gear" />
+  <div class="min-h-screen bg-slate-50 text-slate-800 antialiased selection:bg-orange-500 selection:text-white">
+    <Head title="Mua sỉ & Dự án Doanh nghiệp - BigBag Premium Utility Carry Gear" />
     <AppHeader />
 
-    <main>
-      <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16" id="contact">
-        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-          <!-- KHUNG CAM -->
-          <div class="bg-orange-600 p-6 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
-            <div class="z-10">
-              <h2 class="text-xl md:text-2xl font-bold text-white mb-2">Bắt Đầu Dự Án Doanh Nghiệp</h2>
-              <p class="text-orange-100 text-sm max-w-xl">Đội ngũ chuyên viên tư vấn của BigBag sẵn sàng hỗ trợ bạn thiết kế và báo giá chi tiết trong vòng 30 phút.</p>
-            </div>
-            <div class="flex flex-col md:flex-row gap-4 md:gap-8 z-10 text-white text-sm flex-shrink-0">
-              <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined bg-white/20 p-2 rounded-full">call</span>
-                <div>
-                  <p class="text-orange-200 text-xs">Hotline</p>
-                  <p class="font-semibold">1900 1234</p>
+    <main class="py-10 md:py-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="contact">
+        
+        <!-- CARD TỔNG CHÍNH -->
+        <div class="bg-white rounded-3xl shadow-2xl shadow-slate-200/60 overflow-hidden border border-slate-100">
+          
+          
+          <!-- NỘI DUNG CHÍNH (2 CỘT) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12">
+            
+            <!-- CỘT TRÁI: Cấu hình đơn hàng & Sản phẩm (5 Cols) -->
+            <div class="lg:col-span-5 p-6 md:p-8 bg-slate-50/50 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-6">
+                  <h3 class="text-base font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                    Thông tin đơn hàng
+                  </h3>
                 </div>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined bg-white/20 p-2 rounded-full">mail</span>
-                <div>
-                  <p class="text-orange-200 text-xs">Email</p>
-                  <p class="font-semibold">b2b@bigbag.vn</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- NỘI DUNG 2 CỘT -->
-          <div class="grid grid-cols-1 lg:grid-cols-2">
-            <!-- CỘT TRÁI: Thông tin sản phẩm -->
-            <div class="p-6 md:p-8 border-r border-gray-100">
-              <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                Thông tin đặt hàng
-              </h3>
-              
-              <!-- Sản phẩm chọn -->
-              <div v-if="selectedProduct" class="flex flex-col sm:flex-row gap-4 mb-6">
-                <div class="w-full sm:w-[120px] flex-shrink-0">
-                  <div class="aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
-                    <img 
-                      :src="selectedProduct.image" 
-                      :alt="selectedProduct.name"
-                      class="w-full h-full object-cover"
-                    />
+                <!-- Thẻ sản phẩm đã chọn -->
+                <div v-if="selectedProduct" class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm mb-6 transition-all hover:shadow-md">
+                  <div class="flex gap-4">
+                    <div class="w-24 h-28 shrink-0 bg-slate-100 rounded-xl overflow-hidden border border-slate-100">
+                      <img 
+                        :src="selectedProduct.image" 
+                        :alt="selectedProduct.name"
+                        class="w-full h-full object-cover object-center"
+                      />
+                    </div>
+                    <div class="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">{{ selectedProduct.name }}</h4>
+                        <p v-if="selectedProduct.description" class="text-slate-500 text-xs mt-1 line-clamp-1">{{ selectedProduct.description }}</p>
+                      </div>
+
+                      <div class="mt-2">
+                        <div class="flex items-baseline gap-2 flex-wrap">
+                          <span class="text-base font-extrabold text-orange-600">
+                            {{ formatPrice(selectedProduct.sale_price || selectedProduct.base_price) }}
+                          </span>
+                          <span v-if="selectedProduct.original_price && selectedProduct.original_price > selectedProduct.sale_price" class="text-slate-400 line-through text-xs">
+                            {{ formatPrice(selectedProduct.original_price) }}
+                          </span>
+                          <span v-if="selectedProduct.discount_percent > 0" class="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                            -{{ selectedProduct.discount_percent }}%
+                          </span>
+                        </div>
+                        <div class="mt-1 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Còn hàng ({{ selectedProduct.stock }} sản phẩm)
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="flex-1">
-                  <h4 class="font-semibold text-gray-800 text-sm">{{ selectedProduct.name }}</h4>
-                  <p v-if="selectedProduct.description" class="text-gray-500 text-xs mb-2">{{ selectedProduct.description }}</p>
-                  <div class="flex items-baseline gap-2">
-                    <span class="text-lg font-bold text-red-600">{{ formatPrice(selectedProduct.sale_price || selectedProduct.base_price) }}</span>
-                    <span v-if="selectedProduct.original_price && selectedProduct.original_price > selectedProduct.sale_price" class="text-gray-400 line-through text-xs">{{ formatPrice(selectedProduct.original_price) }}</span>
-                    <span v-if="selectedProduct.discount_percent > 0" class="text-red-500 text-xs bg-red-50 px-2 py-0.5 rounded-full">-{{ selectedProduct.discount_percent }}%</span>
+
+                <!-- Tùy chỉnh thuộc tính B2B -->
+                <div class="space-y-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                  
+                  <!-- Chọn Số lượng -->
+                  <div>
+                    <div class="flex justify-between items-center mb-2">
+                      <label class="text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Số lượng sỉ <span class="text-rose-500">*</span>
+                      </label>
+                      <span class="text-xs font-medium" :class="orderQuantity >= 50 ? 'text-emerald-600' : 'text-rose-500'">
+                        {{ orderQuantity >= 50 ? '✓ Tối thiểu 50 sp' : 'Cần tối thiểu 50 sp' }}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                      <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50 w-36">
+                        <button 
+                          @click="decreaseQuantity" 
+                          type="button"
+                          class="w-10 h-10 flex items-center justify-center hover:bg-slate-200/60 transition-colors text-slate-600 disabled:opacity-40"
+                          :disabled="orderQuantity <= 1"
+                        >
+                          <span class="material-symbols-outlined text-lg">remove</span>
+                        </button>
+                        <input 
+                          type="number" 
+                          v-model.number="orderQuantity" 
+                          min="1"
+                          class="w-full h-10 text-center bg-transparent border-0 outline-none text-sm font-bold text-slate-800"
+                        />
+                        <button 
+                          @click="increaseQuantity"
+                          type="button"
+                          class="w-10 h-10 flex items-center justify-center hover:bg-slate-200/60 transition-colors text-slate-600"
+                        >
+                          <span class="material-symbols-outlined text-lg">add</span>
+                        </button>
+                      </div>
+
+                      <!-- Quick add quantity options -->
+                      <div class="flex gap-1.5">
+                        <button @click="orderQuantity = 50" type="button" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:border-orange-500 hover:text-orange-600 transition-colors">50</button>
+                        <button @click="orderQuantity = 100" type="button" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:border-orange-500 hover:text-orange-600 transition-colors">100</button>
+                        <button @click="orderQuantity = 150" type="button" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:border-orange-500 hover:text-orange-600 transition-colors">150</button>
+                      </div>
+                    </div>
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Tồn kho: <span class="font-semibold text-green-600">{{ selectedProduct.stock }} sản phẩm</span></p>
-                </div>
-              </div>
 
-              <!-- Bộ lọc: Số lượng, Màu, Kích thước -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Số lượng <span class="text-red-500">*</span></label>
-                  <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
-                    <button   
-                      @click="decreaseQuantity" 
-                      class="w-10 h-10 border-2 border-gray-200 rounded-xl flex items-center justify-center hover:border-primary transition-colors"
-                      :disabled="orderQuantity <= 1"
-                    >
-                      <span class="material-symbols-outlined text-lg">remove</span>
-                    </button>
-                    <input 
-                      type="number" 
-                      v-model.number="orderQuantity" 
-                      min="1"
-                      class="w-full h-10 text-center outline-none text-sm font-semibold bg-white"
-                    />
-                    <button 
-                      @click="increaseQuantity"
-                      class="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors text-gray-600 border-l border-gray-200"
-                    >
-                      <span class="material-symbols-outlined text-lg">add</span>
-                    </button>
-                  </div>
-                  <p v-if="orderQuantity < 50" class="text-xs text-red-500 mt-1">* Số lượng tối thiểu là 50</p>
-                  <p v-else class="text-xs text-green-500 mt-1">✓ Đủ số lượng tối thiểu</p>
-                </div>
-
-                <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Màu sắc <span class="text-red-500">*</span></label>
-                  <select v-model="selectedColor" class="w-full h-10 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-700">
-                    <option v-for="color in colorOptions" :key="color" :value="color">{{ color }}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Kích thước <span class="text-red-500">*</span></label>
-                  <select v-model="selectedSize" class="w-full h-10 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-700">
-                    <option v-for="size in sizeOptions" :key="size" :value="size">{{ size }}</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Nút gửi yêu cầu -->
-              <button 
-                @click="submitQuoteRequest"
-                :disabled="loading || orderQuantity < 50"
-                class="w-full mt-4 bg-orange-600 text-white py-4 rounded-xl font-semibold hover:bg-orange-700 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span class="material-symbols-outlined">send</span>
-                {{ loading ? 'Đang xử lý...' : 'GỬI YÊU CẦU MUA SỈ' }}
-              </button>
-              <p v-if="orderQuantity < 50" class="text-center text-sm text-red-500 mt-2">Vui lòng nhập số lượng tối thiểu 50 để gửi yêu cầu.</p>
-            </div>
-
-            <!-- CỘT PHẢI: Thông tin doanh nghiệp -->
-            <div class="p-6 md:p-8 bg-gray-50">
-              <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                Thông tin doanh nghiệp
-              </h3>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Tên công ty <span class="text-red-500">*</span></label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Nhập tên doanh nghiệp của bạn" type="text" v-model="form.company" required>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Email <span class="text-red-500">*</span></label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="email@congty.com" type="email" v-model="form.email" required>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Số điện thoại <span class="text-red-500">*</span></label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="09xx xxx xxx" type="tel" v-model="form.phone" required>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Mã số thuế</label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Mã số thuế công ty" type="text" v-model="form.tax_code">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium mb-1 text-gray-600">Ngày cần nhận hàng</label>
-                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" type="date" v-model="form.delivery_date" :min="today">
-                </div>
-
-                <!-- Địa chỉ chi tiết -->
-                <div class="space-y-3 border-t border-gray-200 pt-3">
-                  <div class="grid grid-cols-2 gap-3">
+                  <!-- Chọn Màu sắc & Size -->
+                  <div class="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                     <div>
-                      <label class="block text-sm font-medium mb-1 text-gray-600">Tỉnh / Thành</label>
-                      <select v-model="form.city" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                        <option value="">Chọn tỉnh / thành</option>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                        Màu sắc <span class="text-rose-500">*</span>
+                      </label>
+                      <select v-model="selectedColor" class="w-full h-11 border border-slate-200 rounded-xl px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white text-slate-700 transition-all">
+                        <option v-for="color in colorOptions" :key="color" :value="color">{{ color }}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                        Kích thước <span class="text-rose-500">*</span>
+                      </label>
+                      <select v-model="selectedSize" class="w-full h-11 border border-slate-200 rounded-xl px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white text-slate-700 transition-all">
+                        <option v-for="size in sizeOptions" :key="size" :value="size">{{ size }}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Nút Submit Desktop (Gộp) -->
+              <div class="mt-8">
+                <button 
+                  @click="submitQuoteRequest"
+                  :disabled="loading || orderQuantity < 50"
+                  class="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                  <span v-if="loading" class="material-symbols-outlined animate-spin">progress_activity</span>
+                  <span v-else class="material-symbols-outlined">send</span>
+                  {{ loading ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu báo giá sỉ' }}
+                </button>
+                <p v-if="orderQuantity < 50" class="text-center text-xs text-rose-500 mt-2 font-medium">
+                  * Vui lòng chọn tối thiểu 50 sản phẩm để gửi báo giá.
+                </p>
+              </div>
+            </div>
+
+            <!-- CỘT PHẢI: Form Doanh Nghiệp (7 Cols) -->
+            <div class="lg:col-span-7 p-6 md:p-8 bg-white">
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="text-base font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                  Thông tin doanh nghiệp
+                </h3>
+              </div>
+
+              <form @submit.prevent="submitQuoteRequest" class="space-y-4">
+                
+                <!-- Nhóm 1: Doanh nghiệp -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Tên công ty / Tổ chức <span class="text-rose-500">*</span>
+                    </label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="Công ty TNHH..." 
+                      type="text" 
+                      v-model="form.company" 
+                      required
+                    >
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Mã số thuế <span class="text-rose-500">*</span>
+                    </label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="MST công ty" 
+                      type="text" 
+                      v-model="form.tax_code"
+                      required
+                    >
+                  </div>
+                </div>
+
+                <!-- Nhóm 2: Liên hệ -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Email làm việc <span class="text-rose-500">*</span>
+                    </label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="email@company.com" 
+                      type="email" 
+                      v-model="form.email" 
+                      required
+                    >
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Số điện thoại người liên hệ <span class="text-rose-500">*</span>
+                    </label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="09xx xxx xxx (10 số)" 
+                      type="tel" 
+                      v-model="form.phone" 
+                      required
+                    >
+                  </div>
+                </div>
+
+                <!-- Nhóm 3: Ngày nhận -->
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1.5">Ngày dự kiến cần nhận hàng</label>
+                  <input 
+                    class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                    type="date" 
+                    v-model="form.delivery_date" 
+                    :min="today"
+                  >
+                </div>
+
+                <!-- Nhóm 4: Địa chỉ giao hàng -->
+                <div class="pt-4 border-t border-slate-100 space-y-4">
+                  <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Địa điểm giao hàng</p>
+                  
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <select v-model="form.city" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
+                        <option value="">Chọn Tỉnh / Thành</option>
                         <option value="Hà Nội">Hà Nội</option>
                         <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
                         <option value="Đà Nẵng">Đà Nẵng</option>
@@ -162,64 +247,78 @@
                         <option value="Khác">Khác</option>
                       </select>
                     </div>
+
                     <div>
-                      <label class="block text-sm font-medium mb-1 text-gray-600">Quận / Huyện</label>
-                      <select v-model="form.district" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                        <option value="">Chọn quận / huyện</option>
+                      <select v-model="form.district" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
+                        <option value="">Chọn Quận / Huyện</option>
                         <option value="Quận 1">Quận 1</option>
                         <option value="Quận 2">Quận 2</option>
                         <option value="Quận 3">Quận 3</option>
-                        <option value="Quận 4">Quận 4</option>
-                        <option value="Quận 5">Quận 5</option>
-                        <option value="Quận 6">Quận 6</option>
                         <option value="Quận 7">Quận 7</option>
-                        <option value="Quận 8">Quận 8</option>
-                        <option value="Quận 9">Quận 9</option>
-                        <option value="Quận 10">Quận 10</option>
-                        <option value="Quận 11">Quận 11</option>
-                        <option value="Quận 12">Quận 12</option>
                         <option value="Bình Thạnh">Bình Thạnh</option>
-                        <option value="Gò Vấp">Gò Vấp</option>
-                        <option value="Tân Bình">Tân Bình</option>
-                        <option value="Tân Phú">Tân Phú</option>
-                        <option value="Phú Nhuận">Phú Nhuận</option>
+                        <option value="Khác">Khác</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <select v-model="form.ward" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
+                        <option value="">Chọn Phường / Xã</option>
+                        <option value="Phường Bến Nghé">Phường Bến Nghé</option>
+                        <option value="Phường Bến Thành">Phường Bến Thành</option>
                         <option value="Khác">Khác</option>
                       </select>
                     </div>
                   </div>
+
                   <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-600">Phường / Xã</label>
-                    <select v-model="form.ward" class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm">
-                      <option value="">Chọn phường / xã</option>
-                      <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                      <option value="Phường Bến Thành">Phường Bến Thành</option>
-                      <option value="Phường Cầu Kho">Phường Cầu Kho</option>
-                      <option value="Phường Cầu Ông Lãnh">Phường Cầu Ông Lãnh</option>
-                      <option value="Phường Cô Giang">Phường Cô Giang</option>
-                      <option value="Phường Đa Kao">Phường Đa Kao</option>
-                      <option value="Phường Nguyễn Thái Bình">Phường Nguyễn Thái Bình</option>
-                      <option value="Khác">Khác</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-600">Địa chỉ chi tiết <span class="text-red-500">*</span></label>
-                    <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Số nhà, tên đường..." type="text" v-model="form.address" required>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-600">Ghi chú giao hàng</label>
-                    <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi đến..." type="text" v-model="form.note">
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-600">Yêu cầu đặc biệt</label>
-                    <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Ví dụ: In logo, bao bì thương hiệu..." type="text" v-model="form.requirements">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Địa chỉ chi tiết <span class="text-rose-500">*</span>
+                    </label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="Số nhà, tên đường, tên tòa nhà..." 
+                      type="text" 
+                      v-model="form.address" 
+                      required
+                    >
                   </div>
                 </div>
-                <p class="text-center text-xs text-gray-400 mt-2 italic">* Thông tin bắt buộc. Sau khi gửi, chúng tôi sẽ liên hệ để báo giá và xác nhận.</p>
-              </div>
+
+                <!-- Nhóm 5: Ghi chú & Yêu cầu riêng -->
+                <div class="pt-4 border-t border-slate-100 space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Yêu cầu thiết kế / In logo thương hiệu</label>
+                    <input 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      placeholder="Ví dụ: In logo công ty ở mặt trước, ..." 
+                      type="text" 
+                      v-model="form.requirements"
+                    >
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Ghi chú thêm</label>
+                    <textarea 
+                      rows="2"
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800 resize-none" 
+                      placeholder="Ví dụ: Giao giờ hành chính, đóng gói từng sản phẩm riêng..." 
+                      v-model="form.note"
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <p class="text-xs text-slate-400 italic">
+                    * Thông tin của bạn được cam kết bảo mật. Chuyên viên BigBag B2B sẽ phản hồi báo giá qua email/SĐT trong vòng 30 phút.
+                  </p>
+                </div>
+              </form>
             </div>
+
           </div>
         </div>
-      </section>
+
+      </div>
     </main>
 
     <Chatbot />
@@ -329,6 +428,10 @@ const submitQuoteRequest = async () => {
   // Kiểm tra thông tin bắt buộc
   if (!form.value.company) {
     alert('Vui lòng nhập tên công ty.')
+    return
+  }
+  if (!form.value.tax_code) {
+    alert('Vui lòng nhập mã số thuế.')
     return
   }
   if (!form.value.email) {
