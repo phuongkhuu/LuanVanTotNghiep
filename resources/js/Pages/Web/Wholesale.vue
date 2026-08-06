@@ -9,7 +9,6 @@
         <!-- CARD TỔNG CHÍNH -->
         <div class="bg-white rounded-3xl shadow-2xl shadow-slate-200/60 overflow-hidden border border-slate-100">
           
-          
           <!-- NỘI DUNG CHÍNH (2 CỘT) -->
           <div class="grid grid-cols-1 lg:grid-cols-12">
             
@@ -132,7 +131,7 @@
                 </div>
               </div>
 
-              <!-- Nút Submit Desktop (Gộp) -->
+              <!-- Nút Submit Desktop -->
               <div class="mt-8">
                 <button 
                   @click="submitQuoteRequest"
@@ -162,46 +161,65 @@
                 
                 <!-- Nhóm 1: Doanh nghiệp -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Tên công ty - READONLY -->
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
                       Tên công ty / Tổ chức <span class="text-rose-500">*</span>
                     </label>
                     <input 
-                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
-                      placeholder="Công ty TNHH..." 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-100/50 px-4 py-2.5 outline-none text-sm transition-all text-slate-800 cursor-not-allowed" 
+                      placeholder="Chưa có thông tin" 
                       type="text" 
                       v-model="form.company" 
-                      required
+                      readonly
+                      disabled
                     >
                   </div>
 
+                  <!-- Mã số thuế - Có thể nhập -->
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
                       Mã số thuế <span class="text-rose-500">*</span>
                     </label>
-                    <input 
-                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
-                      placeholder="MST công ty" 
-                      type="text" 
-                      v-model="form.tax_code"
-                      required
-                    >
+                    <div class="relative">
+                      <input 
+                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                        placeholder="Nhập mã số thuế để tự động tra cứu" 
+                        type="text" 
+                        v-model="form.tax_code"
+                        @input="fetchCompanyInfo"
+                        required
+                      >
+                      <span v-if="isSearching" class="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg class="animate-spin h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1.5">Nhập mã số thuế để tự động điền thông tin công ty</p>
                   </div>
                 </div>
 
-                <!-- Nhóm 2: Liên hệ -->
+                <!-- Nhóm 2: Liên hệ - CÓ THỂ NHẬP với regex -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
                       Email làm việc <span class="text-rose-500">*</span>
                     </label>
                     <input 
-                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800"
+                      :class="{ 'border-rose-500 focus:ring-rose-500/20': emailError }"
                       placeholder="email@company.com" 
                       type="email" 
                       v-model="form.email" 
+                      @input="validateEmail"
+                      @blur="validateEmail"
+                      pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                       required
                     >
+                    <p v-if="emailError" class="text-xs text-rose-500 mt-1">{{ emailError }}</p>
+                    <p class="text-xs text-slate-400 mt-1">VD: contact@company.com</p>
                   </div>
 
                   <div>
@@ -209,12 +227,19 @@
                       Số điện thoại người liên hệ <span class="text-rose-500">*</span>
                     </label>
                     <input 
-                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                      class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800"
+                      :class="{ 'border-rose-500 focus:ring-rose-500/20': phoneError }"
                       placeholder="09xx xxx xxx (10 số)" 
                       type="tel" 
                       v-model="form.phone" 
+                      @input="validatePhone"
+                      @blur="validatePhone"
+                      pattern="[0-9]{10}"
+                      maxlength="10"
                       required
                     >
+                    <p v-if="phoneError" class="text-xs text-rose-500 mt-1">{{ phoneError }}</p>
+                    <p class="text-xs text-slate-400 mt-1">Nhập đúng 10 chữ số, bắt đầu bằng 0</p>
                   </div>
                 </div>
 
@@ -370,6 +395,11 @@ const orderQuantity = ref(props.defaultQuantity || 1)
 const selectedColor = ref('')
 const selectedSize = ref('')
 const loading = ref(false)
+const isSearching = ref(false)
+
+// ==================== VALIDATION ERRORS ====================
+const emailError = ref('')
+const phoneError = ref('')
 
 // ==================== FORM B2B ====================
 const form = ref({
@@ -406,6 +436,45 @@ const formatPrice = (price) => {
 // ==================== NGÀY HIỆN TẠI CHO INPUT DATE ====================
 const today = new Date().toISOString().split('T')[0]
 
+// ==================== VALIDATION FUNCTIONS ====================
+const validateEmail = () => {
+  const email = form.value.email.trim()
+  
+  if (!email) {
+    emailError.value = 'Vui lòng nhập email'
+    return false
+  }
+  
+  // Regex kiểm tra email hợp lệ
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  if (!emailRegex.test(email)) {
+    emailError.value = 'Email không đúng định dạng (VD: contact@company.com)'
+    return false
+  }
+  
+  emailError.value = ''
+  return true
+}
+
+const validatePhone = () => {
+  const phone = form.value.phone.trim()
+  
+  if (!phone) {
+    phoneError.value = 'Vui lòng nhập số điện thoại'
+    return false
+  }
+  
+  // Regex kiểm tra số điện thoại: bắt đầu bằng 0, đúng 10 chữ số
+  const phoneRegex = /^0[0-9]{9}$/
+  if (!phoneRegex.test(phone)) {
+    phoneError.value = 'Số điện thoại phải bắt đầu bằng 0 và có đúng 10 chữ số'
+    return false
+  }
+  
+  phoneError.value = ''
+  return true
+}
+
 // ==================== METHODS ====================
 const increaseQuantity = () => {
   orderQuantity.value++
@@ -414,6 +483,48 @@ const increaseQuantity = () => {
 const decreaseQuantity = () => {
   if (orderQuantity.value > 1) {
     orderQuantity.value--
+  }
+}
+
+// ===== TRA CỨU THÔNG TIN CÔNG TY QUA MÃ SỐ THUẾ =====
+const fetchCompanyInfo = async () => {
+  const taxCode = form.value.tax_code.trim()
+  
+  // Nếu mã số thuế có ít hơn 10 ký tự hoặc rỗng thì reset dữ liệu
+  if (!taxCode || taxCode.length < 10) {
+    form.value.company = ''
+    return
+  }
+
+  isSearching.value = true
+  
+  try {
+    const response = await axios.get(`/api/tra-cuu-mst/${taxCode}`, {
+      timeout: 5000
+    })
+    
+    if (response.data && response.data.success) {
+      const data = response.data.data
+      
+      form.value.company = data.company_name || ''
+      
+      // Chỉ tự động điền email và phone nếu chưa có dữ liệu
+      if (!form.value.email && data.email) {
+        form.value.email = data.email || ''
+        validateEmail()
+      }
+      if (!form.value.phone && data.phone) {
+        form.value.phone = data.phone || ''
+        validatePhone()
+      }
+    } else {
+      form.value.company = ''
+    }
+  } catch (error) {
+    console.error('Lỗi tra cứu mã số thuế:', error)
+    form.value.company = ''
+  } finally {
+    isSearching.value = false
   }
 }
 
@@ -426,27 +537,30 @@ const submitQuoteRequest = async () => {
   }
 
   // Kiểm tra thông tin bắt buộc
-  if (!form.value.company) {
-    alert('Vui lòng nhập tên công ty.')
-    return
-  }
   if (!form.value.tax_code) {
     alert('Vui lòng nhập mã số thuế.')
     return
   }
-  if (!form.value.email) {
-    alert('Vui lòng nhập email.')
+
+  if (!form.value.company) {
+    alert('Vui lòng nhập mã số thuế hợp lệ để tra cứu thông tin công ty.')
     return
   }
-  if (!form.value.phone) {
-    alert('Vui lòng nhập số điện thoại.')
+  
+  // Validate email
+  if (!validateEmail()) {
+    // Focus vào trường email
+    document.querySelector('input[type="email"]')?.focus()
     return
   }
-  // Kiểm tra số điện thoại đúng 10 chữ số
-  if (!/^\d{10}$/.test(form.value.phone)) {
-    alert('Số điện thoại phải gồm đúng 10 chữ số.')
+  
+  // Validate phone
+  if (!validatePhone()) {
+    // Focus vào trường phone
+    document.querySelector('input[type="tel"]')?.focus()
     return
   }
+  
   if (!form.value.address) {
     alert('Vui lòng nhập địa chỉ chi tiết.')
     return
@@ -566,5 +680,22 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Style cho input disabled/readonly - chỉ áp dụng cho Tên công ty */
+input:disabled,
+input[readonly] {
+  background-color: #f1f5f9 !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+}
+
+/* Style khi input có lỗi */
+.border-rose-500 {
+  border-color: #f43f5e !important;
+}
+.border-rose-500:focus {
+  border-color: #f43f5e !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.2) !important;
 }
 </style>

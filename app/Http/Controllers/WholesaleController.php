@@ -15,6 +15,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class WholesaleController extends Controller
 {
@@ -175,7 +177,7 @@ class WholesaleController extends Controller
     }
 
     /**
-     * Xử lý đặt hàng sỉ (chỉ thanh toán qua PayOS) - Có thể giữ nguyên hoặc bỏ
+     * Xử lý đặt hàng sỉ (chỉ thanh toán qua PayOS)
      */
     public function storeOrder(Request $request)
     {
@@ -257,7 +259,7 @@ class WholesaleController extends Controller
     }
 
     /**
-     * Xử lý đặt hàng sỉ + lưu yêu cầu báo giá (B2B) cùng lúc - Có thể giữ nguyên hoặc bỏ
+     * Xử lý đặt hàng sỉ + lưu yêu cầu báo giá (B2B) cùng lúc
      */
     public function placeOrderWithQuote(Request $request)
     {
@@ -334,10 +336,7 @@ class WholesaleController extends Controller
             'discount_amount'  => 0,
         ]);
 
-        // Quan trọng: Gán session từ request hiện tại để PaymentController có thể xóa session
         $orderRequest->setLaravelSession($request->session());
-        // Không cần setUserResolver, chỉ cần session là đủ
-
         $orderRequest->headers->set('X-Requested-With', 'XMLHttpRequest');
 
         try {
@@ -358,7 +357,6 @@ class WholesaleController extends Controller
                 ], 400);
             }
 
-            // Fallback nếu vẫn là RedirectResponse
             if ($response instanceof \Illuminate\Http\RedirectResponse) {
                 return response()->json([
                     'success' => true,
@@ -439,13 +437,12 @@ class WholesaleController extends Controller
             'requirements'  => $validated['requirements'],
             'note'          => $validated['note'],
         ];
-        // Loại bỏ các giá trị null để tiết kiệm dung lượng
         $extraData = array_filter($extraData, function ($value) {
             return !is_null($value) && $value !== '';
         });
         $requirementJson = json_encode($extraData, JSON_UNESCAPED_UNICODE);
 
-        // 5. Xây dựng nội dung ghi chú cho Order (lưu vào cột note)
+        // 5. Xây dựng nội dung ghi chú cho Order
         $orderNote = '';
         if (!empty($validated['note'])) {
             $orderNote .= $validated['note'] . "\n\n";
@@ -519,7 +516,7 @@ class WholesaleController extends Controller
                 'shipping_fee'     => 0,
             ]);
 
-            // Sinh mã đơn hàng (prefix S + ngày + số thứ tự)
+            // Sinh mã đơn hàng
             $order->order_number = 'S' . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
             $order->save();
 
@@ -532,7 +529,7 @@ class WholesaleController extends Controller
                 'subtotal'           => $total,
             ]);
 
-            // --- Tạo bản ghi thanh toán (chuyển khoản, số tiền 0, trạng thái pending) ---
+            // --- Tạo bản ghi thanh toán ---
             Payment::create([
                 'order_id'          => $order->id,
                 'transaction_code'  => 'PAY-WS-' . $order->id . '-' . time(),
@@ -559,6 +556,174 @@ class WholesaleController extends Controller
                 'message' => 'Có lỗi xảy ra, vui lòng thử lại sau.'
             ], 500);
         }
+    }
+
+    /**
+     * Tra cứu thông tin công ty qua mã số thuế - Sử dụng API VietQR
+     * 
+     * @param string $taxCode
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function lookupTaxCode($taxCode)
+    {
+        // Validate mã số thuế
+        if (empty($taxCode) || strlen($taxCode) < 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mã số thuế không hợp lệ. Vui lòng nhập đúng 10-14 chữ số.'
+            ], 400);
+        }
+
+        // Loại bỏ ký tự đặc biệt, chỉ giữ số
+        $taxCode = preg_replace('/[^0-9]/', '', $taxCode);
+        
+        // Kiểm tra cache
+        $cacheKey = 'tax_info_' . $taxCode;
+        if (Cache::has($cacheKey)) {
+            $cachedData = Cache::get($cacheKey);
+            return response()->json([
+                'success' => true,
+                'data' => $cachedData,
+                'message' => 'Tra cứu thành công (từ cache)'
+            ]);
+        }
+
+        try {
+            // ==========================================
+            // GỌI API VIETQR ĐỂ TRA CỨU
+            // ==========================================
+            $response = Http::timeout(10)->get("https://api.vietqr.io/v2/business/{$taxCode}");
+            
+            // Log để debug
+            Log::info('VietQR API response', [
+                'tax_code' => $taxCode,
+                'status' => $response->status(),
+            ]);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Kiểm tra response code từ VietQR
+                if ($data && isset($data['code']) && $data['code'] === '00') {
+                    $business = $data['data'] ?? [];
+                    
+                    // Lấy thông tin từ API
+                    $companyName = $business['companyName'] ?? $business['name'] ?? '';
+                    $email = $business['email'] ?? '';
+                    $phone = $business['phone'] ?? $business['tel'] ?? '';
+                    
+                    // Nếu có thông tin, trả về thành công
+                    if (!empty($companyName)) {
+                        $result = [
+                            'company_name' => $companyName,
+                            'email' => $email,
+                            'phone' => $phone,
+                        ];
+                        
+                        // Lưu cache 24 giờ
+                        Cache::put($cacheKey, $result, 86400);
+                        
+                        return response()->json([
+                            'success' => true,
+                            'data' => $result,
+                            'message' => 'Tra cứu thành công'
+                        ]);
+                    }
+                }
+            }
+
+            // ==========================================
+            // FALLBACK: DỮ LIỆU MOCK KHI API KHÔNG HOẠT ĐỘNG
+            // ==========================================
+            $mockData = $this->getMockCompanyData($taxCode);
+            if ($mockData) {
+                // Lưu cache 1 giờ cho mock data
+                Cache::put($cacheKey, $mockData, 3600);
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => $mockData,
+                    'message' => 'Tra cứu thành công (dữ liệu mẫu)'
+                ]);
+            }
+
+            // Không tìm thấy thông tin
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy thông tin công ty với mã số thuế này. Vui lòng kiểm tra lại hoặc nhập thủ công.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Tax lookup error: ' . $e->getMessage(), [
+                'tax_code' => $taxCode,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Khi API lỗi, thử dùng dữ liệu mock
+            $mockData = $this->getMockCompanyData($taxCode);
+            if ($mockData) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $mockData,
+                    'message' => 'Tra cứu thành công (dữ liệu mẫu)'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tra cứu mã số thuế. Vui lòng thử lại sau hoặc nhập thủ công.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Dữ liệu mẫu cho demo - Sử dụng khi API không hoạt động
+     * 
+     * @param string $taxCode
+     * @return array|null
+     */
+    private function getMockCompanyData($taxCode)
+    {
+        // Xóa ký tự đặc biệt, chỉ giữ số
+        $cleanTaxCode = preg_replace('/[^0-9]/', '', $taxCode);
+        
+        // Dữ liệu mẫu
+        $mockDatabase = [
+            '0312345678' => [
+                'company_name' => 'CÔNG TY TNHH BIGBAG VIỆT NAM',
+                'email' => 'contact@bigbag.vn',
+                'phone' => '02812345678',
+            ],
+            '0312345679' => [
+                'company_name' => 'CÔNG TY CỔ PHẦN THƯƠNG MẠI ABC',
+                'email' => 'info@abc.com.vn',
+                'phone' => '02898765432',
+            ],
+            '0101234567' => [
+                'company_name' => 'CÔNG TY TNHH MTV XYZ HÀ NỘI',
+                'email' => 'xyz@hanoi.vn',
+                'phone' => '02412345678',
+            ],
+            '0301234567' => [
+                'company_name' => 'CÔNG TY CỔ PHẦN ĐẦU TƯ PHÁT TRIỂN MẠNH PHÁT',
+                'email' => 'manhphat@company.com',
+                'phone' => '02511234567',
+            ],
+        ];
+
+        // Kiểm tra chính xác
+        if (isset($mockDatabase[$cleanTaxCode])) {
+            return $mockDatabase[$cleanTaxCode];
+        }
+
+        // Kiểm tra gần đúng
+        foreach ($mockDatabase as $key => $value) {
+            if (substr($key, 0, 9) === substr($cleanTaxCode, 0, 9)) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**
