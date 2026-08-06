@@ -28,9 +28,9 @@ const currentPage = ref(1);
 const itemsPerPage = 5;
 
 const orderTypes = [
-    { value: 'retail', label: 'Bán lẻ', icon: '🛒' },
-    { value: 'wholesale', label: 'Bán sỉ', icon: '🏭' },
-    { value: 'preorder', label: 'Pre-order', icon: '⏳' }
+    { value: 'retail', label: 'Bán lẻ', icon: '' },
+    { value: 'wholesale', label: 'Bán sỉ', icon: '' },
+    { value: 'preorder', label: 'Pre-order', icon: '' }
 ];
 
 const statusOptions = {
@@ -153,17 +153,17 @@ const getStatusClass = (status) => {
 
 const getStatusIcon = (status) => {
     const icons = {
-        pending: '⏳',
-        processing: '🔄',
-        shipping: '🚚',
-        completed: '✅',
-        cancelled: '❌',
-        approved: '✓',
-        production: '🏭',
-        confirmed: '✔️',
-        waiting: '⏰'
+        pending: '',
+        processing: '',
+        shipping: '',
+        completed: '',
+        cancelled: '',
+        approved: '',
+        production: '',
+        confirmed: '',
+        waiting: ''
     };
-    return icons[status] || '📋';
+    return icons[status] || '';
 };
 
 const getStatusLabel = (status, type) => {

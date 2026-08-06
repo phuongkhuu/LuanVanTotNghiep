@@ -170,15 +170,17 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     
     Route::prefix('orders')->group(function () {
-        Route::get('/{type?}', [AdminOrderController::class, 'index'])
-            ->where('type', 'retail|wholesale|preorder')
-            ->name('orders.index');
-        Route::get('/{id}', [AdminOrderController::class, 'show'])
-            ->where('id', '[0-9]+')
-            ->name('orders.show');
-        Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
-        Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
-        Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
+    Route::get('/{type?}', [AdminOrderController::class, 'index'])
+        ->where('type', 'retail|wholesale|preorder')
+        ->name('orders.index');
+    Route::get('/{id}', [AdminOrderController::class, 'show'])
+        ->where('id', '[0-9]+')
+        ->name('orders.show');
+    Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
+    Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
+    // THÊM ROUTE NÀY
+    Route::get('/{id}/print-html', [AdminOrderController::class, 'printOrderHtml'])->name('orders.print-html');
     });
     
     Route::prefix('products')->group(function () {
@@ -212,15 +214,19 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/search', [BrandController::class, 'search'])->name('brands.search');
     });
     
-    Route::prefix('customers')->group(function () {
+     Route::prefix('customers')->group(function () {
         Route::get('/', [AdminCustomerController::class, 'index'])->name('customers.index');
         Route::get('/retail', [AdminCustomerController::class, 'retail'])->name('customers.retail');
         Route::get('/business', [AdminCustomerController::class, 'business'])->name('customers.business');
-        Route::get('/{id}', [AdminCustomerController::class, 'show'])->name('customers.show');
+        
+        // EXPORT ROUTE - PHẢI ĐẶT TRƯỚC ROUTE {phone}
+        Route::get('/export', [AdminCustomerController::class, 'export'])->name('customers.export');
+        
+        // Các route có tham số động - ĐẶT SAU ROUTE CỐ ĐỊNH
+        Route::get('/{phone}', [AdminCustomerController::class, 'show'])->name('customers.show');
         Route::put('/{id}', [AdminCustomerController::class, 'update'])->name('customers.update');
-        Route::post('/export', [AdminCustomerController::class, 'export'])->name('customers.export');
     });
-    
+        
     Route::prefix('customize')->group(function () {
         Route::get('/', [AdminCustomizeController::class, 'index'])->name('customize.index');
         Route::put('/{id}/status', [AdminCustomizeController::class, 'updateStatus'])->name('customize.update-status');
