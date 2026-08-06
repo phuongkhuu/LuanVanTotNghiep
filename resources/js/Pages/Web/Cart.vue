@@ -42,6 +42,27 @@
                   {{ item.name }}
                 </Link>
                 <p class="text-sm text-gray-500 mt-1">Màu: {{ item.color || 'Đen' }} | Size: {{ item.size || 'M' }}</p>
+                
+                <!-- ===== HIỂN THỊ THÔNG TIN IN LOGO ===== -->
+                <div v-if="item.meta && item.meta.logo" class="mt-1 text-xs text-gray-600 space-y-0.5">
+                  <div class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">print</span>
+                    In logo: <span class="font-medium">{{ item.meta.logo.position }}</span> - 
+                    <span class="font-medium">{{ item.meta.logo.size }}</span>
+                  </div>
+                  <div v-if="item.meta.logo.note" class="text-gray-500 italic">
+                    "{{ item.meta.logo.note }}"
+                  </div>
+                  <div v-if="item.meta.logo.file" class="flex items-center gap-1">
+                    <a :href="'/storage/' + item.meta.logo.file" target="_blank" class="text-primary hover:underline flex items-center gap-0.5">
+                      <span class="material-symbols-outlined text-[14px]">attach_file</span> Xem logo
+                    </a>
+                  </div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">
+                    Khách: {{ item.meta.logo.fullName }} | {{ item.meta.logo.email }}
+                  </div>
+                </div>
+
                 <!-- Hiển thị thông báo lỗi tồn kho cho từng sản phẩm -->
                 <p v-if="stockErrors[item.id]" class="text-xs text-red-500 mt-1 flex items-center gap-1">
                   <span class="material-symbols-outlined text-[16px]">error</span>
@@ -167,7 +188,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
@@ -188,7 +209,6 @@ const {
   applyCoupon,
   removeCoupon,
   loading,
-  cartCount,
   setVoucherFromSession,
   restoreVoucher,
   clearVoucherStorage
@@ -205,7 +225,8 @@ const cartDataForCheckout = computed(() => {
   cartItems.value.forEach(item => {
     data[item.id] = {
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      meta: item.meta || null  // <--- THÊM DÒNG NÀY
     }
   })
   return data
@@ -223,7 +244,6 @@ const handleVoucherCleared = () => {
   clearVoucherStorage()
 }
 
-// Watch cartItems
 watch(cartItems, (newItems, oldItems) => {
   const newCount = newItems.reduce((sum, item) => sum + item.quantity, 0)
   const oldCount = oldItems ? oldItems.reduce((sum, item) => sum + item.quantity, 0) : 0
@@ -335,16 +355,16 @@ const handleApplyCoupon = async () => {
   try {
     await applyCoupon(couponCode.value.trim())
   } catch (error) {
-    // Error handled in composable
+    console.error('Failed to apply voucher:', error)
   }
 }
 
 const handleRemoveCoupon = async () => {
-  console.log('✅ Voucher removed successfully')
+  console.log('Voucher removed successfully')
   try {
     await removeCoupon()
   } catch (error) {
-    console.error('❌ Failed to remove voucher:', error)
+    console.error('Failed to remove voucher:', error)
   }
 }
 
@@ -353,7 +373,6 @@ const formatPrice = (val) => {
   return Number(val).toLocaleString('vi-VN') + '₫'
 }
 
-// Lifecycle
 onMounted(() => {
   loadCart()
   loadVoucherFromSession()
@@ -366,7 +385,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('voucher:cleared', handleVoucherCleared)
 })
 
-const suggestedProducts = ref([])
 </script>
 
 <style scoped>

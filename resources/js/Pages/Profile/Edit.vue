@@ -199,12 +199,6 @@ const closeDeleteModal = () => {
                                 <Link :href="route('orders.history')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                                     Đơn hàng của tôi
                                 </Link>
-                                <Link :href="route('customize')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                                    Yêu cầu tùy chỉnh
-                                </Link>
-                                <Link :href="route('wholesale')" class="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                                    Báo giá B2B
-                                </Link>
                             </div>
                         </div>
                     </div>

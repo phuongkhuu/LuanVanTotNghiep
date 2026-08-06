@@ -238,6 +238,23 @@
                   <div class="flex-grow">
                     <p class="font-semibold text-sm leading-tight text-gray-800">{{ item.name }}</p>
                     <p class="text-xs text-gray-500">Màu: {{ item.color }} | Size: {{ item.size }}</p>
+                    
+                    <!-- ===== HIỂN THỊ THÔNG TIN IN LOGO ===== -->
+                    <div v-if="item.meta && item.meta.logo" class="text-xs text-gray-500 mt-1 space-y-0.5">
+                      <div class="flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">print</span>
+                        In logo: <span class="font-medium">{{ item.meta.logo.position }}</span> - 
+                        <span class="font-medium">{{ item.meta.logo.size }}</span>
+                      </div>
+                      <div v-if="item.meta.logo.note" class="italic text-gray-400 text-[10px]">
+                        "{{ item.meta.logo.note }}"
+                      </div>
+                      <div v-if="item.meta.logo.file" class="flex items-center gap-1">
+                        <a :href="'/storage/' + item.meta.logo.file" target="_blank" class="text-primary hover:underline text-[10px] flex items-center gap-0.5">
+                          <span class="material-symbols-outlined text-[12px]">attach_file</span> Xem logo
+                        </a>
+                      </div>
+                    </div>
                   </div>
                   <div class="text-right">
                     <p class="font-semibold text-sm font-bold text-gray-800">{{ formatPrice(item.price) }}</p>
@@ -507,6 +524,7 @@ const placeOrder = () => {
       id: item.id,
       quantity: item.quantity,
       price: item.price,
+      meta: item.meta || null
     })),
     total_amount: finalTotal.value,
     order_type: props.order_type || 'retail',
@@ -564,13 +582,11 @@ const checkVoucherOnLoad = async () => {
 };
 
 // ============ LIFECYCLE ============
-onMounted(() => {
-    //console.log('📦 Checkout props:', props);
-    
+onMounted(() => {    
     if (props.voucher_code && props.voucher_discount > 0) {
         discountAmount.value = props.voucher_discount;
         promoApplied.value = true;
-        promoMessage.value = `✅ Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`;
+        promoMessage.value = `Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`;
     }
     
     // ============ KIỂM TRA VOUCHER KHI LOAD ============

@@ -1,21 +1,30 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 
-// Nhận dữ liệu từ Controller qua props
+// Props từ controller
 const props = defineProps({
     initialRequests: {
         type: Array,
         default: () => []
+    },
+    filters: {
+        type: Object,
+        default: () => ({})
+    },
+    pagination: {
+        type: Object,
+        default: () => ({ total: 0, per_page: 5, current_page: 1, last_page: 1 })
     }
 });
 
-// Search and filters
-const search = ref('');
-const statusFilter = ref('all');
+// State
+const requests = ref(props.initialRequests);
+const search = ref(props.filters.search || '');
+const statusFilter = ref(props.filters.status || 'all');
 
-// Pagination - 5 items per page
+// Pagination
 const currentPage = ref(1);
 const perPage = ref(5);
 
@@ -24,66 +33,19 @@ const filters = [
     { val: 'all', label: 'Tất cả' },
     { val: 'pending', label: 'Chờ duyệt' },
     { val: 'approved', label: 'Đã duyệt' },
+    { val: 'rejected', label: 'Từ chối' },
     { val: 'processing', label: 'Đang SX' },
     { val: 'completed', label: 'Hoàn thành' }
 ];
-
-// Customize requests data
-const requests = ref(props.initialRequests.length > 0 ? props.initialRequests : [
-    { 
-        id: 1, 
-        customer: 'Công ty TNHH ABC', 
-        customerType: 'business', 
-        email: 'abc@company.com', 
-        phone: '0901234567', 
-        product: 'Balo Doanh Nhân Elite', 
-        position: 'Mặt trước', 
-        size: 'Lớn (15x15cm)', 
-        date: '04/06/2025', 
-        status: 'pending', 
-        note: 'In logo màu vàng, nền đen, kích thước 10x10cm, số lượng 100 cái',
-        quantity: 100,
-        designFile: 'logo_abc.ai'
-    },
-    { 
-        id: 2, 
-        customer: 'Nguyễn Văn A', 
-        customerType: 'retail', 
-        email: 'nguyenvana@email.com', 
-        phone: '0912345678', 
-        product: 'Balo Công Sở Commuter', 
-        position: 'Quai đeo', 
-        size: 'Nhỏ (3x10cm)', 
-        date: '03/06/2025', 
-        status: 'approved', 
-        note: 'Thêu tên "NGUYEN VAN A" màu vàng, font chữ in hoa',
-        quantity: 1,
-        designFile: ''
-    },
-    { 
-        id: 3, 
-        customer: 'Công ty TechPro', 
-        customerType: 'business', 
-        email: 'tech@pro.com', 
-        phone: '0923456789', 
-        product: 'Balo Tech Nova', 
-        position: 'Mặt sau', 
-        size: 'Vừa (10x10cm)', 
-        date: '02/06/2025', 
-        status: 'processing', 
-        note: 'In logo công nghệ, màu xanh dương, đang chạy thử nghiệm',
-        quantity: 50,
-        designFile: 'techpro_logo.png'
-    }
-]);
 
 // Modal states
 const showDetailModal = ref(false);
 const showQuoteModal = ref(false);
 const selectedRequest = ref(null);
 const isUpdating = ref(false);
+const feedback = ref('');
 
-// Quote form data
+// Quote form
 const quoteForm = ref({
     customerName: '',
     email: '',
@@ -95,37 +57,9 @@ const quoteForm = ref({
     estimatedTime: ''
 });
 
-// Computed: filtered requests (có tìm kiếm)
-const filteredRequests = computed(() => {
-    if (!requests.value || requests.value.length === 0) return [];
-    
-    const keyword = search.value.toLowerCase().trim();
-    
-    return requests.value.filter(request => {
-        // Kiểm tra trạng thái
-        const matchStatus = statusFilter.value === 'all' || request.status === statusFilter.value;
-        
-        // Kiểm tra tìm kiếm
-        let matchSearch = true;
-        if (keyword) {
-            const customer = (request.customer || '').toLowerCase();
-            const email = (request.email || '').toLowerCase();
-            const phone = (request.phone || '').toLowerCase();
-            const product = (request.product || '').toLowerCase();
-            const position = (request.position || '').toLowerCase();
-            
-            matchSearch = customer.includes(keyword) || 
-                         email.includes(keyword) ||
-                         phone.includes(keyword) ||
-                         product.includes(keyword) ||
-                         position.includes(keyword);
-        }
-        
-        return matchStatus && matchSearch;
-    });
-});
+// Computed
+const filteredRequests = computed(() => requests.value);
 
-// Pagination
 const paginatedRequests = computed(() => {
     const start = (currentPage.value - 1) * perPage.value;
     const end = start + perPage.value;
@@ -136,7 +70,6 @@ const totalPages = computed(() => {
     return Math.ceil(filteredRequests.value.length / perPage.value);
 });
 
-// Hiển thị số trang (tối đa 5 trang)
 const displayedPages = computed(() => {
     const total = totalPages.value;
     const current = currentPage.value;
@@ -156,10 +89,28 @@ const displayedPages = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
-// Reset về trang 1 khi tìm kiếm hoặc filter thay đổi
+// Watch filter changes
 watch([search, statusFilter], () => {
     currentPage.value = 1;
+    fetchRequests();
 });
+
+// Fetch data from server
+const fetchRequests = () => {
+    const params = new URLSearchParams();
+    if (search.value) params.append('search', search.value);
+    if (statusFilter.value !== 'all') params.append('status', statusFilter.value);
+    params.append('page', currentPage.value);
+    
+    router.get('/admin/customize?' + params.toString(), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onSuccess: (page) => {
+            requests.value = page.props.initialRequests || [];
+        }
+    });
+};
 
 // Get count by status
 const getCount = (statusValue) => {
@@ -169,42 +120,52 @@ const getCount = (statusValue) => {
     return requests.value.filter(r => r.status === statusValue).length;
 };
 
-// Get status badge class
+// Status badge class
 const getStatusClass = (status) => {
     const classes = {
         pending: 'bg-yellow-100 text-yellow-800',
         approved: 'bg-green-100 text-green-800',
+        rejected: 'bg-red-100 text-red-800',
         processing: 'bg-blue-100 text-blue-800',
         completed: 'bg-emerald-100 text-emerald-800'
     };
     return classes[status] || 'bg-gray-100 text-gray-600';
 };
 
-// Get status label
+// Status label
 const getStatusLabel = (status) => {
     const labels = {
         pending: 'Chờ duyệt',
         approved: 'Đã duyệt',
+        rejected: 'Từ chối',
         processing: 'Đang SX',
         completed: 'Hoàn thành'
     };
     return labels[status] || status;
 };
 
-// Update request status
+// Update status
 const updateStatus = async (request) => {
+    if (!confirm(`Bạn có chắc muốn thay đổi trạng thái thành "${getStatusLabel(request.status)}"?`)) {
+        return;
+    }
+    
     isUpdating.value = true;
     try {
         await router.put(`/admin/customize/${request.id}/status`, {
-            status: request.status
+            status: request.status,
+            feedback: feedback.value
         }, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log(`Đã cập nhật trạng thái yêu cầu ${request.id}`);
+                alert('Cập nhật trạng thái thành công!');
+                feedback.value = '';
+                fetchRequests();
             },
             onError: (errors) => {
                 console.error('Lỗi cập nhật:', errors);
                 alert('Có lỗi xảy ra khi cập nhật trạng thái');
+                fetchRequests();
             }
         });
     } catch (error) {
@@ -217,22 +178,63 @@ const updateStatus = async (request) => {
 
 // View detail
 const viewDetail = (request) => {
-    selectedRequest.value = request;
+    selectedRequest.value = { ...request };
+    feedback.value = '';
     showDetailModal.value = true;
 };
 
+// Approve request
+const approveRequest = async () => {
+    if (!selectedRequest.value) return;
+    
+    isUpdating.value = true;
+    try {
+        await router.put(`/admin/customize/${selectedRequest.value.id}/approve`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                selectedRequest.value.status = 'approved';
+                showDetailModal.value = false;
+                alert('Đã duyệt yêu cầu thành công!');
+                fetchRequests();
+            },
+            onError: (errors) => {
+                console.error('Lỗi duyệt:', errors);
+                alert('Có lỗi xảy ra khi duyệt yêu cầu');
+            }
+        });
+    } catch (error) {
+        console.error('Duyệt thất bại:', error);
+        alert('Có lỗi xảy ra khi duyệt yêu cầu');
+    } finally {
+        isUpdating.value = false;
+    }
+};
+
 // Open quote modal
-const openQuoteModal = () => {
-    quoteForm.value = {
-        customerName: '',
-        email: '',
-        phone: '',
-        product: '',
-        quantity: 1,
-        designDescription: '',
-        estimatedPrice: 0,
-        estimatedTime: ''
-    };
+const openQuoteModal = (request = null) => {
+    if (request) {
+        quoteForm.value = {
+            customerName: request.customer || '',
+            email: request.email || '',
+            phone: request.phone || '',
+            product: request.product || '',
+            quantity: request.quantity || 1,
+            designDescription: request.note || '',
+            estimatedPrice: 0,
+            estimatedTime: ''
+        };
+    } else {
+        quoteForm.value = {
+            customerName: '',
+            email: '',
+            phone: '',
+            product: '',
+            quantity: 1,
+            designDescription: '',
+            estimatedPrice: 0,
+            estimatedTime: ''
+        };
+    }
     showQuoteModal.value = true;
 };
 
@@ -240,6 +242,11 @@ const openQuoteModal = () => {
 const sendQuote = async () => {
     if (!quoteForm.value.customerName || !quoteForm.value.email) {
         alert('Vui lòng nhập đầy đủ thông tin khách hàng');
+        return;
+    }
+    
+    if (quoteForm.value.estimatedPrice <= 0) {
+        alert('Vui lòng nhập giá dự kiến');
         return;
     }
     
@@ -264,40 +271,13 @@ const sendQuote = async () => {
     }
 };
 
-// Approve request
-const approveRequest = async () => {
-    if (!selectedRequest.value) return;
-    
-    isUpdating.value = true;
-    try {
-        await router.put(`/admin/customize/${selectedRequest.value.id}/approve`, {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                selectedRequest.value.status = 'approved';
-                showDetailModal.value = false;
-                alert('Đã duyệt yêu cầu thành công!');
-            },
-            onError: (errors) => {
-                console.error('Lỗi duyệt:', errors);
-                alert('Có lỗi xảy ra khi duyệt yêu cầu');
-            }
-        });
-    } catch (error) {
-        console.error('Duyệt thất bại:', error);
-        alert('Có lỗi xảy ra khi duyệt yêu cầu');
-    } finally {
-        isUpdating.value = false;
-    }
-};
-
 // Download design file
 const downloadFile = (fileName) => {
     if (!fileName) {
         alert('Không có file đính kèm');
         return;
     }
-    // Logic tải file
-    alert(`Đang tải file: ${fileName}`);
+    window.open('/storage/' + fileName, '_blank');
 };
 
 // Format currency
@@ -305,6 +285,11 @@ const formatPrice = (value) => {
     if (!value) return '0₫';
     return value.toLocaleString('vi-VN') + '₫';
 };
+
+// Initial fetch
+if (requests.value.length === 0) {
+    fetchRequests();
+}
 </script>
 
 <template>
@@ -316,7 +301,7 @@ const formatPrice = (value) => {
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Yêu cầu tùy chỉnh</h1>
                 <button 
-                    @click="openQuoteModal" 
+                    @click="openQuoteModal()" 
                     class="bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-green-800 transition-colors"
                 >
                     <span class="material-symbols-outlined text-lg">request_quote</span>
@@ -402,6 +387,7 @@ const formatPrice = (value) => {
                                     >
                                         <option value="pending">Chờ duyệt</option>
                                         <option value="approved">Đã duyệt</option>
+                                        <option value="rejected">Từ chối</option>
                                         <option value="processing">Đang SX</option>
                                         <option value="completed">Hoàn thành</option>
                                     </select>
@@ -433,14 +419,12 @@ const formatPrice = (value) => {
                     </table>
                 </div>
 
-                <!-- Footer với phân trang căn giữa -->
+                <!-- Footer với phân trang -->
                 <div class="p-4 border-t border-gray-200">
-                    <!-- Thông tin số lượng -->
                     <div class="text-center text-sm text-gray-500 mb-3">
                         Hiển thị {{ paginatedRequests.length }} / {{ filteredRequests.length }} yêu cầu
                     </div>
                     
-                    <!-- Phân trang căn giữa -->
                     <div v-if="totalPages > 1" class="flex justify-center items-center gap-2">
                         <button
                             @click="currentPage--"

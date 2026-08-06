@@ -26,8 +26,9 @@ use App\Http\Controllers\CategoryController as WebCategoryController;
 use App\Http\Controllers\ProductController as WebProductController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\WholesaleController;         // <-- import mới
-use App\Http\Controllers\QuoteRequestController;     // <-- import mới
+use App\Http\Controllers\WholesaleController;
+use App\Http\Controllers\QuoteRequestController;
+use App\Http\Controllers\LogoPrintRequestController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -65,17 +66,17 @@ Route::get('/tim-kiem', [SearchController::class, 'index'])->name('search');
 Route::get('/san-pham/{slug}', [WebProductController::class, 'show'])->name('product.detail');
 Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
-// Other public frontend routes
+// ==================== WHOLESALE ROUTES ====================
 Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
-Route::post('/mua-si', [QuoteRequestController::class, 'submitRequest'])->name('wholesale.submit');
+Route::post('/mua-si', [WholesaleController::class, 'submitRequest'])->name('wholesale.submit-request');
 Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])->name('wholesale.place-order-with-quote');
 
 // Promotion route - Sử dụng PromotionController (Web)
 Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotion');
 
-Route::get('/tuy-chinh', function () {
-    return Inertia::render('Web/Customize');
-})->name('customize');
+// ==================== CUSTOMIZE ROUTES (Public) ====================
+Route::get('/tuy-chinh', [LogoPrintRequestController::class, 'create'])->name('customize');
+Route::post('/tuy-chinh', [LogoPrintRequestController::class, 'store'])->name('customize.submit');
 
 // ==================== LỊCH SỬ ĐƠN HÀNG ROUTES (Yêu cầu đăng nhập) ====================
 Route::middleware(['auth'])->group(function () {
@@ -131,6 +132,9 @@ Route::prefix('api')->group(function () {
             'message' => 'Pre-order session saved'
         ]);
     });
+
+    // ===== UPLOAD LOGO =====
+    Route::post('/upload-logo', [LogoPrintRequestController::class, 'uploadLogo'])->middleware('auth');
 });
 
 // ==================== CHECKOUT ROUTES ====================

@@ -27,7 +27,7 @@ class PromotionController extends Controller
     public function index()
     {
         try {
-            $this->checkExpiredPreorders();
+            $this->checkExpiredPreorders(); //Kiểm tra campaign + preorder hết hạn -> Tắt đi
 
             $allCampaigns = Campaign::with([
                 'configs', 
@@ -105,21 +105,21 @@ class PromotionController extends Controller
                         // Số đơn hàng (chỉ đơn pre-order, không bị hủy)
                         $totalOrders = Order::where('campaign_id', $campaignId)
                             ->where('order_code', 'preorder')
-                            ->where('order_status', '!=', 4) // giả định 4 là hủy
+                            ->where('order_status', '!=', 5) 
                             ->count();
 
                         // Tổng số lượng sản phẩm đã đặt
                         $totalQuantity = OrderDetail::whereHas('order', function ($q) use ($campaignId) {
                                 $q->where('campaign_id', $campaignId)
                                   ->where('order_code', 'preorder')
-                                  ->where('order_status', '!=', 4);
+                                  ->where('order_status', '!=', 5);
                             })
                             ->sum('quantity');
 
                         // Số người đặt duy nhất
                         $uniqueUsers = Order::where('campaign_id', $campaignId)
                             ->where('order_code', 'preorder')
-                            ->where('order_status', '!=', 4)
+                            ->where('order_status', '!=', 5)
                             ->whereNotNull('user_id')
                             ->distinct('user_id')
                             ->count('user_id');

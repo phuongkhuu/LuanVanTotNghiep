@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\LogoPrintRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -117,6 +118,25 @@ class PaymentController extends Controller
     }
 
     /**
+     * Tính phí in logo
+     */
+    private function calculateLogoPrice($basePrice, $position, $size)
+    {
+        $positionFactor = [
+            'front' => 0.10,
+            'back'  => 0.12,
+            'side'  => 0.08,
+        ];
+        $sizeFactor = [
+            'small'  => 0.08,
+            'medium' => 0.12,
+            'large'  => 0.18,
+        ];
+        $factor = ($positionFactor[$position] ?? 0.10) + ($sizeFactor[$size] ?? 0.10);
+        return round($basePrice * $factor);
+    }
+
+    /**
      * Hiển thị trang thanh toán
      */
     public function index(Request $request)
@@ -159,9 +179,19 @@ class PaymentController extends Controller
                 }
 
                 $saleInfo = $this->calculateSalePrice($variant);
-                $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                $basePrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+
+                // ===== LẤY META VÀ TÍNH PHÍ IN LOGO =====
+                $meta = $item['meta'] ?? null;
+                $additionalPrice = 0;
+                if (!empty($meta['logo'])) {
+                    $logo = $meta['logo'];
+                    $additionalPrice = $this->calculateLogoPrice($basePrice, $logo['position'], $logo['size']);
+                }
+
+                $finalPrice = $basePrice + $additionalPrice;
                 $quantity = $item['quantity'] ?? 1;
-                $total = $price * $quantity;
+                $total = $finalPrice * $quantity;
                 $subtotal += $total;
 
                 $images = $variant->product->image_url ?? [];
@@ -172,11 +202,12 @@ class PaymentController extends Controller
                     $images = [$variant->product->thumbnail];
                 }
 
-                $products[] = [
+                // Tạo dữ liệu sản phẩm trả về cho view
+                $productData = [
                     'id' => $variant->id,
                     'name' => $variant->product->name,
                     'variant_name' => $variant->name ?? '',
-                    'price' => $price,
+                    'price' => $finalPrice,
                     'quantity' => $quantity,
                     'total' => $total,
                     'image' => $images[0] ?? '/images/default-product.jpg',
@@ -187,12 +218,19 @@ class PaymentController extends Controller
                     'original_price' => $variant->price,
                     'discount_percent' => $saleInfo['discount_percent'],
                 ];
+
+                // Thêm meta nếu có để hiển thị thông tin in logo ở checkout
+                if ($meta !== null) {
+                    $productData['meta'] = $meta;
+                }
+
+                $products[] = $productData;
             }
             $orderType = 'retail';
             $isPreOrder = false;
         }
 
-        // Xử lý pre-order
+        // Xử lý pre-order (giữ nguyên)
         if (empty($products)) {
             $preOrderVariantId = Session::get('pre_order_variant_id');
             if ($preOrderVariantId) {
@@ -320,6 +358,7 @@ class PaymentController extends Controller
             'items.*.id'      => 'required|exists:product_variants,id',
             'items.*.quantity'=> 'required|integer|min:1',
             'items.*.price'   => 'required|numeric|min:0',
+            'items.*.meta'    => 'nullable|array',
             'total_amount'    => 'required|numeric|min:0',
             'order_type'      => 'required|in:retail,preorder,wholesale',
             'promo_code'      => 'nullable|string',
@@ -392,6 +431,31 @@ class PaymentController extends Controller
                 } else {
                     $displayCode = $this->generateOrderDisplayCode($responseData->order);
                     session(['last_order_display_code' => $displayCode]);
+                }
+
+                // ===== XỬ LÝ LƯU THÔNG TIN IN LOGO =====
+                $order = $responseData->order;
+                if ($order && isset($order->details)) {
+                    // Duyệt qua từng order_detail và kiểm tra meta
+                    foreach ($order->details as $detail) {
+                        // Tìm item tương ứng trong request->items
+                        $matchedItem = collect($validated['items'])->firstWhere('id', $detail->product_variant_id);
+                        if ($matchedItem && isset($matchedItem['meta']['logo'])) {
+                            $logoMeta = $matchedItem['meta']['logo'];
+                            LogoPrintRequest::create([
+                                'order_detail_id' => $detail->id,
+                                'logo_image' => $logoMeta['file'] ?? null,
+                                'print_position' => $logoMeta['position'] ?? '',
+                                'print_size' => $logoMeta['size'] ?? '',
+                                'note' => ($logoMeta['note'] ?? '') . "\n\n---\n" .
+                                           "Khách hàng: " . ($logoMeta['fullName'] ?? '') . "\n" .
+                                           "Email: " . ($logoMeta['email'] ?? '') . "\n" .
+                                           "SĐT: " . ($logoMeta['phone'] ?? ''),
+                                'status' => 'pending',
+                            ]);
+                            Log::info('LogoPrintRequest created for order detail: ' . $detail->id);
+                        }
+                    }
                 }
 
                 // Xác định redirect URL

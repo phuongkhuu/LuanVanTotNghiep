@@ -7,9 +7,14 @@ use App\Models\ProductVariant;
 use App\Models\Discount;
 use App\Models\QuoteRequest;
 use App\Models\QuoteRequestDetail;
+use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class WholesaleController extends Controller
 {
@@ -170,7 +175,7 @@ class WholesaleController extends Controller
     }
 
     /**
-     * Xử lý đặt hàng sỉ (chỉ thanh toán qua PayOS)
+     * Xử lý đặt hàng sỉ (chỉ thanh toán qua PayOS) - Có thể giữ nguyên hoặc bỏ
      */
     public function storeOrder(Request $request)
     {
@@ -252,7 +257,7 @@ class WholesaleController extends Controller
     }
 
     /**
-     * Xử lý đặt hàng sỉ + lưu yêu cầu báo giá (B2B) cùng lúc
+     * Xử lý đặt hàng sỉ + lưu yêu cầu báo giá (B2B) cùng lúc - Có thể giữ nguyên hoặc bỏ
      */
     public function placeOrderWithQuote(Request $request)
     {
@@ -377,81 +382,183 @@ class WholesaleController extends Controller
 
     /**
      * Lưu yêu cầu báo giá (B2B) từ form bên phải trang mua sỉ
+     * Tạo QuoteRequest, Order và Payment (bank_transfer, amount=0)
      */
     public function submitRequest(Request $request)
     {
-        $validated = $request->validate([
-            'company'      => 'required|string|max:255',
-            'email'        => 'required|email|max:255',
-            'phone'        => 'required|string|max:20',
-            'city'         => 'nullable|string|max:100',
-            'district'     => 'nullable|string|max:100',
-            'ward'         => 'nullable|string|max:100',
-            'address'      => 'required|string|max:500',
-            'note'         => 'nullable|string|max:500',
-            'requirements' => 'nullable|string|max:1000',
-            'product_id'   => 'nullable|exists:products,id',
-            'variant_id'   => 'nullable|exists:product_variants,id',
-            'quantity'     => 'required|integer|min:1',
-            'color'        => 'nullable|string|max:50',
-            'size'         => 'nullable|string|max:50',
-        ]);
-
-        // Lấy variant và product
-        $variant = null;
-        $product = null;
-
-        if (!empty($validated['variant_id'])) {
-            $variant = ProductVariant::with('product')->find($validated['variant_id']);
-            if ($variant) {
-                $product = $variant->product;
-            }
-        } elseif (!empty($validated['product_id'])) {
-            $product = Product::find($validated['product_id']);
-            if ($product) {
-                $variant = $product->variants->first(); // lấy variant đầu tiên nếu không chọn cụ thể
-            }
-        }
-
-        if (!$product || !$variant) {
+        // 1. Kiểm tra đăng nhập
+        if (!Auth::check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không tìm thấy sản phẩm hoặc biến thể. Vui lòng chọn lại.'
+                'message' => 'Vui lòng đăng nhập để gửi yêu cầu mua sỉ.'
+            ], 401);
+        }
+
+        // 2. Validate dữ liệu
+        $validated = $request->validate([
+            'company'       => 'required|string|max:255',
+            'email'         => 'required|email|max:255',
+            'phone'         => 'required|string|max:20',
+            'tax_code'      => 'nullable|string|max:50',
+            'delivery_date' => 'nullable|date|after:today',
+            'city'          => 'nullable|string|max:100',
+            'district'      => 'nullable|string|max:100',
+            'ward'          => 'nullable|string|max:100',
+            'address'       => 'required|string|max:500',
+            'note'          => 'nullable|string|max:500',
+            'requirements'  => 'nullable|string|max:1000',
+            'variant_id'    => 'required|exists:product_variants,id',
+            'quantity'      => 'required|integer|min:50',
+            'color'         => 'nullable|string|max:50',
+            'size'          => 'nullable|string|max:50',
+        ]);
+
+        // 3. Lấy variant và product
+        $variant = ProductVariant::with('product')->find($validated['variant_id']);
+        if (!$variant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sản phẩm không tồn tại.'
             ], 404);
         }
 
-        // Tính giá (ưu tiên sale_price nếu có)
+        // Tính giá
         $unitPrice = $variant->is_on_sale && $variant->sale_price
             ? $variant->sale_price
             : $variant->price;
-
         $total = $unitPrice * $validated['quantity'];
 
-        // Tạo quote request
-        $quoteRequest = QuoteRequest::create([
-            'user_id'       => auth()->id() ?? null,
-            'company_name'  => $validated['company'],
-            'email'         => $validated['email'],
-            'phone'         => $validated['phone'],
-            'total_quantity'=> $validated['quantity'],
-            'total'         => $total,
-            'requirement'   => $validated['requirements'] ?? null,
-            'logo_file'     => null,
-            'status'        => 'pending',
-        ]);
+        // 4. Gom các thông tin bổ sung vào một mảng và encode JSON cho QuoteRequest
+        $extraData = [
+            'address'       => $validated['address'],
+            'city'          => $validated['city'],
+            'district'      => $validated['district'],
+            'ward'          => $validated['ward'],
+            'tax_code'      => $validated['tax_code'],
+            'delivery_date' => $validated['delivery_date'],
+            'requirements'  => $validated['requirements'],
+            'note'          => $validated['note'],
+        ];
+        // Loại bỏ các giá trị null để tiết kiệm dung lượng
+        $extraData = array_filter($extraData, function ($value) {
+            return !is_null($value) && $value !== '';
+        });
+        $requirementJson = json_encode($extraData, JSON_UNESCAPED_UNICODE);
 
-        // Tạo chi tiết báo giá
-        QuoteRequestDetail::create([
-            'quote_request_id'    => $quoteRequest->id,
-            'product_variant_id'  => $variant->id,
-            'quantity'            => $validated['quantity'],
-        ]);
+        // 5. Xây dựng nội dung ghi chú cho Order (lưu vào cột note)
+        $orderNote = '';
+        if (!empty($validated['note'])) {
+            $orderNote .= $validated['note'] . "\n\n";
+        }
+        $orderNote .= "--- THÔNG TIN BỔ SUNG ---\n";
+        if (!empty($validated['email'])) {
+            $orderNote .= "Email: {$validated['email']}\n";
+        }
+        if (!empty($validated['tax_code'])) {
+            $orderNote .= "Mã số thuế: {$validated['tax_code']}\n";
+        }
+        if (!empty($validated['delivery_date'])) {
+            $orderNote .= "Ngày cần nhận: {$validated['delivery_date']}\n";
+        }
+        if (!empty($validated['address'])) {
+            $addressParts = [
+                $validated['address'],
+                $validated['ward'],
+                $validated['district'],
+                $validated['city']
+            ];
+            $fullAddress = implode(', ', array_filter($addressParts));
+            $orderNote .= "Địa chỉ giao hàng: {$fullAddress}\n";
+        }
+        if (!empty($validated['requirements'])) {
+            $orderNote .= "Yêu cầu đặc biệt: {$validated['requirements']}\n";
+        }
+        $orderNote .= "-------------------------";
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Yêu cầu báo giá đã được gửi thành công! Chúng tôi sẽ liên hệ trong 30 phút.',
-            'quote_id' => $quoteRequest->id,
-        ]);
+        // 6. Lưu yêu cầu và đơn hàng vào DB
+        try {
+            DB::beginTransaction();
+
+            // --- Tạo yêu cầu báo giá ---
+            $quoteRequest = QuoteRequest::create([
+                'user_id'        => Auth::id(),
+                'company_name'   => $validated['company'],
+                'email'          => $validated['email'],
+                'phone'          => $validated['phone'],
+                'total_quantity' => $validated['quantity'],
+                'total'          => $total,
+                'requirement'    => $requirementJson,
+                'logo_file'      => null,
+                'status'         => 'pending',
+            ]);
+
+            QuoteRequestDetail::create([
+                'quote_request_id'   => $quoteRequest->id,
+                'product_variant_id' => $variant->id,
+                'quantity'           => $validated['quantity'],
+            ]);
+
+            // --- Tạo đơn hàng bán sỉ (wholesale) với trạng thái chờ xác nhận ---
+            $order = Order::create([
+                'user_id'          => Auth::id(),
+                'order_code'       => 'wholesale',
+                'customer_name'    => $validated['company'],
+                'customer_phone'   => $validated['phone'],
+                'customer_email'   => $validated['email'],
+                'receiver_name'    => $validated['company'],
+                'receiver_phone'   => $validated['phone'],
+                'shipping_address' => $validated['address'],
+                'note'             => $orderNote,
+                'total_amount'     => $total,
+                'discount_amount'  => 0,
+                'final_amount'     => $total,
+                'deposit_amount'   => 0,
+                'remaining_amount' => $total,
+                'payment_status'   => 'pending',
+                'order_status'     => 0, // 0: Chờ xác nhận
+                'shipping_fee'     => 0,
+            ]);
+
+            // Sinh mã đơn hàng (prefix S + ngày + số thứ tự)
+            $order->order_number = 'S' . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
+            $order->save();
+
+            // --- Tạo chi tiết đơn hàng ---
+            OrderDetail::create([
+                'order_id'           => $order->id,
+                'product_variant_id' => $variant->id,
+                'quantity'           => $validated['quantity'],
+                'unit_price'         => $unitPrice,
+                'subtotal'           => $total,
+            ]);
+
+            // --- Tạo bản ghi thanh toán (chuyển khoản, số tiền 0, trạng thái pending) ---
+            Payment::create([
+                'order_id'          => $order->id,
+                'transaction_code'  => 'PAY-WS-' . $order->id . '-' . time(),
+                'payment_method'    => 'bank_transfer',
+                'amount'            => 0,
+                'payment_date'      => now(),
+                'status'            => 'pending',
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Gửi yêu cầu thành công! Chúng tôi sẽ liên hệ trong 30 phút.',
+                'quote_id' => $quoteRequest->id,
+                'order_id' => $order->id,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Submit quote request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra, vui lòng thử lại sau.'
+            ], 500);
+        }
     }
 
     /**

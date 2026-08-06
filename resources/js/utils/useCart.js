@@ -1,4 +1,4 @@
-// useCart.js
+// resources/js/utils/useCart.js
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { CartEvents } from '@/events/CartEvents'
@@ -112,6 +112,13 @@ const clearVoucherStorage = () => {
     }
 }
 
+// ============= HÀM SO SÁNH META ĐỂ GỘP GIỎ HÀNG =============
+const isMetaEqual = (metaA, metaB) => {
+    if (!metaA && !metaB) return true
+    if (!metaA || !metaB) return false
+    return JSON.stringify(metaA) === JSON.stringify(metaB)
+}
+
 // ============= CÁC HÀNH ĐỘNG =============
 const fetchCart = async () => {
     if (isFetching) return
@@ -133,7 +140,8 @@ const fetchCart = async () => {
         localItems.forEach(item => {
             cartData[item.id] = {
                 quantity: item.quantity,
-                price: item.price
+                price: item.price,
+                meta: item.meta || null
             }
         })
 
@@ -145,7 +153,15 @@ const fetchCart = async () => {
         })
 
         if (response.data.success) {
-            cartItems.value = response.data.items || []
+            // Gộp meta từ response với meta đã lưu (nếu có)
+            const itemsWithMeta = response.data.items.map((item, index) => {
+                const localItem = localItems.find(l => l.id === item.id)
+                return {
+                    ...item,
+                    meta: localItem?.meta || null
+                }
+            })
+            cartItems.value = itemsWithMeta
             updateCounts()
             saveToLocalStorage(cartItems.value)
         } else {
@@ -163,26 +179,34 @@ const fetchCart = async () => {
     }
 }
 
-const addToCart = async (variantId, quantity = 1) => {
+const addToCart = async (variantId, quantity = 1, meta = null) => {
     try {
         const response = await axios.post('/api/cart/add', {
             variant_id: variantId,
-            quantity: quantity
+            quantity: quantity,
+            meta: meta
         }, {
             timeout: 10000
         })
 
         if (response.data.success) {
             const currentCart = loadFromLocalStorage()
-            const existingIndex = currentCart.findIndex(item => item.id === variantId)
+            const existingIndex = currentCart.findIndex(item => 
+                item.id === variantId && 
+                isMetaEqual(item.meta || null, meta)
+            )
+
+            const newItem = {
+                ...response.data.item,
+                quantity: quantity,
+                meta: meta || null
+            }
 
             if (existingIndex > -1) {
                 currentCart[existingIndex].quantity += quantity
+                currentCart[existingIndex].price = newItem.price
             } else {
-                currentCart.push({
-                    ...response.data.item,
-                    quantity: quantity
-                })
+                currentCart.push(newItem)
             }
 
             saveToLocalStorage(currentCart)
@@ -203,11 +227,8 @@ const addToCart = async (variantId, quantity = 1) => {
 
 const updateCart = async (variantId, quantity) => {
     try {
-        // ============ KIỂM TRA TỒN KHO TRƯỚC KHI GỌI API ============
-        // Lấy thông tin stock từ cartItems hiện tại
         const currentItem = cartItems.value.find(item => item.id === variantId)
         if (currentItem && quantity > currentItem.stock) {
-            // Ném lỗi để component xử lý
             const error = new Error('Số lượng vượt quá tồn kho')
             error.response = {
                 data: {
@@ -270,11 +291,9 @@ const removeFromCart = async (variantId) => {
 
 const clearCart = async () => {
     try {
-
         await axios.delete('/api/cart/clear')
 
         cartItems.value = []
-
         updateCounts()
 
         const key = getStorageKey()

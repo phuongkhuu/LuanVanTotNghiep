@@ -10,9 +10,9 @@ const props = defineProps({
     currentPeriod: String,
 });
 
-// Period filter
-const period = ref(props.currentPeriod || 'week');
-const periods = ['week', 'month', 'year'];
+// Period filter - THÊM 'day'
+const period = ref(props.currentPeriod || 'day');
+const periods = ['day', 'week', 'month', 'year'];
 const isLoading = ref(false);
 
 // Chart instances
@@ -47,14 +47,12 @@ const formatPrice = (value) => {
 const getCategoryData = () => {
     const dist = categoryDistribution.value;
     if (Array.isArray(dist) && dist.length > 0) {
-        // Nếu là mảng object { label, value }
         if (typeof dist[0] === 'object' && dist[0].label !== undefined) {
             return {
                 labels: dist.map(item => item.label),
                 data: dist.map(item => item.value)
             };
         }
-        // Nếu là mảng số
         return {
             labels: ['Balo', 'Cặp - Túi', 'Phụ kiện'],
             data: dist
@@ -210,7 +208,6 @@ const loadDataByPeriod = async () => {
         console.error('Lỗi tải dữ liệu:', error);
     } finally {
         isLoading.value = false;
-        // Cập nhật biểu đồ ngay sau khi dữ liệu về
         updateCharts();
     }
 };
@@ -247,7 +244,7 @@ onMounted(() => {
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Báo cáo thống kê</h1>
             </div>
 
-            <!-- Bộ lọc thời gian -->
+            <!-- Bộ lọc thời gian - THÊM 'Ngày' -->
             <div class="flex flex-wrap items-center gap-2 mb-6">
                 <button 
                     v-for="p in periods" 
@@ -256,7 +253,7 @@ onMounted(() => {
                     class="px-4 py-2 rounded-lg text-sm transition-all"
                     :class="period === p ? 'bg-orange-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'"
                 >
-                    {{ p === 'week' ? 'Tuần' : p === 'month' ? 'Tháng' : 'Năm' }}
+                    {{ p === 'day' ? 'Ngày' : p === 'week' ? 'Tuần' : p === 'month' ? 'Tháng' : 'Năm' }}
                 </button>
                 <button 
                     @click="exportReport" 
@@ -281,30 +278,33 @@ onMounted(() => {
                 <div>
                     <!-- 3 thẻ tổng quan -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Bán lẻ -->
                         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                             <p class="text-sm text-gray-500 flex items-center gap-1">Bán lẻ</p>
                             <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.retail.revenue) }}</p>
-                            <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">trending_up</span>
-                                +{{ summaryData.retail.growth }}%
+                            <p class="text-xs mt-1 flex items-center gap-1" :class="summaryData.retail.growth >= 0 ? 'text-green-600' : 'text-red-600'">
+                                <span class="material-symbols-outlined text-sm">{{ summaryData.retail.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+                                {{ summaryData.retail.growth >= 0 ? '+' : '' }}{{ summaryData.retail.growth }}%
                             </p>
                         </div>
                         
+                        <!-- Bán sỉ -->
                         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                             <p class="text-sm text-gray-500 flex items-center gap-1">Bán sỉ</p>
                             <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.wholesale.revenue) }}</p>
-                            <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">trending_up</span>
-                                +{{ summaryData.wholesale.growth }}%
+                            <p class="text-xs mt-1 flex items-center gap-1" :class="summaryData.wholesale.growth >= 0 ? 'text-green-600' : 'text-red-600'">
+                                <span class="material-symbols-outlined text-sm">{{ summaryData.wholesale.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+                                {{ summaryData.wholesale.growth >= 0 ? '+' : '' }}{{ summaryData.wholesale.growth }}%
                             </p>
                         </div>
                         
+                        <!-- Pre-order -->
                         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                             <p class="text-sm text-gray-500 flex items-center gap-1">Pre-order</p>
                             <p class="text-2xl font-bold text-gray-800 mt-2">{{ formatPrice(summaryData.preorder.revenue) }}</p>
-                            <p class="text-xs text-yellow-600 mt-1 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">trending_up</span>
-                                +{{ summaryData.preorder.growth }}%
+                            <p class="text-xs mt-1 flex items-center gap-1" :class="summaryData.preorder.growth >= 0 ? 'text-green-600' : 'text-red-600'">
+                                <span class="material-symbols-outlined text-sm">{{ summaryData.preorder.growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+                                {{ summaryData.preorder.growth >= 0 ? '+' : '' }}{{ summaryData.preorder.growth }}%
                             </p>
                         </div>
                     </div>

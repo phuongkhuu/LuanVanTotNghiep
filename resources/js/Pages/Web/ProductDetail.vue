@@ -299,8 +299,8 @@
                 {{ loading ? 'Đang xử lý...' : 'Đặt trước ngay' }}
               </button>
               
-              <!-- Nút Tùy chỉnh (full width) -->
-              <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
+              <!-- Nút Tùy chỉnh (full width) - CÓ THÊM ?product_id= -->
+              <Link :href="route('customize') + '?product_id=' + product.id" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
                 <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
               </Link>
             </template>
@@ -343,8 +343,8 @@
                 <span class="material-symbols-outlined">business</span> Mua sỉ
               </button>
 
-              <!-- Nút Tùy chỉnh (full width) -->
-              <Link :href="route('customize')" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
+              <!-- Nút Tùy chỉnh (full width) - CÓ THÊM ?product_id= -->
+              <Link :href="route('customize') + '?product_id=' + product.id" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
                 <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
               </Link>
             </template>

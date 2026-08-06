@@ -16,20 +16,32 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
 {
     protected $period;
     protected $reportData;
+    protected $periodName;
 
     public function __construct($period, $reportData)
     {
         $this->period = $period;
         $this->reportData = $reportData;
+        $this->periodName = $this->getPeriodName($this->period);
+        $this->periodName = $this->toUpperCase($this->periodName);
     }
 
-    /**
-     * Trả về tên file xuất theo định dạng ngày/tháng/năm
-     */
+    private function toUpperCase($str)
+    {
+        $map = [
+            'Ngày' => 'NGÀY',
+            'Tuần' => 'TUẦN',
+            'Tháng' => 'THÁNG',
+            'Năm' => 'NĂM'
+        ];
+        return $map[$str] ?? strtoupper($str);
+    }
+
     public function getFileName(): string
     {
         $now = Carbon::now();
-        return 'bao_cao_' . $now->format('Ymd') . '.xlsx';
+        $periodLabel = $this->getPeriodLabel($this->period);
+        return 'bao_cao_' . $periodLabel . '_' . $now->format('Ymd') . '.xlsx';
     }
 
     public function title(): string
@@ -39,12 +51,7 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
 
     public function headings(): array
     {
-        return [
-            'Chỉ tiêu',
-            'Bán lẻ',
-            'Bán sỉ',
-            'Pre-order'
-        ];
+        return ['BẢNG BÁO CÁO DOANH THU THEO ' . $this->periodName];
     }
 
     public function array(): array
@@ -55,99 +62,128 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
         $topCustomers = $this->reportData['topCustomers'];
         $categoryDistribution = $this->reportData['categoryDistribution'];
 
+        $labels = $chartData['labels'];
+        $numColumns = count($labels) + 1;
+
         $rows = [];
 
-        // 1. Tiêu đề thời gian và ngày xuất
-        $periodLabel = $this->getPeriodLabel($this->period);
-        $exportDate = Carbon::now()->format('d/m/Y H:i');
-        $rows[] = ['BÁO CÁO THỐNG KÊ - ' . strtoupper($periodLabel)];
-        $rows[] = ['Ngày xuất: ' . $exportDate];
-        $rows[] = []; // dòng trống
-
-        // 2. Tổng quan doanh thu
+        // I. TỔNG QUAN DOANH THU
         $rows[] = ['I. TỔNG QUAN DOANH THU'];
-        $rows[] = ['Doanh thu hôm nay',
-            number_format($summary['retail']['revenue']) . '₫',
-            number_format($summary['wholesale']['revenue']) . '₫',
-            number_format($summary['preorder']['revenue']) . '₫'
-        ];
-        $rows[] = ['Tăng trưởng so với hôm qua',
-            $summary['retail']['growth'] . '%',
-            $summary['wholesale']['growth'] . '%',
-            $summary['preorder']['growth'] . '%'
-        ];
-        $rows[] = []; // dòng trống
+        $typeRow = ['Loại doanh thu', 'Bán lẻ', 'Bán sỉ', 'Pre-order'];
+        for ($i = 4; $i < $numColumns; $i++) {
+            $typeRow[] = '';
+        }
+        $rows[] = $typeRow;
 
-        // 3. Biểu đồ doanh thu theo ngày/tuần/tháng
-        $rows[] = ['II. DOANH THU THEO THỜI GIAN'];
-        $labels = $chartData['labels'];
-        $retail = $chartData['retail'];
-        $wholesale = $chartData['wholesale'];
-        $preorder = $chartData['preorder'];
+        $revenueLabel = $this->getRevenueLabel($this->period);
+        $revenueRow = [$revenueLabel];
+        $revenueRow[] = number_format($summary['retail']['revenue']) . '₫';
+        $revenueRow[] = number_format($summary['wholesale']['revenue']) . '₫';
+        $revenueRow[] = number_format($summary['preorder']['revenue']) . '₫';
+        for ($i = 4; $i < $numColumns; $i++) {
+            $revenueRow[] = '';
+        }
+        $rows[] = $revenueRow;
 
-        // Header cho biểu đồ
-        $header = ['Kỳ'];
+        $growthLabel = $this->getGrowthLabel($this->period);
+        $growthRow = [$growthLabel];
+        $growthRow[] = $summary['retail']['growth'] . '%';
+        $growthRow[] = $summary['wholesale']['growth'] . '%';
+        $growthRow[] = $summary['preorder']['growth'] . '%';
+        for ($i = 4; $i < $numColumns; $i++) {
+            $growthRow[] = '';
+        }
+        $rows[] = $growthRow;
+        $rows[] = [];
+
+        // II. DOANH THU THEO THỜI GIAN
+        $rows[] = ['II. DOANH THU THEO ' . $this->periodName];
+        $header = [$this->periodName];
         foreach ($labels as $label) {
             $header[] = $label;
         }
         $rows[] = $header;
 
-        // Dòng dữ liệu: Bán lẻ
-        $rowRetail = ['Bán lẻ'];
-        foreach ($retail as $value) {
+        $rowRetail = ['Doanh thu bán lẻ'];
+        foreach ($chartData['retail'] as $value) {
             $rowRetail[] = number_format($value) . '₫';
         }
         $rows[] = $rowRetail;
 
-        // Bán sỉ
-        $rowWholesale = ['Bán sỉ'];
-        foreach ($wholesale as $value) {
+        $rowWholesale = ['Doanh thu bán sỉ'];
+        foreach ($chartData['wholesale'] as $value) {
             $rowWholesale[] = number_format($value) . '₫';
         }
         $rows[] = $rowWholesale;
 
-        // Pre-order
-        $rowPreorder = ['Pre-order'];
-        foreach ($preorder as $value) {
+        $rowPreorder = ['Doanh thu pre-order'];
+        foreach ($chartData['preorder'] as $value) {
             $rowPreorder[] = number_format($value) . '₫';
         }
         $rows[] = $rowPreorder;
-        $rows[] = []; // dòng trống
+        $rows[] = [];
 
-        // 4. Top sản phẩm
+        // III. TOP SẢN PHẨM BÁN CHẠY
         $rows[] = ['III. TOP SẢN PHẨM BÁN CHẠY'];
-        $rows[] = ['STT', 'Tên sản phẩm', 'Số lượng bán', 'Doanh thu'];
+        $headerTop = ['STT', 'Tên sản phẩm', 'Số lượng bán', 'Doanh thu'];
+        for ($i = 4; $i < $numColumns; $i++) {
+            $headerTop[] = '';
+        }
+        $rows[] = $headerTop;
+
         foreach ($topProducts as $index => $product) {
-            $rows[] = [
+            $row = [
                 $index + 1,
                 $product['name'],
                 $product['sold'],
                 number_format($product['revenue']) . '₫'
             ];
+            for ($i = 4; $i < $numColumns; $i++) {
+                $row[] = '';
+            }
+            $rows[] = $row;
         }
-        $rows[] = []; // dòng trống
+        $rows[] = [];
 
-        // 5. Top khách hàng
+        // IV. TOP KHÁCH HÀNG THÂN THIẾT
         $rows[] = ['IV. TOP KHÁCH HÀNG THÂN THIẾT'];
-        $rows[] = ['STT', 'Tên khách hàng', 'Số đơn hàng', 'Tổng chi tiêu'];
+        $headerCustomer = ['STT', 'Tên khách hàng', 'Số đơn hàng', 'Tổng doanh thu'];
+        for ($i = 4; $i < $numColumns; $i++) {
+            $headerCustomer[] = '';
+        }
+        $rows[] = $headerCustomer;
+
         foreach ($topCustomers as $index => $customer) {
-            $rows[] = [
+            $row = [
                 $index + 1,
                 $customer['name'],
                 $customer['orders'],
                 number_format($customer['total']) . '₫'
             ];
+            for ($i = 4; $i < $numColumns; $i++) {
+                $row[] = '';
+            }
+            $rows[] = $row;
         }
-        $rows[] = []; // dòng trống
+        $rows[] = [];
 
-        // 6. Phân bố danh mục
+        // V. PHÂN BỐ DANH MỤC
         $rows[] = ['V. PHÂN BỐ DANH MỤC'];
-        $rows[] = ['Danh mục', 'Tỷ lệ (%)'];
+        $headerCategory = ['Danh mục', 'Tỷ lệ (%)'];
+        for ($i = 2; $i < $numColumns; $i++) {
+            $headerCategory[] = '';
+        }
+        $rows[] = $headerCategory;
+
         foreach ($categoryDistribution as $category) {
-            $rows[] = [
+            $row = [
                 $category['label'] ?? 'Khác',
                 $category['value'] ?? 0
             ];
+            for ($i = 2; $i < $numColumns; $i++) {
+                $row[] = '';
+            }
+            $rows[] = $row;
         }
 
         return $rows;
@@ -158,7 +194,11 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
 
-        // Merge tiêu đề
+        // Canh giữa tất cả các ô
+        $sheet->getStyle('A1:' . $highestColumn . $highestRow)
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Tiêu đề chính (dòng 1)
         $sheet->mergeCells('A1:' . $highestColumn . '1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => [
@@ -170,14 +210,10 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'FF6B35'],
             ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
         ]);
         $sheet->getRowDimension(1)->setRowHeight(35);
 
-        // Các tiêu đề phần (I, II, III...)
+        // Merge các tiêu đề phần (I, II, III, IV, V)
         $sectionRows = [];
         foreach ($sheet->getRowIterator() as $row) {
             $cellValue = $sheet->getCell('A' . $row->getRowIndex())->getValue();
@@ -187,6 +223,7 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
         }
 
         foreach ($sectionRows as $rowIndex) {
+            $sheet->mergeCells('A' . $rowIndex . ':' . $highestColumn . $rowIndex);
             $sheet->getStyle('A' . $rowIndex . ':' . $highestColumn . $rowIndex)->applyFromArray([
                 'font' => [
                     'bold' => true,
@@ -200,17 +237,42 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
             ]);
         }
 
-        // Style header bảng (dòng có STT, Tên sản phẩm...)
+        // Tìm header row của bảng II (dòng ngay sau tiêu đề "II. DOANH THU THEO ...")
+        $headerRowII = null;
+        foreach ($sheet->getRowIterator() as $row) {
+            $cellValue = $sheet->getCell('A' . $row->getRowIndex())->getValue();
+            if (strpos($cellValue, 'II. DOANH THU THEO') !== false) {
+                $headerRowII = $row->getRowIndex() + 1;
+                break;
+            }
+        }
+
+        // Các header rows cho các bảng khác (III, IV, V) dựa trên từ khóa
         $headerRows = [];
         foreach ($sheet->getRowIterator() as $row) {
             $cellValue = $sheet->getCell('A' . $row->getRowIndex())->getValue();
-            if (in_array($cellValue, ['STT', 'Kỳ', 'Danh mục'])) {
+            if (in_array($cellValue, ['STT', 'Danh mục'])) {
                 $headerRows[] = $row->getRowIndex();
             }
         }
 
+        // Thêm header row của bảng II vào danh sách
+        if ($headerRowII) {
+            $headerRows[] = $headerRowII;
+        }
+
+        // Tô xanh các header rows, chỉ tô các ô có nội dung
         foreach ($headerRows as $rowIndex) {
-            $sheet->getStyle('A' . $rowIndex . ':' . $highestColumn . $rowIndex)->applyFromArray([
+            $lastColWithContent = 'A';
+            // Tìm cột cuối cùng có nội dung trong dòng này
+            for ($col = 'A'; $col <= $highestColumn; $col++) {
+                $val = $sheet->getCell($col . $rowIndex)->getValue();
+                if ($val !== null && $val !== '') {
+                    $lastColWithContent = $col;
+                }
+            }
+            // Chỉ tô từ A đến cột có nội dung cuối cùng
+            $sheet->getStyle('A' . $rowIndex . ':' . $lastColWithContent . $rowIndex)->applyFromArray([
                 'font' => [
                     'bold' => true,
                     'color' => ['rgb' => 'FFFFFF'],
@@ -218,10 +280,6 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '34495E'],
-                ],
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ]);
         }
@@ -235,7 +293,6 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
                 ],
             ],
         ];
-
         $sheet->getStyle('A2:' . $highestColumn . $highestRow)->applyFromArray($styleArray);
 
         // Tự động căn chỉnh cột
@@ -249,10 +306,44 @@ class ReportExport implements FromArray, WithHeadings, ShouldAutoSize, WithStyle
     private function getPeriodLabel($period)
     {
         $labels = [
+            'day' => 'Ngày',
             'week' => 'Tuần',
             'month' => 'Tháng',
             'year' => 'Năm'
         ];
         return $labels[$period] ?? $period;
+    }
+
+    private function getPeriodName($period)
+    {
+        $names = [
+            'day' => 'Ngày',
+            'week' => 'Tuần',
+            'month' => 'Tháng',
+            'year' => 'Năm'
+        ];
+        return $names[$period] ?? $period;
+    }
+
+    private function getRevenueLabel($period)
+    {
+        $labels = [
+            'day' => 'Doanh thu hôm nay',
+            'week' => 'Doanh thu tuần này',
+            'month' => 'Doanh thu tháng này',
+            'year' => 'Doanh thu năm nay'
+        ];
+        return $labels[$period] ?? 'Doanh thu trong kỳ';
+    }
+
+    private function getGrowthLabel($period)
+    {
+        $labels = [
+            'day' => 'Tăng trưởng so với hôm qua',
+            'week' => 'Tăng trưởng so với tuần trước',
+            'month' => 'Tăng trưởng so với tháng trước',
+            'year' => 'Tăng trưởng so với năm ngoái'
+        ];
+        return $labels[$period] ?? 'Tăng trưởng so với kỳ trước';
     }
 }

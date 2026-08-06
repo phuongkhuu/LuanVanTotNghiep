@@ -4,10 +4,9 @@
     <AppHeader />
 
     <main>
-      <!-- CTA Section -->
       <section class="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-16" id="contact">
         <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-          <!-- KHUNG CAM "BẮT ĐẦU DỰ ÁN DOANH NGHIỆP" -->
+          <!-- KHUNG CAM -->
           <div class="bg-orange-600 p-6 md:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
             <div class="z-10">
@@ -32,15 +31,15 @@
             </div>
           </div>
 
-          <!-- PHẦN NỘI DUNG BÊN DƯỚI: 2 CỘT -->
+          <!-- NỘI DUNG 2 CỘT -->
           <div class="grid grid-cols-1 lg:grid-cols-2">
-            <!-- CỘT TRÁI: Thông tin sản phẩm + Bộ lọc -->
+            <!-- CỘT TRÁI: Thông tin sản phẩm -->
             <div class="p-6 md:p-8 border-r border-gray-100">
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 Thông tin đặt hàng
               </h3>
               
-              <!-- Sản phẩm đang chọn -->
+              <!-- Sản phẩm chọn -->
               <div v-if="selectedProduct" class="flex flex-col sm:flex-row gap-4 mb-6">
                 <div class="w-full sm:w-[120px] flex-shrink-0">
                   <div class="aspect-[4/5] bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
@@ -63,11 +62,10 @@
                 </div>
               </div>
 
-              <!-- BỘ LỌC: Số lượng, Màu sắc, Kích thước -->
+              <!-- Bộ lọc: Số lượng, Màu, Kích thước -->
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <!-- Số lượng -->
                 <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Số lượng</label>
+                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Số lượng <span class="text-red-500">*</span></label>
                   <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white">
                     <button   
                       @click="decreaseQuantity" 
@@ -78,7 +76,7 @@
                     </button>
                     <input 
                       type="number" 
-                      v-model="orderQuantity" 
+                      v-model.number="orderQuantity" 
                       min="1"
                       class="w-full h-10 text-center outline-none text-sm font-semibold bg-white"
                     />
@@ -89,108 +87,38 @@
                       <span class="material-symbols-outlined text-lg">add</span>
                     </button>
                   </div>
+                  <p v-if="orderQuantity < 50" class="text-xs text-red-500 mt-1">* Số lượng tối thiểu là 50</p>
+                  <p v-else class="text-xs text-green-500 mt-1">✓ Đủ số lượng tối thiểu</p>
                 </div>
 
-                <!-- Màu sắc -->
                 <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Màu sắc</label>
+                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Màu sắc <span class="text-red-500">*</span></label>
                   <select v-model="selectedColor" class="w-full h-10 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-700">
                     <option v-for="color in colorOptions" :key="color" :value="color">{{ color }}</option>
                   </select>
                 </div>
 
-                <!-- Kích thước -->
                 <div>
-                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Kích thước</label>
+                  <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Kích thước <span class="text-red-500">*</span></label>
                   <select v-model="selectedSize" class="w-full h-10 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-700">
                     <option v-for="size in sizeOptions" :key="size" :value="size">{{ size }}</option>
                   </select>
                 </div>
               </div>
 
-              <!-- THÔNG TIN ĐƠN HÀNG -->
-              <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <div class="space-y-2">
-                  <div class="flex justify-between text-sm">
-                    <span class="text-gray-500">Tạm tính</span>
-                    <span class="font-semibold text-gray-800">{{ formatPrice(subtotal) }}</span>
-                  </div>
-                  <div class="flex justify-between text-sm">
-                    <span class="text-gray-500">Phí vận chuyển</span>
-                    <span class="font-semibold text-green-600">Miễn phí</span>
-                  </div>
-                  <div v-if="currentDiscountPercent > 0" class="flex justify-between text-sm">
-                    <span class="text-gray-500">Chiết khấu ({{ currentDiscountPercent }}%)</span>
-                    <span class="font-semibold text-red-500">- {{ formatPrice(discountAmount) }}</span>
-                  </div>
-                  <div v-else class="flex justify-between text-sm">
-                    <span class="text-gray-500">Chiết khấu</span>
-                    <span class="font-semibold text-gray-400">0₫</span>
-                  </div>
-                  <div class="border-t border-gray-200 pt-2 mt-2 flex justify-between">
-                    <span class="font-bold text-gray-800">Tổng cộng</span>
-                    <span class="text-xl font-bold text-orange-600">{{ formatPrice(totalPrice) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ===== PHƯƠNG THỨC THANH TOÁN - CHỈ PAYOS ===== -->
-              <div class="mt-6 pt-4 border-t border-gray-200">
-                <h4 class="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wider">
-                  PHƯƠNG THỨC THANH TOÁN
-                </h4>
-                
-                <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div class="flex items-start gap-3">
-                    <span class="material-symbols-outlined text-blue-600">payments</span>
-                    <div>
-                      <p class="font-medium text-gray-800 text-sm">Thanh toán qua PayOS</p>
-                      <p class="text-xs text-gray-600 mt-0.5">Thanh toán an toàn qua cổng PayOS, hỗ trợ nhiều ngân hàng</p>
-                      <div class="flex flex-wrap gap-2 mt-2">
-                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">✓ Bảo mật SSL</span>
-                        <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">✓ Hỗ trợ 40+ ngân hàng</span>
-                        <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs">✓ QR Code</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <p class="text-xs text-amber-700 flex items-start">
-                    <span class="material-symbols-outlined text-sm mr-2">info</span>
-                    <span>Sau khi xác nhận đơn hàng, bạn sẽ được chuyển đến cổng thanh toán PayOS để hoàn tất giao dịch.</span>
-                  </p>
-                </div>
-              </div>
-
-              <!-- Nút đặt hàng (gộp cả báo giá) -->
+              <!-- Nút gửi yêu cầu -->
               <button 
-                @click="placeOrder"
-                :disabled="loading"
+                @click="submitQuoteRequest"
+                :disabled="loading || orderQuantity < 50"
                 class="w-full mt-4 bg-orange-600 text-white py-4 rounded-xl font-semibold hover:bg-orange-700 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span class="material-symbols-outlined">shopping_cart</span>
-                {{ loading ? 'Đang xử lý...' : 'TIẾN HÀNH ĐẶT HÀNG' }}
+                <span class="material-symbols-outlined">send</span>
+                {{ loading ? 'Đang xử lý...' : 'GỬI YÊU CẦU MUA SỈ' }}
               </button>
-
-              <!-- Badge bảo mật -->
-              <div class="mt-4 flex flex-wrap justify-center gap-4 text-xs text-gray-400">
-                <span class="flex items-center gap-1">
-                  <span class="material-symbols-outlined text-green-500 text-sm">verified</span>
-                  Thanh toán an toàn 100%
-                </span>
-                <span class="flex items-center gap-1">
-                  <span class="material-symbols-outlined text-green-500 text-sm">local_shipping</span>
-                  Giao hàng nhanh toàn quốc (2-4 ngày)
-                </span>
-                <span class="flex items-center gap-1">
-                  <span class="material-symbols-outlined text-green-500 text-sm">autorenew</span>
-                  Đổi trả miễn phí trong 7 ngày
-                </span>
-              </div>
+              <p v-if="orderQuantity < 50" class="text-center text-sm text-red-500 mt-2">Vui lòng nhập số lượng tối thiểu 50 để gửi yêu cầu.</p>
             </div>
 
-            <!-- CỘT PHẢI: Thông tin doanh nghiệp (dùng chung cho đặt hàng + báo giá) -->
+            <!-- CỘT PHẢI: Thông tin doanh nghiệp -->
             <div class="p-6 md:p-8 bg-gray-50">
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 Thông tin doanh nghiệp
@@ -208,8 +136,16 @@
                   <label class="block text-sm font-medium mb-1 text-gray-600">Số điện thoại <span class="text-red-500">*</span></label>
                   <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="09xx xxx xxx" type="tel" v-model="form.phone" required>
                 </div>
-                
-                <!-- ĐỊA CHỈ CHI TIẾT -->
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-600">Mã số thuế</label>
+                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Mã số thuế công ty" type="text" v-model="form.tax_code">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-600">Ngày cần nhận hàng</label>
+                  <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" type="date" v-model="form.delivery_date" :min="today">
+                </div>
+
+                <!-- Địa chỉ chi tiết -->
                 <div class="space-y-3 border-t border-gray-200 pt-3">
                   <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -278,7 +214,7 @@
                     <input class="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white px-4 py-3 outline-none text-sm" placeholder="Ví dụ: In logo, bao bì thương hiệu..." type="text" v-model="form.requirements">
                   </div>
                 </div>
-                <p class="text-center text-xs text-gray-400 mt-2 italic">Thông tin này sẽ được dùng để tạo đơn hàng và gửi yêu cầu báo giá.</p>
+                <p class="text-center text-xs text-gray-400 mt-2 italic">* Thông tin bắt buộc. Sau khi gửi, chúng tôi sẽ liên hệ để báo giá và xác nhận.</p>
               </div>
             </div>
           </div>
@@ -293,7 +229,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
@@ -341,6 +277,8 @@ const form = ref({
   company: '',
   email: '',
   phone: '',
+  tax_code: '',
+  delivery_date: '',
   city: '',
   district: '',
   ward: '',
@@ -360,41 +298,14 @@ const sizeOptions = computed(() => {
   return selectedProduct.value.sizes || []
 })
 
-const basePrice = computed(() => {
-  return selectedProduct.value?.base_price || 0
-})
-
-const salePrice = computed(() => {
-  return selectedProduct.value?.sale_price || basePrice.value
-})
-
-// ===== TÍNH CHIẾT KHẤU DỰA TRÊN DISCOUNTS =====
-const currentDiscountPercent = computed(() => {
-  const qty = orderQuantity.value
-  if (!props.discounts || props.discounts.length === 0) return 0
-  const applicable = props.discounts.filter(d => d.min_quantity <= qty)
-  if (applicable.length === 0) return 0
-  const maxDiscount = applicable.reduce((a, b) => a.min_quantity > b.min_quantity ? a : b)
-  return maxDiscount.discount_percent || 0
-})
-
-const subtotal = computed(() => {
-  return salePrice.value * orderQuantity.value
-})
-
-const discountAmount = computed(() => {
-  return (subtotal.value * currentDiscountPercent.value) / 100
-})
-
-const totalPrice = computed(() => {
-  return subtotal.value - discountAmount.value
-})
-
 // Format tiền
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0₫'
   return new Intl.NumberFormat('vi-VN').format(price) + '₫'
 }
+
+// ==================== NGÀY HIỆN TẠI CHO INPUT DATE ====================
+const today = new Date().toISOString().split('T')[0]
 
 // ==================== METHODS ====================
 const increaseQuantity = () => {
@@ -407,33 +318,51 @@ const decreaseQuantity = () => {
   }
 }
 
-// ===== PLACE ORDER (ĐẶT HÀNG SỈ + LƯU BÁO GIÁ) =====
-const placeOrder = async () => {
-  // Kiểm tra thông tin bắt buộc (cả thông tin doanh nghiệp)
+// ===== GỬI YÊU CẦU MUA SỈ =====
+const submitQuoteRequest = async () => {
+  // Kiểm tra số lượng tối thiểu
+  if (orderQuantity.value < 50) {
+    alert('Số lượng đặt tối thiểu là 50 sản phẩm.')
+    return
+  }
+
+  // Kiểm tra thông tin bắt buộc
   if (!form.value.company) {
-    alert('Vui lòng nhập tên công ty để đặt hàng!')
+    alert('Vui lòng nhập tên công ty.')
     return
   }
   if (!form.value.email) {
-    alert('Vui lòng nhập email để đặt hàng!')
+    alert('Vui lòng nhập email.')
     return
   }
   if (!form.value.phone) {
-    alert('Vui lòng nhập số điện thoại để đặt hàng!')
+    alert('Vui lòng nhập số điện thoại.')
+    return
+  }
+  // Kiểm tra số điện thoại đúng 10 chữ số
+  if (!/^\d{10}$/.test(form.value.phone)) {
+    alert('Số điện thoại phải gồm đúng 10 chữ số.')
     return
   }
   if (!form.value.address) {
-    alert('Vui lòng nhập địa chỉ chi tiết để đặt hàng!')
+    alert('Vui lòng nhập địa chỉ chi tiết.')
     return
+  }
+
+  // Kiểm tra ngày cần nhận (nếu có)
+  if (form.value.delivery_date) {
+    const todayDate = new Date()
+    todayDate.setHours(0,0,0,0)
+    const deliveryDate = new Date(form.value.delivery_date)
+    deliveryDate.setHours(0,0,0,0)
+    if (deliveryDate < todayDate) {
+      alert('Ngày cần nhận không được là quá khứ.')
+      return
+    }
   }
 
   if (!selectedProduct.value) {
-    alert('Vui lòng chọn sản phẩm!')
-    return
-  }
-
-  if (orderQuantity.value < 1) {
-    alert('Số lượng phải lớn hơn 0')
+    alert('Vui lòng chọn sản phẩm.')
     return
   }
 
@@ -450,25 +379,25 @@ const placeOrder = async () => {
   }
 
   if (!selectedVariant) {
-    alert('Vui lòng chọn màu sắc và kích thước hợp lệ!')
+    alert('Vui lòng chọn màu sắc và kích thước hợp lệ.')
     return
   }
 
   loading.value = true
 
   try {
-    const response = await axios.post(route('wholesale.place-order-with-quote'), {
-      // Thông tin báo giá
+    const response = await axios.post(route('wholesale.submit-request'), {
       company: form.value.company,
       email: form.value.email,
       phone: form.value.phone,
+      tax_code: form.value.tax_code,
+      delivery_date: form.value.delivery_date,
       city: form.value.city,
       district: form.value.district,
       ward: form.value.ward,
       address: form.value.address,
       note: form.value.note,
       requirements: form.value.requirements,
-      // Thông tin sản phẩm
       variant_id: selectedVariant.id,
       quantity: orderQuantity.value,
       color: selectedColor.value,
@@ -481,16 +410,22 @@ const placeOrder = async () => {
       }
     })
 
-    if (response.data.redirect_url) {
-      window.location.href = response.data.redirect_url
-    } else if (response.data.order_id) {
-      router.get(route('payment.create', { order_id: response.data.order_id }))
+    if (response.data.success) {
+      alert(response.data.message || 'Gửi yêu cầu thành công! Chúng tôi sẽ liên hệ trong 30 phút.')
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1500)
     } else {
-      alert('Đặt hàng thành công! Chúng tôi sẽ liên hệ xác nhận trong 30 phút.')
+      alert(response.data.message || 'Có lỗi xảy ra, vui lòng thử lại.')
     }
   } catch (error) {
-    console.error('Error placing order:', error)
-    const msg = error.response?.data?.message || 'Không thể đặt hàng. Vui lòng thử lại!'
+    console.error('Error submitting quote request:', error)
+    let msg = 'Không thể gửi yêu cầu. Vui lòng thử lại!'
+    if (error.response?.data?.message) {
+      msg = error.response.data.message
+    } else if (error.response?.status === 401) {
+      msg = 'Vui lòng đăng nhập để gửi yêu cầu mua sỉ.'
+    }
     alert(msg)
   } finally {
     loading.value = false
@@ -521,7 +456,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Ẩn mũi tên lên xuống của input number */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

@@ -102,6 +102,25 @@ class CartController extends Controller
     }
 
     /**
+     * Tính phí in logo dựa trên giá gốc, vị trí và kích thước
+     */
+    private function calculateLogoPrice($basePrice, $position, $size)
+    {
+        $positionFactor = [
+            'front' => 0.10,
+            'back'  => 0.12,
+            'side'  => 0.08,
+        ];
+        $sizeFactor = [
+            'small'  => 0.08,
+            'medium' => 0.12,
+            'large'  => 0.18,
+        ];
+        $factor = ($positionFactor[$position] ?? 0.10) + ($sizeFactor[$size] ?? 0.10);
+        return round($basePrice * $factor);
+    }
+
+    /**
      * Lấy giỏ hàng từ request (client gửi lên)
      * CHỈ LẤY SẢN PHẨM THƯỜNG, BỎ QUA PRE-ORDER
      */
@@ -147,7 +166,20 @@ class CartController extends Controller
 
                 // Tính giá sale
                 $saleInfo = $this->calculateSalePrice($variant);
-                $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                $basePrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+
+                // Lấy meta từ request (nếu có)
+                $meta = $item['meta'] ?? null;
+
+                // Tính phí in logo nếu có meta
+                $additionalPrice = 0;
+                if (!empty($meta['logo'])) {
+                    $logo = $meta['logo'];
+                    $additionalPrice = $this->calculateLogoPrice($basePrice, $logo['position'], $logo['size']);
+                }
+
+                $finalPrice = $basePrice + $additionalPrice;
+                $quantity = $item['quantity'] ?? 1;
 
                 // Lấy ảnh sản phẩm
                 $image = '/images/default-product.jpg';
@@ -159,15 +191,16 @@ class CartController extends Controller
                     }
                 }
 
-                $items[] = [
+                // Gộp meta vào item
+                $itemData = [
                     'id' => (int) $variantId,
                     'product_id' => $variant->product->id ?? 0,
                     'product_variant_id' => (int) $variantId,
                     'name' => $variant->product->name ?? 'Sản phẩm',
                     'slug' => $variant->product->slug ?? '#',
-                    'price' => $price,
+                    'price' => $finalPrice,
                     'original_price' => $variant->price,
-                    'quantity' => $item['quantity'] ?? 1,
+                    'quantity' => $quantity,
                     'image' => $image,
                     'color' => $variant->color->name ?? 'Đen',
                     'size' => $variant->size_name ?? 'M',
@@ -176,8 +209,15 @@ class CartController extends Controller
                     'discount_percent' => $saleInfo['discount_percent'],
                     'stock' => $variant->stock,
                 ];
-                $total += $price * ($item['quantity'] ?? 1);
-                $count += ($item['quantity'] ?? 1);
+
+                // Thêm meta nếu có
+                if ($meta !== null) {
+                    $itemData['meta'] = $meta;
+                }
+
+                $items[] = $itemData;
+                $total += $finalPrice * $quantity;
+                $count += $quantity;
             }
 
             return response()->json([
@@ -200,6 +240,7 @@ class CartController extends Controller
     /**
      * Thêm vào giỏ hàng
      * CHỈ CHO PHÉP SẢN PHẨM THƯỜNG, TỪ CHỐI PRE-ORDER
+     * HỖ TRỢ META VÀ TÍNH PHÍ IN LOGO
      */
     public function add(Request $request)
     {
@@ -208,11 +249,13 @@ class CartController extends Controller
             
             $request->validate([
                 'variant_id' => 'required|exists:product_variants,id',
-                'quantity' => 'nullable|integer|min:1'
+                'quantity' => 'nullable|integer|min:1',
+                'meta' => 'nullable|array',
             ]);
 
             $variantId = $request->variant_id;
             $quantity = $request->quantity ?? 1;
+            $meta = $request->meta;
 
             $variant = ProductVariant::with('product', 'color')->find($variantId);
             if (!$variant) {
@@ -240,7 +283,16 @@ class CartController extends Controller
 
             // Tính giá sale
             $saleInfo = $this->calculateSalePrice($variant);
-            $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+            $basePrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+
+            // Tính phí in logo nếu có meta
+            $additionalPrice = 0;
+            if (!empty($meta['logo'])) {
+                $logo = $meta['logo'];
+                $additionalPrice = $this->calculateLogoPrice($basePrice, $logo['position'], $logo['size']);
+            }
+
+            $finalPrice = $basePrice + $additionalPrice;
 
             // Lấy ảnh
             $image = '/images/default-product.jpg';
@@ -252,25 +304,32 @@ class CartController extends Controller
                 }
             }
 
+            $itemData = [
+                'id' => (int) $variantId,
+                'product_id' => $variant->product->id ?? 0,
+                'name' => $variant->product->name ?? 'Sản phẩm',
+                'slug' => $variant->product->slug ?? '#',
+                'price' => $finalPrice,
+                'original_price' => $variant->price,
+                'quantity' => $quantity,
+                'image' => $image,
+                'color' => $variant->color->name ?? 'Đen',
+                'size' => $variant->size_name ?? 'M',
+                'is_pre_order' => false,
+                'is_on_sale' => $saleInfo['is_on_sale'],
+                'discount_percent' => $saleInfo['discount_percent'],
+                'stock' => $variant->stock,
+            ];
+
+            // Thêm meta vào response
+            if ($meta !== null) {
+                $itemData['meta'] = $meta;
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Đã thêm vào giỏ hàng',
-                'item' => [
-                    'id' => (int) $variantId,
-                    'product_id' => $variant->product->id ?? 0,
-                    'name' => $variant->product->name ?? 'Sản phẩm',
-                    'slug' => $variant->product->slug ?? '#',
-                    'price' => $price,
-                    'original_price' => $variant->price,
-                    'quantity' => $quantity,
-                    'image' => $image,
-                    'color' => $variant->color->name ?? 'Đen',
-                    'size' => $variant->size_name ?? 'M',
-                    'is_pre_order' => false,
-                    'is_on_sale' => $saleInfo['is_on_sale'],
-                    'discount_percent' => $saleInfo['discount_percent'],
-                    'stock' => $variant->stock,
-                ]
+                'item' => $itemData
             ]);
         } catch (\Exception $e) {
             Log::error('Cart add error: ' . $e->getMessage());
@@ -284,9 +343,6 @@ class CartController extends Controller
     /**
      * Cập nhật giỏ hàng
      */
-    /**
- * Cập nhật giỏ hàng
- */
     public function update(Request $request)
     {
         try {

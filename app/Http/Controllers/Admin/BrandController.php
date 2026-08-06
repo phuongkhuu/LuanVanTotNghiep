@@ -231,13 +231,13 @@ class BrandController extends Controller
             $brand = Brand::findOrFail($id);
 
             // Kiểm tra xem thương hiệu có sản phẩm không
-            $productCount = $this->getBrandUsageCount($id);
+            /*$productCount = $this->getBrandUsageCount($id);
             if ($productCount > 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Không thể sửa thương hiệu này vì đang có ' . $productCount . ' sản phẩm sử dụng!'
                 ], 400);
-            }
+            }*/
 
             $validated = $request->validate([
                 'name' => 'required|string|max:255|unique:brands,name,' . $id,

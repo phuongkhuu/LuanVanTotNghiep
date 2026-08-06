@@ -1658,7 +1658,7 @@ const saveCampaign = async () => {
         return;
     }
     
-    // VẤN ĐỀ 3: Kiểm tra bắt buộc nhập ngày
+    // Kiểm tra bắt buộc nhập ngày
     if (!campaignForm.value.startDate) {
         errorMessage.value = 'Vui lòng chọn ngày bắt đầu';
         return;
