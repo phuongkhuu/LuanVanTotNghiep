@@ -39,14 +39,15 @@
           :class="msg.sender === 'user' ? 'justify-end' : 'justify-start'"
         >
           <div
-            class="max-w-[80%] rounded-lg px-4 py-2 text-sm shadow-sm"
+            class="max-w-[80%] rounded-lg px-4 py-2 text-sm shadow-sm message-content"
             :class="
               msg.sender === 'user'
                 ? 'bg-primary text-white rounded-br-none'
                 : 'bg-white text-gray-800 rounded-bl-none'
             "
           >
-            <div v-html="formatMessage(msg.text)"></div>
+            <!-- SỬA: dùng trực tiếp v-html, không qua formatMessage -->
+            <div v-html="msg.text"></div>
             <div class="text-xs mt-1 opacity-70">
               {{ formatTime(msg.timestamp) }}
             </div>
@@ -100,7 +101,6 @@ export default {
     };
   },
   mounted() {
-    // Tải lịch sử chat từ localStorage nếu có
     const saved = localStorage.getItem('chat_messages');
     if (saved) {
       try {
@@ -131,7 +131,6 @@ export default {
       const text = this.inputMessage.trim();
       if (!text || this.isLoading) return;
 
-      // Thêm tin nhắn người dùng
       this.messages.push({
         sender: 'user',
         text: text,
@@ -145,10 +144,9 @@ export default {
         const response = await axios.post('/chat', { message: text });
         const reply = response.data.reply || 'Xin lỗi, tôi chưa hiểu câu hỏi.';
 
-        // Thêm tin nhắn bot
         this.messages.push({
           sender: 'bot',
-          text: reply,
+          text: reply, // backend trả về HTML có thẻ <img>
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
@@ -171,11 +169,6 @@ export default {
       }
     },
 
-    formatMessage(text) {
-      // Xử lý xuống dòng, link, v.v.
-      return text.replace(/\n/g, '<br>');
-    },
-
     formatTime(isoString) {
       const date = new Date(isoString);
       return date.toLocaleTimeString('vi-VN', {
@@ -194,5 +187,16 @@ export default {
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-8px); }
+}
+
+/* ===== THÊM PHẦN NÀY ĐỂ HIỂN THỊ ẢNH ĐẸP ===== */
+.message-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 6px 0;
+}
+.message-content p {
+  margin: 0 0 4px 0;
 }
 </style>

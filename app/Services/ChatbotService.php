@@ -101,13 +101,13 @@ class ChatbotService
                 'type' => 'function',
                 'function' => [
                     'name' => 'get_order_status',
-                    'description' => 'Tra cứu trạng thái đơn hàng theo mã đơn hàng. Yêu cầu người dùng cung cấp mã nếu chưa có.',
+                    'description' => 'Tra cứu trạng thái đơn hàng theo mã đơn hàng hoặc số đơn hàng. Yêu cầu người dùng cung cấp mã nếu chưa có.',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
                             'order_code' => [
                                 'type' => 'string',
-                                'description' => 'Mã đơn hàng (ID)'
+                                'description' => 'Mã đơn hàng (có thể là ID hoặc order_number)'
                             ],
                             'user_id' => [
                                 'type' => 'integer',
@@ -167,26 +167,31 @@ class ChatbotService
     {
         $query = Product::with(['variants.color', 'category', 'brand']);
 
+        // Lọc theo danh mục
         if (!empty($filters['category'])) {
             $query->whereHas('category', function ($q) use ($filters) {
                 $q->where('name', 'like', '%' . $filters['category'] . '%');
             });
         }
 
+        // Lọc theo thương hiệu
         if (!empty($filters['brand'])) {
             $query->whereHas('brand', function ($q) use ($filters) {
                 $q->where('name', 'like', '%' . $filters['brand'] . '%');
             });
         }
 
+        // Lọc theo tên sản phẩm
         if (!empty($filters['name'])) {
             $query->where('name', 'like', '%' . $filters['name'] . '%');
         }
 
+        // Lọc theo chất liệu
         if (!empty($filters['material'])) {
             $query->where('material', 'like', '%' . $filters['material'] . '%');
         }
 
+        // Lọc theo khoảng giá (dùng giá gốc)
         if (isset($filters['min_price']) || isset($filters['max_price'])) {
             $query->whereHas('variants', function ($q) use ($filters) {
                 if (isset($filters['min_price'])) {
@@ -198,6 +203,7 @@ class ChatbotService
             });
         }
 
+        // Lọc theo tình trạng tồn kho
         if (!empty($filters['in_stock'])) {
             $query->whereHas('variants', function ($q) {
                 $q->where('stock', '>', 0);
@@ -216,6 +222,7 @@ class ChatbotService
             $minVariant = $product->variants->sortBy('price')->first();
             $priceMin = $minVariant ? $minVariant->price : 0;
             $salePriceMin = $minVariant && $minVariant->sale_price ? $minVariant->sale_price : null;
+            $isOnSale = $minVariant && $minVariant->is_on_sale;
 
             // Lấy ảnh đại diện: ưu tiên thumbnail, nếu không có thì lấy ảnh đầu tiên từ image_url
             $image = $product->thumbnail;
@@ -237,6 +244,7 @@ class ChatbotService
                 'thumbnail' => $image,
                 'price_min' => number_format($priceMin, 0, ',', '.') . ' VND',
                 'sale_price_min' => $salePriceMin ? number_format($salePriceMin, 0, ',', '.') . ' VND' : null,
+                'is_on_sale' => $isOnSale,
                 'variants' => $product->variants->map(function ($variant) {
                     return [
                         'color' => $variant->color->name ?? 'N/A',
@@ -244,6 +252,7 @@ class ChatbotService
                         'price' => number_format($variant->price, 0, ',', '.') . ' VND',
                         'stock' => $variant->stock,
                         'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') . ' VND' : null,
+                        'is_on_sale' => $variant->is_on_sale,
                     ];
                 }),
             ];
@@ -366,6 +375,7 @@ class ChatbotService
 
         return $preorders->map(function ($preorder) {
             $tiers = $preorder->tiers ?? [];
+            $currentBuyers = $preorder->current_buyers ?? 0; // Lấy từ cột trong bảng campaigns
             
             $currentDiscount = 0;
             foreach ($tiers as $tier) {
@@ -390,9 +400,9 @@ class ChatbotService
                 'product_name' => $preorder->product->name ?? 'Sản phẩm',
                 'product_id' => $preorder->product_id,
                 'product_slug' => $preorder->product->slug ?? null,
-                
                 'tiers' => $tiers,
                 'current_discount' => $currentDiscount . '%',
+                'current_buyers' => $currentBuyers,
                 'next_tier' => $nextTier ? "Cần thêm " . ($nextTier['from'] - $currentBuyers) . " đơn hàng để đạt giảm " . $nextTier['discount'] . '%' : 'Đã đạt mức giảm cao nhất',
                 'description' => $preorder->description,
                 'end_date' => $preorder->end_time?->format('d/m/Y') ?? 'Không giới hạn',
@@ -412,12 +422,19 @@ class ChatbotService
         }
 
         $query = Order::with(['orderDetails.productVariant.product']);
-        
+
+        // Nếu user_id có, thêm điều kiện để chỉ lấy đơn của user đó
         if ($userId) {
             $query->where('user_id', $userId);
         }
 
-        $order = $query->where('id', $orderCode)->first();
+        // Tìm đơn hàng theo id hoặc order_number
+        $order = $query->where(function ($q) use ($orderCode) {
+            if (is_numeric($orderCode)) {
+                $q->where('id', $orderCode);
+            }
+            $q->orWhere('order_number', $orderCode);
+        })->first();
 
         if (!$order) {
             return ['error' => 'Không tìm thấy đơn hàng với mã này. Vui lòng kiểm tra lại.'];
@@ -433,9 +450,14 @@ class ChatbotService
 
         return [
             'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'order_code' => $order->order_code, // retail, wholesale, preorder
             'status' => $statusMap[$order->order_status] ?? 'Không xác định',
             'status_code' => $order->order_status,
             'total_amount' => number_format($order->final_amount, 0, ',', '.') . ' VND',
+            'deposit_amount' => $order->deposit_amount > 0 ? number_format($order->deposit_amount, 0, ',', '.') . ' VND' : '0 VND',
+            'remaining_amount' => $order->remaining_amount > 0 ? number_format($order->remaining_amount, 0, ',', '.') . ' VND' : '0 VND',
+            'payment_status' => $order->payment_status,
             'created_at' => $order->created_at->format('d/m/Y H:i'),
             'receiver_name' => $order->receiver_name,
             'shipping_address' => $order->shipping_address,
@@ -472,6 +494,7 @@ class ChatbotService
         $minVariant = $product->variants->sortBy('price')->first();
         $priceMin = $minVariant ? $minVariant->price : 0;
         $salePriceMin = $minVariant && $minVariant->sale_price ? $minVariant->sale_price : null;
+        $isOnSale = $minVariant && $minVariant->is_on_sale;
 
         // Lấy ảnh đại diện: ưu tiên thumbnail, nếu không có thì lấy ảnh đầu tiên từ image_url
         $image = $product->thumbnail;
@@ -493,6 +516,7 @@ class ChatbotService
             'thumbnail' => $image,
             'price_min' => number_format($priceMin, 0, ',', '.') . ' VND',
             'sale_price_min' => $salePriceMin ? number_format($salePriceMin, 0, ',', '.') . ' VND' : null,
+            'is_on_sale' => $isOnSale,
             'is_featured' => $product->is_featured,
             'is_preorder' => $product->is_preorder,
             'variants' => $product->variants->map(function ($variant) {
@@ -503,6 +527,7 @@ class ChatbotService
                     'price' => number_format($variant->price, 0, ',', '.') . ' VND',
                     'stock' => $variant->stock,
                     'sale_price' => $variant->sale_price ? number_format($variant->sale_price, 0, ',', '.') . ' VND' : null,
+                    'is_on_sale' => $variant->is_on_sale,
                     'rating' => $variant->rating,
                 ];
             }),

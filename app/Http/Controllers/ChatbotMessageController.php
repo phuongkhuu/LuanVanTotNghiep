@@ -10,6 +10,21 @@ use Illuminate\Support\Facades\Auth;
 
 class ChatbotMessageController extends Controller
 {
+    /**
+     * Danh sách từ khóa liên quan đến nội dung chatbot được phép
+     */
+    private const ALLOWED_KEYWORDS = [
+        'balo', 'túi', 'ba lô', 'sản phẩm', 'hàng', 'mua', 'bán', 'giá', 'còn hàng',
+        'khuyến mãi', 'voucher', 'mã giảm', 'preorder', 'đặt trước', 'đặt hàng',
+        'đơn hàng', 'tra cứu', 'mã đơn', 'hóa đơn', 'giao hàng', 'vận chuyển',
+        'bigbag', 'samsonite', 'solo', 'kingbag', 'everki', 'targus',
+        'laptop', 'du lịch', 'phượt', 'thời trang', 'chống sốc',
+        'chất liệu', 'nylon', 'polyester', 'vải', 'da',
+        'màu', 'size', 'cỡ', 'mẫu', 'thiết kế', 'thương hiệu',
+        'ưu đãi', 'giảm giá', 'khuyến mãi', 'sale', 'promo',
+        'in stock', 'có hàng', 'hết hàng', 'tồn kho',
+    ];
+
     public function chat(Request $request, ChatbotService $service)
     {
         $userMessage = $request->input('message');
@@ -17,7 +32,13 @@ class ChatbotMessageController extends Controller
             return response()->json(['reply' => 'Vui lòng nhập câu hỏi.'], 400);
         }
 
-        // Lấy ID người dùng (có thể null nếu chưa đăng nhập)
+        // ===== BỘ LỌC TỪ KHÓA =====
+        if (!$this->isRelevantQuery($userMessage)) {
+            return response()->json([
+                'reply' => 'Xin lỗi, tôi chỉ hỗ trợ các câu hỏi về sản phẩm, khuyến mãi, voucher, preorder và tra cứu đơn hàng của cửa hàng. Bạn vui lòng đặt câu hỏi về các nội dung đó nhé.'
+            ]);
+        }
+
         $userId = Auth::id();
 
         $apiKey = env('GEMINI_API_KEY');
@@ -81,7 +102,6 @@ class ChatbotMessageController extends Controller
                 $reply = $content['text'] ?? 'Xin lỗi, tôi chưa hiểu câu hỏi.';
             }
 
-            // Lưu lịch sử chat vào database
             $this->saveChatHistory($userId, $userMessage, $reply);
 
             return response()->json(['reply' => $reply]);
@@ -94,9 +114,32 @@ class ChatbotMessageController extends Controller
         }
     }
 
-    /**
-     * Chuyển đổi tools từ định dạng Laravel AI sang định dạng Gemini
-     */
+    // ==================== HÀM KIỂM TRA TỪ KHÓA ====================
+
+    private function isRelevantQuery(string $message): bool
+    {
+        $messageLower = mb_strtolower($message, 'UTF-8');
+
+        $greetings = ['chào', 'xin chào', 'hello', 'hi', 'chúc', 'cảm ơn', 'thank'];
+        if (preg_match('/^(' . implode('|', $greetings) . ')\s*$/u', $messageLower)) {
+            return false;
+        }
+
+        foreach (self::ALLOWED_KEYWORDS as $keyword) {
+            if (mb_strpos($messageLower, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        if (preg_match('/\d+/', $message)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC XỬ LÝ TOOL ====================
+
     private function convertToGeminiTools(array $tools): array
     {
         $geminiTools = [];
@@ -134,9 +177,6 @@ class ChatbotMessageController extends Controller
         return $geminiTools;
     }
 
-    /**
-     * Chuẩn bị dữ liệu kết quả tool để gửi cho Gemini
-     */
     private function prepareToolData(string $functionName, array $result): string
     {
         if (isset($result['message'])) {
@@ -195,22 +235,20 @@ class ChatbotMessageController extends Controller
         }
     }
 
-    /**
-     * Gửi kết quả tool trở lại Gemini để tổng hợp câu trả lời
-     */
     private function sendToolResult(string $apiKey, string $model, string $userMessage, string $functionName, array $result): string
     {
         $data = $this->prepareToolData($functionName, $result);
 
         $instruction = '';
         if ($functionName === 'get_products_by_filters' || $functionName === 'get_product_by_slug') {
-            $instruction = " Hãy trình bày thông tin sản phẩm một cách trực quan. Với mỗi sản phẩm, hiển thị ảnh (dùng thẻ <img src='...' alt='tên sản phẩm' style='max-width:120px; height:auto; border-radius:8px;'>) và các thông tin: tên, thương hiệu, giá, khuyến mãi (nếu có).";
+            // Giữ nguyên yêu cầu chèn ảnh, bổ sung hướng dẫn viết tự nhiên, mềm mại
+            $instruction = " Hãy trình bày thông tin sản phẩm một cách trực quan và tự nhiên, như đang trò chuyện thân mật với khách hàng. Với mỗi sản phẩm, hãy chèn thẻ <img> để hiển thị ảnh (src từ trường thumbnail, alt là tên sản phẩm, style='max-width:120px; height:auto; border-radius:8px;'). Sau đó mô tả ngắn gọn: tên, thương hiệu, giá, khuyến mãi (nếu có) và đặc điểm nổi bật. Trình bày thành một đoạn văn hoặc các câu liền mạch, không dùng dấu đầu dòng hay định dạng đặc biệt.";
         } elseif ($functionName === 'get_vouchers') {
-            $instruction = " Hãy liệt kê các voucher kèm mã, mức giảm, điều kiện và hạn sử dụng.";
+            $instruction = " Hãy liệt kê các voucher bằng văn bản tự nhiên, mỗi voucher nêu mã, mức giảm, điều kiện và hạn sử dụng.";
         } elseif ($functionName === 'get_preorder_info') {
-            $instruction = " Hãy giải thích chương trình preorder, hiển thị mức giảm hiện tại và các mức giảm tiếp theo.";
+            $instruction = " Hãy giải thích chương trình preorder bằng văn bản tự nhiên, nêu rõ sản phẩm, mức giảm hiện tại và các mức giảm tiếp theo.";
         } elseif ($functionName === 'get_active_campaigns') {
-            $instruction = " Hãy mô tả các chương trình khuyến mãi, bao gồm giảm giá và điều kiện áp dụng.";
+            $instruction = " Hãy mô tả các chương trình khuyến mãi bằng văn bản tự nhiên, bao gồm giảm giá và điều kiện áp dụng.";
         }
 
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
@@ -246,20 +284,15 @@ class ChatbotMessageController extends Controller
         }
     }
 
-    /**
-     * Lưu lịch sử chat vào database
-     */
     private function saveChatHistory($userId, string $userMessage, string $botReply)
     {
         try {
-            // Lưu tin nhắn của người dùng
             \App\Models\ChatbotMessage::create([
                 'user_id' => $userId,
                 'message' => $userMessage,
                 'sender' => 'user',
             ]);
 
-            // Lưu tin nhắn của bot
             \App\Models\ChatbotMessage::create([
                 'user_id' => $userId,
                 'message' => $botReply,
@@ -268,7 +301,6 @@ class ChatbotMessageController extends Controller
 
             Log::info('Lưu lịch sử chat thành công cho user_id: ' . ($userId ?? 'guest'));
         } catch (\Exception $e) {
-            // Không làm gián đoạn luồng chính, chỉ log lỗi
             Log::error('Không thể lưu lịch sử chat: ' . $e->getMessage());
         }
     }

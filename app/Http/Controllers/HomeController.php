@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Campaign;
 use App\Models\News;
-use App\Models\Order;
 use App\Models\OrderDetail;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -36,22 +35,39 @@ class HomeController extends Controller
                 ];
             });
 
-        // ==================== SALE CAMPAIGN (cho countdown) ====================
-        $saleCampaign = Campaign::where('status', 'active')
-            ->where('type', '!=', 'voucher')
-            ->where('type', '!=', 'preorder')
-            ->where('end_time', '>', now())
-            ->whereHas('productVariants', function ($q) {
-                $q->whereHas('product', function ($q2) {
-                    $q2->where('status', 1);
-                });
-            })
-            ->orderBy('priority', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->first();
-
         // ==================== HOT SALE ====================
         $hotSales = $this->getHotSaleProducts();
+
+        // ==================== SALE CAMPAIGN (cho countdown) ====================
+        $saleCampaign = null;
+        if ($hotSales->isNotEmpty()) {
+            $hotProductIds = $hotSales->pluck('id')->toArray();
+            Log::info('Hot sale product IDs:', $hotProductIds);
+            
+            $campaign = Campaign::where('status', 'active')
+                ->where('type', '!=', 'voucher')
+                ->where('type', '!=', 'preorder')
+                ->where('end_time', '>', now())
+                ->whereHas('productVariants.product', function ($q) use ($hotProductIds) {
+                    $q->whereIn('products.id', $hotProductIds);
+                })
+                ->orderBy('priority', 'desc')
+                ->orderBy('end_time', 'asc')
+                ->first();
+
+            if ($campaign) {
+                $saleCampaign = $campaign;
+                Log::info('Sale campaign found from hot sales:', [
+                    'id' => $saleCampaign->id,
+                    'name' => $saleCampaign->name,
+                    'end_time' => $saleCampaign->end_time,
+                ]);
+            } else {
+                Log::info('No matching campaign found for hot sales products.');
+            }
+        } else {
+            Log::info('No hot sales products found, skipping sale campaign.');
+        }
 
         // ==================== TRENDING ====================
         $trending = $this->getTrendingProducts();
@@ -70,7 +86,7 @@ class HomeController extends Controller
             'newsList' => $newsList,
             'saleCampaign' => $saleCampaign ? [
                 'id' => $saleCampaign->id,
-                'end_time' => $saleCampaign->end_time,
+                'end_time' => $saleCampaign->end_time ? $saleCampaign->end_time->toISOString() : null,
                 'name' => $saleCampaign->name,
             ] : null,
         ]);
@@ -78,11 +94,6 @@ class HomeController extends Controller
 
     // ==================== PHẦN TÍNH TOÁN SALE ====================
 
-    /**
-     * Tính toán giá sale cho sản phẩm
-     * Ưu tiên dữ liệu từ variant đã được set sale (bởi PromotionController)
-     * Nếu chưa có, fallback tính từ campaign (để đảm bảo hiển thị)
-     */
     private function calculateSalePrice($product)
     {
         $originalPrice = $this->getProductPrice($product);
@@ -94,7 +105,6 @@ class HomeController extends Controller
 
         $variants = $product->variants;
 
-        // 1. Ưu tiên kiểm tra variant đã được set sale
         foreach ($variants as $variant) {
             if ($variant->is_on_sale && $variant->sale_price && $variant->sale_price > 0) {
                 if (!$isOnSale || $variant->sale_price < $salePrice) {
@@ -121,7 +131,6 @@ class HomeController extends Controller
             ];
         }
 
-        // 2. Fallback: tính từ campaign
         $variantIds = $variants->pluck('id')->toArray();
         if (empty($variantIds)) {
             return $this->getDefaultSaleInfo($originalPrice);
@@ -220,61 +229,141 @@ class HomeController extends Controller
         ];
     }
 
-    // ==================== LẤY SẢN PHẨM HOT SALE (CHỈ LẤY SẢN PHẨM ĐANG GIẢM GIÁ) ====================
+    // ==================== LẤY SỐ LƯỢNG ĐÃ BÁN ====================
+
+    /**
+     * Lấy tổng số lượng đã bán của các sản phẩm (chỉ tính đơn hàng hoàn thành)
+     * Hoàn thành: retail = status 3, wholesale/preorder = status 4
+     * @param array $productIds
+     * @return array [product_id => total_sold]
+     */
+    private function getSoldForProducts(array $productIds)
+    {
+        if (empty($productIds)) {
+            return [];
+        }
+
+        $soldData = OrderDetail::whereHas('order', function ($q) {
+            // Lấy tất cả đơn hàng có trạng thái hoàn thành
+            // retail: 3, wholesale/preorder: 4
+            $q->whereIn('order_status', [3, 4]);
+        })
+        ->whereHas('productVariant', function ($q) use ($productIds) {
+            $q->whereIn('product_id', $productIds);
+        })
+        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+        ->select('product_variants.product_id', DB::raw('SUM(quantity) as total_sold'))
+        ->groupBy('product_variants.product_id')
+        ->pluck('total_sold', 'product_variants.product_id')
+        ->toArray();
+
+        return $soldData;
+    }
+
+    // ==================== LẤY SẢN PHẨM HOT SALE ====================
 
     private function getHotSaleProducts()
     {
-        // CHỈ lấy sản phẩm có variant đang sale (is_on_sale = true)
-        $productIds = ProductVariant::where('is_on_sale', true)
-            ->where('sale_price', '>', 0)
+        $now = now();
+
+        // Lấy tất cả variant đang có campaign active (giảm giá)
+        $variantIds = Campaign::where('status', 'active')
+            ->where('type', '!=', 'voucher')
+            ->where('type', '!=', 'preorder')
+            ->where(function ($query) use ($now) {
+                $query->where(function ($q) use ($now) {
+                    $q->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now);
+                })->orWhere(function ($q) {
+                    $q->whereNull('start_time')
+                        ->whereNull('end_time');
+                });
+            })
+            ->with('productVariants')
+            ->get()
+            ->pluck('productVariants')
+            ->flatten()
+            ->pluck('id')
+            ->unique()
+            ->toArray();
+
+        // Nếu không có variant nào trong campaign, fallback lấy variant có is_on_sale = true
+        if (empty($variantIds)) {
+            $variantIds = ProductVariant::where('is_on_sale', true)
+                ->where('sale_price', '>', 0)
+                ->pluck('id')
+                ->toArray();
+        }
+
+        if (empty($variantIds)) {
+            return collect();
+        }
+
+        $productIds = ProductVariant::whereIn('id', $variantIds)
             ->pluck('product_id')
             ->unique()
             ->toArray();
 
-        if (empty($productIds)) {
-            return collect();
-        }
-
+        // Lấy sản phẩm kèm rating và reviews
         $hotProducts = Product::with(['variants', 'variants.color'])
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->whereIn('id', $productIds)
             ->where('status', 1)
-            ->limit(4)
+            ->limit(8)
             ->get();
 
-        return $hotProducts->map(function ($product) {
+        // Tính sold cho tất cả sản phẩm
+        $soldMap = $this->getSoldForProducts($hotProducts->pluck('id')->toArray());
+
+        // Lọc và sắp xếp theo mức giảm giá cao nhất
+        $formatted = $hotProducts->map(function ($product) use ($soldMap) {
             $saleInfo = $this->calculateSalePrice($product);
-            return $this->formatProductData($product, 'hot_sale', $saleInfo);
-        })->values();
+            if (!$saleInfo['is_on_sale']) return null;
+            $data = $this->formatProductData($product, 'hot_sale', $saleInfo);
+            $data['discount_percent'] = $saleInfo['discount_percent'];
+            $data['sold'] = (int) ($soldMap[$product->id] ?? 0);
+            return $data;
+        })->filter()
+        ->sortByDesc('discount_percent')
+        ->take(4)
+        ->values();
+
+        return $formatted;
     }
 
     // ==================== LẤY SẢN PHẨM TRENDING ====================
 
     private function getTrendingProducts()
     {
-        // Ưu tiên dựa trên lượt xem (nếu có cột views) hoặc số lượng bán trong 7 ngày
         $sevenDaysAgo = now()->subDays(7);
 
-        // Nếu có cột views, lấy sản phẩm có views cao nhất
+        // Nếu có cột views, ưu tiên dùng views
         if (Schema::hasColumn('products', 'views')) {
             $trending = Product::with(['variants', 'variants.color'])
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
                 ->where('status', 1)
                 ->orderBy('views', 'desc')
                 ->limit(4)
                 ->get();
 
             if ($trending->isNotEmpty()) {
-                return $trending->map(function ($product) {
+                $soldMap = $this->getSoldForProducts($trending->pluck('id')->toArray());
+                return $trending->map(function ($product) use ($soldMap) {
                     $saleInfo = $this->calculateSalePrice($product);
-                    return $this->formatProductData($product, 'trending', $saleInfo);
+                    $data = $this->formatProductData($product, 'trending', $saleInfo);
+                    $data['sold'] = (int) ($soldMap[$product->id] ?? 0);
+                    return $data;
                 });
             }
         }
 
-        // Fallback: sản phẩm có số lượng bán nhiều trong 7 ngày
+        // Nếu không có views, tính theo số lượng bán trong 7 ngày gần nhất
         $topTrending = OrderDetail::select('product_variant_id', DB::raw('SUM(quantity) as total_sold'))
             ->whereHas('order', function ($query) use ($sevenDaysAgo) {
-                $query->where('order_status', 3)
-                    ->where('created_at', '>=', $sevenDaysAgo);
+                $query->whereIn('order_status', [3, 4]) // hoàn thành
+                      ->where('created_at', '>=', $sevenDaysAgo);
             })
             ->groupBy('product_variant_id')
             ->orderBy('total_sold', 'desc')
@@ -290,13 +379,15 @@ class HomeController extends Controller
         $trending = collect();
         if (!empty($productIds)) {
             $trending = Product::with(['variants', 'variants.color'])
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
                 ->whereIn('id', $productIds)
                 ->where('status', 1)
                 ->limit(4)
                 ->get();
         }
 
-        // Nếu chưa đủ, bổ sung sản phẩm có campaign active
+        // Bổ sung sản phẩm từ campaign nếu chưa đủ 4
         if ($trending->count() < 4) {
             $campaignProducts = $this->getProductsWithActiveCampaign();
             $existingIds = $trending->pluck('id')->toArray();
@@ -305,9 +396,11 @@ class HomeController extends Controller
             $trending = $trending->concat($extra);
         }
 
-        // Nếu vẫn chưa đủ, lấy sản phẩm mới nhất
+        // Fallback: lấy sản phẩm mới nhất
         if ($trending->count() < 4) {
             $fallback = Product::with(['variants', 'variants.color'])
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
                 ->where('status', 1)
                 ->orderBy('created_at', 'desc')
                 ->limit(4 - $trending->count())
@@ -315,9 +408,17 @@ class HomeController extends Controller
             $trending = $trending->concat($fallback);
         }
 
-        return $trending->map(function ($product) {
+        // Loại bỏ trùng lặp
+        $trending = $trending->unique('id');
+
+        // Tính sold cho toàn bộ sản phẩm
+        $soldMap = $this->getSoldForProducts($trending->pluck('id')->toArray());
+
+        return $trending->map(function ($product) use ($soldMap) {
             $saleInfo = $this->calculateSalePrice($product);
-            return $this->formatProductData($product, 'trending', $saleInfo);
+            $data = $this->formatProductData($product, 'trending', $saleInfo);
+            $data['sold'] = (int) ($soldMap[$product->id] ?? 0);
+            return $data;
         })->values();
     }
 
@@ -352,6 +453,8 @@ class HomeController extends Controller
         }
 
         return Product::with(['variants', 'variants.color'])
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->whereHas('variants', function ($query) use ($variantIds) {
                 $query->whereIn('id', $variantIds);
             })
@@ -363,6 +466,8 @@ class HomeController extends Controller
     private function getNewProducts()
     {
         $newProducts = Product::with(['variants', 'variants.color'])
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
             ->where('status', 1)
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -373,12 +478,16 @@ class HomeController extends Controller
             return $this->formatProductData($product, 'new', $saleInfo);
         });
 
-        // Ưu tiên sản phẩm có sale
+        // Ưu tiên sản phẩm đang giảm giá lên trước
         $priority = $formatted->filter(fn($p) => $p['is_on_sale']);
         $normal = $formatted->filter(fn($p) => !$p['is_on_sale']);
         return $priority->concat($normal)->slice(0, 4)->values();
     }
 
+    /**
+     * Định dạng dữ liệu sản phẩm trả về cho frontend
+     * (không tính sold ở đây nữa, đã được tính trước)
+     */
     private function formatProductData($product, $type = 'default', $saleInfo = null)
     {
         if ($saleInfo === null) {
@@ -404,32 +513,9 @@ class HomeController extends Controller
             'discount_percent' => $isOnSale ? $discountPercent : 0,
             'discount_type' => $saleInfo['discount_type'],
             'campaign_id' => $saleInfo['campaign_id'],
+            'rating' => (float) ($product->reviews_avg_rating ?? 0),
+            'reviews' => (int) ($product->reviews_count ?? 0),
         ];
-
-        if ($type === 'hot_sale') {
-            // Lấy số lượng bán thực tế
-            $sold = OrderDetail::whereHas('order', function ($q) {
-                $q->where('order_status', 3);
-            })
-                ->whereHas('productVariant', function ($q) use ($product) {
-                    $q->where('product_id', $product->id);
-                })
-                ->sum('quantity');
-            $data['rating'] = (float) ($product->rating ?? 0);
-            $data['reviews'] = (int) ($product->reviews_count ?? 0);
-            $data['sold'] = (int) $sold;
-        }
-
-        if ($type === 'trending') {
-            $sold = OrderDetail::whereHas('order', function ($q) {
-                $q->where('order_status', 3);
-            })
-                ->whereHas('productVariant', function ($q) use ($product) {
-                    $q->where('product_id', $product->id);
-                })
-                ->sum('quantity');
-            $data['sold'] = (int) $sold;
-        }
 
         return $data;
     }
@@ -489,7 +575,6 @@ class HomeController extends Controller
     }
 
     // ==================== NEWS & PROMOTIONS ====================
-    // Giữ nguyên logic như cũ, không thay đổi
 
     private function getNewsAndPromotions()
     {
