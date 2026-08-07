@@ -501,7 +501,6 @@
                             class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                         >
                             <option value="seasonal">Theo mùa</option>
-                            <option value="flash_sale">Flash Sale</option>
                             <option value="anniversary">Kỷ niệm</option>
                             <option value="holiday">Ngày lễ</option>
                             <option value="product_launch">Ra mắt sản phẩm</option>

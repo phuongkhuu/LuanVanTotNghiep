@@ -3,11 +3,17 @@
     <Head title="Giới thiệu - BigBag Premium Utility Carry Gear" />
     <AppHeader />
 
-    <!-- Hero Section -->
-    <section class="relative bg-gradient-to-r from-primary/10 to-primary/5 py-20 md:py-28">
-      <div class="max-w-[1440px] mx-auto px-4 text-center">
-        <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6">Về Chúng Tôi</h1>
-        <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+    <!-- Hero Section với background ảnh -->
+    <section 
+      class="relative py-20 md:py-28 bg-cover bg-center bg-no-repeat"
+      style="background-image: url('https://uploads-ssl.webflow.com/63a782738d62e63a29c33d8a/63a782fb90b0ca654bb47ec4_banner-bigbag.jpg');"
+    >
+      <!-- Overlay tối để chữ nổi bật -->
+      <div class="absolute inset-0 bg-black/50"></div>
+      
+      <div class="relative z-10 max-w-[1440px] mx-auto px-4 text-center text-white">
+        <h1 class="text-4xl md:text-6xl font-bold mb-6">Về Chúng Tôi</h1>
+        <p class="text-lg md:text-xl max-w-3xl mx-auto text-white/90">
           BigBag Premium – Hành trình đồng hành cùng những chuyến đi đẳng cấp
         </p>
       </div>
@@ -33,7 +39,7 @@
           </div>
           <div class="relative">
             <img 
-              src="/images/about-hero.jpg" 
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS2A-G246mAdLRoOsm83Solt-V_P1koKafC2XnQ_Qk6m1zGNxOgJpKVatQy&s=10" 
               alt="Về BigBag" 
               class="rounded-2xl shadow-lg w-full object-cover h-80 md:h-96"
               @error="handleImageError"
@@ -47,15 +53,21 @@
       </div>
     </section>
 
-    <!-- Sứ mệnh & Tầm nhìn -->
-    <section class="py-16 bg-gray-50">
-      <div class="max-w-[1440px] mx-auto px-4">
+    <!-- Sứ mệnh & Tầm nhìn với background ảnh nhẹ -->
+    <section 
+      class="relative py-16 bg-cover bg-center bg-fixed"
+      style="background-image: url('https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=1600&h=600&fit=crop');"
+    >
+      <!-- Overlay trắng mờ -->
+      <div class="absolute inset-0 bg-white/85"></div>
+      
+      <div class="relative z-10 max-w-[1440px] mx-auto px-4">
         <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Sứ Mệnh &amp; Tầm Nhìn</h2>
           <p class="text-gray-500">Định hướng phát triển bền vững của chúng tôi</p>
         </div>
         <div class="grid md:grid-cols-2 gap-10">
-          <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+          <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-sm border border-gray-100">
             <div class="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <span class="material-symbols-outlined text-3xl text-primary">rocket</span>
             </div>
@@ -66,7 +78,7 @@
               quy trình sản xuất thân thiện.
             </p>
           </div>
-          <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+          <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-sm border border-gray-100">
             <div class="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <span class="material-symbols-outlined text-3xl text-primary">visibility</span>
             </div>
@@ -131,28 +143,48 @@
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div class="text-center">
             <div class="w-32 h-32 rounded-full bg-gray-200 mx-auto mb-4 overflow-hidden">
-              <img src="/images/team/ceo.jpg" alt="CEO" class="w-full h-full object-cover" @error="handleImageError">
+              <img 
+                src="https://i.pravatar.cc/150?img=1" 
+                alt="CEO" 
+                class="w-full h-full object-cover" 
+                @error="handleImageError"
+              />
             </div>
             <h4 class="font-semibold text-gray-900">Nguyễn Văn A</h4>
             <p class="text-sm text-gray-500">CEO &amp; Founder</p>
           </div>
           <div class="text-center">
             <div class="w-32 h-32 rounded-full bg-gray-200 mx-auto mb-4 overflow-hidden">
-              <img src="/images/team/designer.jpg" alt="Designer" class="w-full h-full object-cover" @error="handleImageError">
+              <img 
+                src="https://i.pravatar.cc/150?img=5" 
+                alt="Designer" 
+                class="w-full h-full object-cover" 
+                @error="handleImageError"
+              />
             </div>
             <h4 class="font-semibold text-gray-900">Trần Thị B</h4>
             <p class="text-sm text-gray-500">Trưởng thiết kế</p>
           </div>
           <div class="text-center">
             <div class="w-32 h-32 rounded-full bg-gray-200 mx-auto mb-4 overflow-hidden">
-              <img src="/images/team/marketing.jpg" alt="Marketing" class="w-full h-full object-cover" @error="handleImageError">
+              <img 
+                src="https://i.pravatar.cc/150?img=11" 
+                alt="Marketing" 
+                class="w-full h-full object-cover" 
+                @error="handleImageError"
+              />
             </div>
             <h4 class="font-semibold text-gray-900">Lê Văn C</h4>
             <p class="text-sm text-gray-500">Trưởng marketing</p>
           </div>
           <div class="text-center">
             <div class="w-32 h-32 rounded-full bg-gray-200 mx-auto mb-4 overflow-hidden">
-              <img src="/images/team/operation.jpg" alt="Operation" class="w-full h-full object-cover" @error="handleImageError">
+              <img 
+                src="https://i.pravatar.cc/150?img=9" 
+                alt="Operation" 
+                class="w-full h-full object-cover" 
+                @error="handleImageError"
+              />
             </div>
             <h4 class="font-semibold text-gray-900">Phạm Thị D</h4>
             <p class="text-sm text-gray-500">Giám đốc vận hành</p>
