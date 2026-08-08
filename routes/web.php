@@ -68,10 +68,17 @@ Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('ca
 
 // ==================== WHOLESALE ROUTES ====================
 Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
-Route::post('/mua-si', [WholesaleController::class, 'submitRequest'])->name('wholesale.submit-request');
-Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])->name('wholesale.place-order-with-quote');
 
-// ===== ROUTE TRA CỨU MÃ SỐ THUẾ =====
+// Route gửi yêu cầu mua sỉ - Yêu cầu đăng nhập
+Route::post('/mua-si', [WholesaleController::class, 'submitRequest'])
+    ->name('wholesale.submit-request')
+    ->middleware('auth');
+
+Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])
+    ->name('wholesale.place-order-with-quote')
+    ->middleware('auth');
+
+// ===== ROUTE TRA CỨU MÃ SỐ THUẾ (Công khai) =====
 Route::get('/api/tra-cuu-mst/{taxCode}', [WholesaleController::class, 'lookupTaxCode'])
     ->name('api.tra-cuu-mst');
 

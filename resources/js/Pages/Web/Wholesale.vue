@@ -161,7 +161,7 @@
                 
                 <!-- Nhóm 1: Doanh nghiệp -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <!-- Tên công ty - READONLY -->
+                  <!-- Tên công ty -->
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
                       Tên công ty / Tổ chức <span class="text-rose-500">*</span>
@@ -176,14 +176,19 @@
                     >
                   </div>
 
-                  <!-- Mã số thuế - Có thể nhập -->
+                  <!-- Mã số thuế -->
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
                       Mã số thuế <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
                       <input 
-                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800"
+                        :class="{
+                          'border-amber-500 focus:ring-amber-500/20 bg-amber-50/30': taxLookupStatus === 'not_found',
+                          'border-rose-500 focus:ring-rose-500/20 bg-rose-50/30': taxLookupStatus === 'inactive',
+                          'border-emerald-500 focus:ring-emerald-500/20 bg-emerald-50/30': taxLookupStatus === 'active'
+                        }"
                         placeholder="Nhập mã số thuế để tự động tra cứu" 
                         type="text" 
                         v-model="form.tax_code"
@@ -196,12 +201,74 @@
                           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                       </span>
+                      <!-- Icon trạng thái -->
+                      <span v-if="!isSearching && taxLookupStatus === 'not_found'" class="absolute right-3 top-1/2 -translate-y-1/2">
+                        <span class="material-symbols-outlined text-amber-500 text-xl">error</span>
+                      </span>
+                      <span v-if="!isSearching && taxLookupStatus === 'inactive'" class="absolute right-3 top-1/2 -translate-y-1/2">
+                        <span class="material-symbols-outlined text-rose-500 text-xl">cancel</span>
+                      </span>
+                      <span v-if="!isSearching && taxLookupStatus === 'active'" class="absolute right-3 top-1/2 -translate-y-1/2">
+                        <span class="material-symbols-outlined text-emerald-500 text-xl">check_circle</span>
+                      </span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-1.5">Nhập mã số thuế để tự động điền thông tin công ty</p>
+                    <p class="text-xs mt-1.5" :class="{
+                      'text-amber-600': taxLookupStatus === 'not_found',
+                      'text-rose-600': taxLookupStatus === 'inactive',
+                      'text-emerald-600': taxLookupStatus === 'active',
+                      'text-slate-400': !taxLookupStatus
+                    }">
+                      <span v-if="taxLookupStatus === 'not_found'">
+                        ⚠️ Không tìm thấy thông tin công ty với mã số thuế này
+                      </span>
+                      <span v-else-if="taxLookupStatus === 'inactive'">
+                        ⚠️ Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động
+                      </span>
+                      <span v-else-if="taxLookupStatus === 'active'">
+                        ✓ Đã tìm thấy thông tin công ty
+                      </span>
+                      <span v-else>
+                        Nhập mã số thuế để tự động điền thông tin công ty
+                      </span>
+                    </p>
                   </div>
                 </div>
 
-                <!-- Nhóm 2: Liên hệ - CÓ THỂ NHẬP với regex -->
+                <!-- Trạng thái hoạt động - ĐÃ SỬA -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Trạng thái hoạt động
+                    </label>
+                    <div class="w-full rounded-xl border border-slate-200 bg-slate-50/30 px-4 py-2.5 text-sm flex items-center gap-2 min-h-[46px]">
+                      <!-- Trạng thái: Đang hoạt động -->
+                      <span v-if="taxLookupStatus === 'active'" 
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Đang hoạt động
+                      </span>
+                      
+                      <!-- Trạng thái: Ngưng hoạt động -->
+                      <span v-else-if="taxLookupStatus === 'inactive'" 
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        {{ form.company_status || 'Ngưng hoạt động' }}
+                      </span>
+                      
+                      <!-- Trạng thái: Không tìm thấy -->
+                      <span v-else-if="taxLookupStatus === 'not_found'" 
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        <span class="material-symbols-outlined text-amber-500 text-sm">error</span>
+                        Không tìm thấy
+                      </span>
+                      
+                      <!-- Trạng thái: Chưa tra cứu -->
+                      <span v-else class="text-slate-400 italic">Chưa có thông tin</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Nhóm 2: Liên hệ -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
@@ -215,7 +282,6 @@
                       v-model="form.email" 
                       @input="validateEmail"
                       @blur="validateEmail"
-                      pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                       required
                     >
                     <p v-if="emailError" class="text-xs text-rose-500 mt-1">{{ emailError }}</p>
@@ -234,7 +300,6 @@
                       v-model="form.phone" 
                       @input="validatePhone"
                       @blur="validatePhone"
-                      pattern="[0-9]{10}"
                       maxlength="10"
                       required
                     >
@@ -346,6 +411,74 @@
       </div>
     </main>
 
+    <!-- Toast Notification - Hiển thị ở giữa phía dưới -->
+    <div v-if="notification.show" 
+         class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 max-w-lg w-full mx-4 animate-slideUp"
+         @click="notification.show = false">
+      <div class="rounded-2xl shadow-2xl p-5 border backdrop-blur-sm transition-all cursor-pointer hover:scale-[1.02]"
+           :class="{
+             'bg-emerald-50/95 border-emerald-200 text-emerald-800': notification.type === 'success',
+             'bg-rose-50/95 border-rose-200 text-rose-800': notification.type === 'error',
+             'bg-amber-50/95 border-amber-200 text-amber-800': notification.type === 'warning',
+             'bg-blue-50/95 border-blue-200 text-blue-800': notification.type === 'info'
+           }">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 mt-0.5">
+            <span class="material-symbols-outlined text-2xl" 
+                  :class="{
+                    'text-emerald-500': notification.type === 'success',
+                    'text-rose-500': notification.type === 'error',
+                    'text-amber-500': notification.type === 'warning',
+                    'text-blue-500': notification.type === 'info'
+                  }">
+              {{ notification.type === 'success' ? 'check_circle' : 
+                 notification.type === 'error' ? 'error' : 
+                 notification.type === 'warning' ? 'warning' : 'info' }}
+            </span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold">{{ notification.message }}</p>
+          </div>
+          <button @click.stop="notification.show = false" class="shrink-0 text-slate-400 hover:text-slate-600 transition-colors">
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+        <!-- Thanh tiến trình tự động ẩn -->
+        <div class="mt-3 h-1 rounded-full overflow-hidden bg-slate-200/50">
+          <div class="h-full rounded-full transition-all duration-[5000ms] ease-linear"
+               :class="{
+                 'bg-emerald-500': notification.type === 'success',
+                 'bg-rose-500': notification.type === 'error',
+                 'bg-amber-500': notification.type === 'warning',
+                 'bg-blue-500': notification.type === 'info'
+               }"
+               :style="{ width: notification.progress + '%' }">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div v-if="showLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click="showLoginModal = false">
+      <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-fadeIn" @click.stop>
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="material-symbols-outlined text-4xl text-orange-500">login</span>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800">Đăng nhập để tiếp tục</h3>
+          <p class="text-sm text-slate-500 mt-1">Vui lòng đăng nhập để gửi yêu cầu mua sỉ</p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/login" class="w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-semibold py-3 rounded-xl transition-all text-center shadow-lg shadow-orange-500/25">
+            Đăng nhập ngay
+          </a>
+          <button @click="showLoginModal = false" class="w-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold py-3 rounded-xl transition-colors">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+
     <Chatbot />
     <AppFooter />
   </div>
@@ -396,14 +529,28 @@ const selectedColor = ref('')
 const selectedSize = ref('')
 const loading = ref(false)
 const isSearching = ref(false)
+const taxLookupStatus = ref('') // '', 'active', 'inactive', 'not_found'
+const showLoginModal = ref(false)
 
 // ==================== VALIDATION ERRORS ====================
 const emailError = ref('')
 const phoneError = ref('')
 
+// ==================== NOTIFICATION ====================
+const notification = ref({
+  show: false,
+  type: 'info',
+  message: '',
+  progress: 100
+})
+
+let notificationTimer = null
+let progressTimer = null
+
 // ==================== FORM B2B ====================
 const form = ref({
   company: '',
+  company_status: '',
   email: '',
   phone: '',
   tax_code: '',
@@ -445,7 +592,6 @@ const validateEmail = () => {
     return false
   }
   
-  // Regex kiểm tra email hợp lệ
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
   if (!emailRegex.test(email)) {
     emailError.value = 'Email không đúng định dạng (VD: contact@company.com)'
@@ -464,7 +610,6 @@ const validatePhone = () => {
     return false
   }
   
-  // Regex kiểm tra số điện thoại: bắt đầu bằng 0, đúng 10 chữ số
   const phoneRegex = /^0[0-9]{9}$/
   if (!phoneRegex.test(phone)) {
     phoneError.value = 'Số điện thoại phải bắt đầu bằng 0 và có đúng 10 chữ số'
@@ -473,6 +618,47 @@ const validatePhone = () => {
   
   phoneError.value = ''
   return true
+}
+
+// ==================== NOTIFICATION HELPER ====================
+const showNotification = (type, message) => {
+  // Clear existing timers
+  if (notificationTimer) {
+    clearTimeout(notificationTimer)
+    notificationTimer = null
+  }
+  if (progressTimer) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
+  
+  notification.value = {
+    show: true,
+    type,
+    message,
+    progress: 100
+  }
+  
+  // Progress bar animation (5 seconds)
+  const duration = 5000
+  const interval = 50
+  let progress = 100
+  
+  progressTimer = setInterval(() => {
+    progress -= (interval / duration) * 100
+    if (progress <= 0) {
+      progress = 0
+      clearInterval(progressTimer)
+      progressTimer = null
+    }
+    notification.value.progress = progress
+  }, interval)
+  
+  // Auto hide after 5 seconds
+  notificationTimer = setTimeout(() => {
+    notification.value.show = false
+    notificationTimer = null
+  }, duration)
 }
 
 // ==================== METHODS ====================
@@ -493,6 +679,8 @@ const fetchCompanyInfo = async () => {
   // Nếu mã số thuế có ít hơn 10 ký tự hoặc rỗng thì reset dữ liệu
   if (!taxCode || taxCode.length < 10) {
     form.value.company = ''
+    form.value.company_status = ''
+    taxLookupStatus.value = ''
     return
   }
 
@@ -504,11 +692,14 @@ const fetchCompanyInfo = async () => {
     })
     
     if (response.data && response.data.success) {
+      // === TRƯỜNG HỢP 1: TÌM THẤY VÀ ĐANG HOẠT ĐỘNG ===
       const data = response.data.data
       
       form.value.company = data.company_name || ''
+      form.value.company_status = data.status || 'Đang hoạt động'
+      taxLookupStatus.value = 'active'
       
-      // Chỉ tự động điền email và phone nếu chưa có dữ liệu
+      // Tự động điền email và phone nếu chưa có
       if (!form.value.email && data.email) {
         form.value.email = data.email || ''
         validateEmail()
@@ -517,12 +708,80 @@ const fetchCompanyInfo = async () => {
         form.value.phone = data.phone || ''
         validatePhone()
       }
+      
+      showNotification('success', response.data.message || 'Tra cứu thành công')
+      
     } else {
-      form.value.company = ''
+      // === XỬ LÝ CÁC TRƯỜNG HỢP LỖI ===
+      const errorMessage = response.data?.message || 'Không tìm thấy thông tin'
+      
+      // Kiểm tra nếu là lỗi không tìm thấy
+      const isNotFound = response.status === 404 || 
+                        (response.data?.message && 
+                         (response.data.message.includes('không tìm thấy') || 
+                          response.data.message.includes('Không tìm thấy')))
+      
+      // Kiểm tra nếu doanh nghiệp ngưng hoạt động
+      const isInactive = response.data?.status && 
+        (response.data.status.includes('Ngưng') || 
+         response.data.status.includes('giải thể') || 
+         response.data.status.includes('ngừng') ||
+         response.data.status.includes('chấm dứt'))
+      
+      if (isInactive) {
+        // === TRƯỜNG HỢP 2: DOANH NGHIỆP NGƯNG HOẠT ĐỘNG ===
+        form.value.company = response.data?.data?.company_name || ''
+        form.value.company_status = response.data?.status || 'Ngưng hoạt động'
+        taxLookupStatus.value = 'inactive'
+        showNotification('error', '⚠️ ' + errorMessage)
+      } else if (isNotFound) {
+        // === TRƯỜNG HỢP 3: KHÔNG TÌM THẤY MÃ SỐ THUẾ ===
+        form.value.company = ''
+        form.value.company_status = ''
+        taxLookupStatus.value = 'not_found'
+        showNotification('warning', 'Không tìm thấy thông tin công ty với mã số thuế này. Vui lòng kiểm tra lại hoặc nhập thủ công.')
+      } else {
+        // === TRƯỜNG HỢP 4: LỖI KHÁC ===
+        form.value.company = ''
+        form.value.company_status = ''
+        taxLookupStatus.value = ''
+        showNotification('error', errorMessage)
+      }
     }
   } catch (error) {
     console.error('Lỗi tra cứu mã số thuế:', error)
-    form.value.company = ''
+    
+    if (error.response) {
+      const status = error.response.status
+      const data = error.response.data
+      
+      if (status === 404) {
+        // === KHÔNG TÌM THẤY (404) ===
+        form.value.company = ''
+        form.value.company_status = ''
+        taxLookupStatus.value = 'not_found'
+        showNotification('warning', 'Không tìm thấy thông tin công ty với mã số thuế này. Vui lòng kiểm tra lại hoặc nhập thủ công.')
+      } else if (status === 400 && data?.status && 
+                (data.status.includes('Ngưng') || data.status.includes('giải thể') || data.status.includes('ngừng') || data.status.includes('chấm dứt'))) {
+        // === DOANH NGHIỆP NGƯNG HOẠT ĐỘNG ===
+        form.value.company = data?.data?.company_name || ''
+        form.value.company_status = data?.status || 'Ngưng hoạt động'
+        taxLookupStatus.value = 'inactive'
+        showNotification('error', '⚠️ ' + (data?.message || 'Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động.'))
+      } else {
+        // === LỖI KHÁC ===
+        form.value.company = ''
+        form.value.company_status = ''
+        taxLookupStatus.value = ''
+        showNotification('error', data?.message || 'Có lỗi xảy ra khi tra cứu mã số thuế.')
+      }
+    } else {
+      // === LỖI KẾT NỐI ===
+      form.value.company = ''
+      form.value.company_status = ''
+      taxLookupStatus.value = ''
+      showNotification('error', 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.')
+    }
   } finally {
     isSearching.value = false
   }
@@ -532,54 +791,73 @@ const fetchCompanyInfo = async () => {
 const submitQuoteRequest = async () => {
   // Kiểm tra số lượng tối thiểu
   if (orderQuantity.value < 50) {
-    alert('Số lượng đặt tối thiểu là 50 sản phẩm.')
+    showNotification('warning', 'Số lượng đặt tối thiểu là 50 sản phẩm.')
     return
   }
 
-  // Kiểm tra thông tin bắt buộc
+  // Kiểm tra mã số thuế
   if (!form.value.tax_code) {
-    alert('Vui lòng nhập mã số thuế.')
+    showNotification('warning', 'Vui lòng nhập mã số thuế.')
     return
   }
 
+  // Kiểm tra tên công ty
   if (!form.value.company) {
-    alert('Vui lòng nhập mã số thuế hợp lệ để tra cứu thông tin công ty.')
+    showNotification('warning', 'Vui lòng nhập mã số thuế hợp lệ để tra cứu thông tin công ty.')
+    return
+  }
+  
+  // === KIỂM TRA TRẠNG THÁI HOẠT ĐỘNG ===
+  // Không cho submit nếu không tìm thấy
+  if (taxLookupStatus.value === 'not_found') {
+    showNotification('warning', 'Không tìm thấy thông tin công ty. Vui lòng kiểm tra lại mã số thuế.')
+    return
+  }
+  
+  // KHÔNG CHO SUBMIT NẾU DOANH NGHIỆP NGƯNG HOẠT ĐỘNG
+  if (taxLookupStatus.value === 'inactive' || 
+      (form.value.company_status && 
+       (form.value.company_status.includes('Ngưng') || 
+        form.value.company_status.includes('giải thể') || 
+        form.value.company_status.includes('ngừng') ||
+        form.value.company_status.includes('chấm dứt')))) {
+    showNotification('error', '❌ Doanh nghiệp đã ngưng hoạt động, không thể đặt hàng. Vui lòng sử dụng mã số thuế của công ty đang hoạt động.')
     return
   }
   
   // Validate email
   if (!validateEmail()) {
-    // Focus vào trường email
     document.querySelector('input[type="email"]')?.focus()
     return
   }
   
   // Validate phone
   if (!validatePhone()) {
-    // Focus vào trường phone
     document.querySelector('input[type="tel"]')?.focus()
     return
   }
   
+  // Kiểm tra địa chỉ
   if (!form.value.address) {
-    alert('Vui lòng nhập địa chỉ chi tiết.')
+    showNotification('warning', 'Vui lòng nhập địa chỉ chi tiết.')
     return
   }
 
-  // Kiểm tra ngày cần nhận (nếu có)
+  // Kiểm tra ngày cần nhận
   if (form.value.delivery_date) {
     const todayDate = new Date()
     todayDate.setHours(0,0,0,0)
     const deliveryDate = new Date(form.value.delivery_date)
     deliveryDate.setHours(0,0,0,0)
     if (deliveryDate < todayDate) {
-      alert('Ngày cần nhận không được là quá khứ.')
+      showNotification('warning', 'Ngày cần nhận không được là quá khứ.')
       return
     }
   }
 
+  // Kiểm tra sản phẩm
   if (!selectedProduct.value) {
-    alert('Vui lòng chọn sản phẩm.')
+    showNotification('warning', 'Vui lòng chọn sản phẩm.')
     return
   }
 
@@ -596,14 +874,14 @@ const submitQuoteRequest = async () => {
   }
 
   if (!selectedVariant) {
-    alert('Vui lòng chọn màu sắc và kích thước hợp lệ.')
+    showNotification('warning', 'Vui lòng chọn màu sắc và kích thước hợp lệ.')
     return
   }
 
   loading.value = true
 
   try {
-    const response = await axios.post(route('wholesale.submit-request'), {
+    const response = await axios.post('/mua-si', {
       company: form.value.company,
       email: form.value.email,
       phone: form.value.phone,
@@ -628,22 +906,31 @@ const submitQuoteRequest = async () => {
     })
 
     if (response.data.success) {
-      alert(response.data.message || 'Gửi yêu cầu thành công! Chúng tôi sẽ liên hệ trong 30 phút.')
+      showNotification('success', response.data.message || 'Gửi yêu cầu thành công! Chúng tôi sẽ liên hệ trong 30 phút.')
       setTimeout(() => {
         window.location.href = '/'
       }, 1500)
     } else {
-      alert(response.data.message || 'Có lỗi xảy ra, vui lòng thử lại.')
+      showNotification('error', response.data.message || 'Có lỗi xảy ra, vui lòng thử lại.')
     }
   } catch (error) {
     console.error('Error submitting quote request:', error)
     let msg = 'Không thể gửi yêu cầu. Vui lòng thử lại!'
-    if (error.response?.data?.message) {
-      msg = error.response.data.message
-    } else if (error.response?.status === 401) {
-      msg = 'Vui lòng đăng nhập để gửi yêu cầu mua sỉ.'
+    
+    if (error.response) {
+      // Xử lý lỗi 401 Unauthorized
+      if (error.response.status === 401) {
+        showLoginModal.value = true
+        loading.value = false
+        return
+      }
+      
+      if (error.response.data?.message) {
+        msg = error.response.data.message
+      }
     }
-    alert(msg)
+    
+    showNotification('error', msg)
   } finally {
     loading.value = false
   }
@@ -682,7 +969,6 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Style cho input disabled/readonly - chỉ áp dụng cho Tên công ty */
 input:disabled,
 input[readonly] {
   background-color: #f1f5f9 !important;
@@ -690,12 +976,69 @@ input[readonly] {
   opacity: 0.8;
 }
 
-/* Style khi input có lỗi */
 .border-rose-500 {
   border-color: #f43f5e !important;
 }
 .border-rose-500:focus {
   border-color: #f43f5e !important;
   box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.2) !important;
+}
+
+.border-amber-500 {
+  border-color: #f59e0b !important;
+}
+.border-amber-500:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2) !important;
+}
+
+.border-emerald-500 {
+  border-color: #10b981 !important;
+}
+.border-emerald-500:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+.bg-amber-50\/30 {
+  background-color: rgba(255, 251, 235, 0.3) !important;
+}
+
+.bg-rose-50\/30 {
+  background-color: rgba(255, 241, 242, 0.3) !important;
+}
+
+.bg-emerald-50\/30 {
+  background-color: rgba(236, 253, 245, 0.3) !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
 }
 </style>

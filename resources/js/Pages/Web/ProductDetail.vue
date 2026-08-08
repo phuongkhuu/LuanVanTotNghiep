@@ -300,9 +300,9 @@
               </button>
               
               <!-- Nút Tùy chỉnh (full width) - CÓ THÊM ?product_id= -->
-              <Link :href="route('customize') + '?product_id=' + product.id" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
+              <!-- <Link :href="route('customize') + '?product_id=' + product.id" class="w-full h-14 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-md group bg-gray-800 hover:bg-gray-900">
                 <span class="material-symbols-outlined group-hover:rotate-45 transition-transform">edit_note</span> Tùy chỉnh (Customize)
-              </Link>
+              </Link> -->
             </template>
 
             <!-- Nếu là sản phẩm pre-order đã kết thúc: CHỈ HIỂN THỊ THÔNG BÁO -->

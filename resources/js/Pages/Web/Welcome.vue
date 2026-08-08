@@ -89,7 +89,7 @@
           </div>
         </div>
 
-        <!-- Hiển thị sản phẩm nếu có -->
+        
         <div v-if="hotSales && hotSales.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
             v-for="product in hotSales" 
@@ -105,7 +105,7 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
-                <!-- Hiển thị phần trăm giảm giá -->
+                
                 <span 
                   v-if="product.discount_percent && product.discount_percent > 0" 
                   class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold"
@@ -118,7 +118,7 @@
                 >
                   Hot
                 </span>
-                <!-- Badge loại khuyến mãi -->
+               
                 <span 
                   v-if="product.discount_type === 'preorder' || product.is_pre_order" 
                   class="absolute top-4 right-4 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold"
@@ -129,14 +129,14 @@
               <div class="p-4">
                 <h3 class="font-semibold text-gray-800 mb-1 line-clamp-1">{{ product.name }}</h3>
                 <div class="flex items-baseline space-x-2 mb-2">
-                  <!-- Giá sale -->
+                  
                   <span v-if="product.is_on_sale" class="text-xl font-bold text-red-500">
                     {{ formatPrice(product.sale_price || product.price) }}
                   </span>
                   <span v-else class="text-xl font-bold text-primary">
                     {{ formatPrice(product.price) }}
                   </span>
-                  <!-- Giá gốc (có gạch) -->
+                  
                   <span v-if="product.is_on_sale && product.original_price" class="text-sm text-gray-400 line-through">
                     {{ formatPrice(product.original_price) }}
                   </span>
@@ -152,12 +152,12 @@
           </div>
         </div>
 
-        <!-- Thông báo khi không có sản phẩm -->
+        
         <div v-else class="text-center py-12">
           <p class="text-gray-500 text-lg">Hiện tại không có sản phẩm giảm giá</p>
         </div>
       </div>
-    </section>
+    </section>-->
 
     <!-- TRENDING PRODUCTS -->
     <section v-if="trending && trending.length > 0" class="py-16 bg-white">
