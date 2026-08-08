@@ -36,6 +36,8 @@ class OrderSeeder extends Seeder
             ['name' => 'Doanh nghiệp XYZ', 'phone' => '0956789012'],
             ['name' => 'Ngô Văn E', 'phone' => '0967890123'],
             ['name' => 'Công ty TNHH Tech', 'phone' => '0978901234'],
+            ['name' => 'Hoàng Thị F', 'phone' => '0981234567'],
+            ['name' => 'Công ty CP Đầu tư', 'phone' => '0991234567'],
         ];
 
         $orderCodes = ['retail', 'wholesale', 'preorder'];
@@ -44,7 +46,9 @@ class OrderSeeder extends Seeder
         // Mảng đếm số thứ tự theo từng loại và ngày
         $counters = [];
 
-        for ($i = 0; $i < 50; $i++) {
+        // Tạo 30 đơn hàng mới (tổng sẽ là 80 đơn)
+        for ($i = 0; $i < 30; $i++) {
+            // Tạo ngày trong 30 ngày gần đây
             $createdAt = Carbon::now()->subDays(rand(0, 30))->setTime(rand(8, 22), rand(0, 59), rand(0, 59));
 
             // Chọn loại đơn hàng (có trọng số)
@@ -82,7 +86,13 @@ class OrderSeeder extends Seeder
             $customer = $customers[array_rand($customers)];
             $receiver = $customers[array_rand($customers)];
 
-            // Tạo đơn hàng (có order_number)
+            // Địa chỉ chi tiết hơn
+            $districts = ['Quận 1', 'Quận 2', 'Quận 3', 'Quận 4', 'Quận 5', 'Quận 6', 'Quận 7', 'Quận 8', 'Quận 9', 'Quận 10', 'Quận 11', 'Quận 12', 'Bình Thạnh', 'Gò Vấp', 'Tân Bình', 'Tân Phú'];
+            $streets = ['Nguyễn Văn Cừ', 'Lê Lợi', 'Nguyễn Huệ', 'Điện Biên Phủ', 'Võ Văn Tần', 'Cách Mạng Tháng Tám', 'Trần Hưng Đạo', 'Nguyễn Trãi', 'Lý Thường Kiệt', 'Hai Bà Trưng'];
+
+            $shippingAddress = $streets[array_rand($streets)] . ' ' . rand(1, 200) . ', ' . $districts[array_rand($districts)] . ', TP.HCM';
+
+            // Tạo đơn hàng
             $orderId = DB::table('orders')->insertGetId([
                 'user_id'          => $userId,
                 'customer_name'    => $customer['name'],
@@ -90,7 +100,7 @@ class OrderSeeder extends Seeder
                 'discount_id'      => null,
                 'campaign_id'      => null,
                 'order_code'       => $orderCode,
-                'order_number'     => $orderNumber, // gán mã đã sinh
+                'order_number'     => $orderNumber,
                 'receiver_name'    => $receiver['name'],
                 'receiver_phone'   => $receiver['phone'],
                 'shipping_fee'     => $orderCode == 'retail' ? rand(20000, 50000) : 0,
@@ -98,16 +108,17 @@ class OrderSeeder extends Seeder
                 'discount_amount'  => 0,
                 'final_amount'     => 0,
                 'order_status'     => $statuses[array_rand($statuses)],
-                'shipping_address' => 'Địa chỉ ' . rand(1, 100) . ', Quận ' . rand(1, 12) . ', TP.HCM',
-                'note'             => rand(0, 1) ? 'Ghi chú đơn hàng ' . $i : null,
+                'shipping_address' => $shippingAddress,
+                'note'             => rand(0, 1) ? 'Ghi chú đơn hàng #' . ($i + 51) : null,
                 'created_at'       => $createdAt,
                 'updated_at'       => $createdAt,
             ]);
 
             // Tạo chi tiết đơn hàng
-            $numItems = rand(1, 3);
+            $numItems = rand(1, 4);
             $total = 0;
             $usedVariantIds = [];
+            
             for ($j = 0; $j < $numItems; $j++) {
                 $available = $variants->filter(fn($v) => !in_array($v->id, $usedVariantIds));
                 if ($available->isEmpty()) break;

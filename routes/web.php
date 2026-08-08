@@ -68,8 +68,19 @@ Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('ca
 
 // ==================== WHOLESALE ROUTES ====================
 Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
-Route::post('/mua-si', [WholesaleController::class, 'submitRequest'])->name('wholesale.submit-request');
-Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])->name('wholesale.place-order-with-quote');
+
+// Route gửi yêu cầu mua sỉ - Yêu cầu đăng nhập
+Route::post('/mua-si', [WholesaleController::class, 'submitRequest'])
+    ->name('wholesale.submit-request')
+    ->middleware('auth');
+
+Route::post('/mua-si/place-order-with-quote', [WholesaleController::class, 'placeOrderWithQuote'])
+    ->name('wholesale.place-order-with-quote')
+    ->middleware('auth');
+
+// ===== ROUTE TRA CỨU MÃ SỐ THUẾ (Công khai) =====
+Route::get('/api/tra-cuu-mst/{taxCode}', [WholesaleController::class, 'lookupTaxCode'])
+    ->name('api.tra-cuu-mst');
 
 // Promotion route - Sử dụng PromotionController (Web)
 Route::get('/khuyen-mai', [PromotionController::class, 'index'])->name('promotion');
@@ -179,7 +190,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::get('/export', [AdminOrderController::class, 'export'])->name('orders.export');
     Route::get('/export/filtered', [AdminOrderController::class, 'exportWithFilters'])->name('orders.export-filtered');
-    // THÊM ROUTE NÀY
     Route::get('/{id}/print-html', [AdminOrderController::class, 'printOrderHtml'])->name('orders.print-html');
     });
     
@@ -219,10 +229,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/retail', [AdminCustomerController::class, 'retail'])->name('customers.retail');
         Route::get('/business', [AdminCustomerController::class, 'business'])->name('customers.business');
         
-        // EXPORT ROUTE - PHẢI ĐẶT TRƯỚC ROUTE {phone}
         Route::get('/export', [AdminCustomerController::class, 'export'])->name('customers.export');
         
-        // Các route có tham số động - ĐẶT SAU ROUTE CỐ ĐỊNH
         Route::get('/{phone}', [AdminCustomerController::class, 'show'])->name('customers.show');
         Route::put('/{id}', [AdminCustomerController::class, 'update'])->name('customers.update');
     });

@@ -205,7 +205,7 @@
                 </div>
 
                 <div class="px-6 py-4 space-y-4">
-                    <!-- ✅ Yêu cầu 3: Bắt buộc nhập tiêu đề -->
+                    <!--  Yêu cầu 3: Bắt buộc nhập tiêu đề -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Tiêu đề <span class="text-red-500">*</span>
@@ -235,11 +235,11 @@
                         <div class="flex gap-2 mb-2">
                             <button type="button" @click="imageInputMode = 'url'" 
                                 :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">
-                                🔗 Nhập URL
+                                 Nhập URL
                             </button>
                             <button type="button" @click="imageInputMode = 'file'" 
                                 :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']">
-                                📁 Tải ảnh lên
+                                 Tải ảnh lên
                             </button>
                         </div>
                         <div v-if="imageInputMode === 'url'">
@@ -263,7 +263,7 @@
                         </div>
                     </div>
 
-                    <!-- ✅ Yêu cầu 3: Kiểm tra link -->
+                    <!--  Yêu cầu 3: Kiểm tra link -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Link</label>
                         <input v-model="form.link" type="text" 
@@ -272,7 +272,7 @@
                         <p class="text-xs text-gray-400 mt-1">Nhập URL hợp lệ (ví dụ: https://example.com)</p>
                     </div>
 
-                    <!-- ✅ Yêu cầu 3: STT được kiểm soát -->
+                    <!--  Yêu cầu 3: STT được kiểm soát -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
                         <input v-model.number="form.order" type="number" min="0" 
@@ -285,7 +285,7 @@
                         <p class="text-sm text-red-600">{{ errorMessage }}</p>
                     </div>
                     <div v-if="uploadSuccess" class="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <p class="text-sm text-green-600">✅ Lưu thành công!</p>
+                        <p class="text-sm text-green-600"> Lưu thành công!</p>
                     </div>
                 </div>
 

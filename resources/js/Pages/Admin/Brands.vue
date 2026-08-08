@@ -476,14 +476,14 @@ onMounted(() => {
                                 @click="imageInputMode = 'url'" 
                                 :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'url' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']"
                             >
-                                🔗 Nhập URL
+                                 Nhập URL
                             </button>
                             <button 
                                 type="button" 
                                 @click="imageInputMode = 'file'" 
                                 :class="['px-3 py-1 text-sm rounded-full transition-colors', imageInputMode === 'file' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 hover:bg-gray-200']"
                             >
-                                📁 Tải ảnh lên
+                                 Tải ảnh lên
                             </button>
                         </div>
                         <div v-if="imageInputMode === 'url'">

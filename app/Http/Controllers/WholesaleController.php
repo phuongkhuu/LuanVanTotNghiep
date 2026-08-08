@@ -420,13 +420,52 @@ class WholesaleController extends Controller
             ], 404);
         }
 
+        // 4. Kiểm tra trạng thái hoạt động của doanh nghiệp qua mã số thuế
+        if (!empty($validated['tax_code'])) {
+            $taxCode = preg_replace('/[^0-9]/', '', $validated['tax_code']);
+            $cacheKey = 'tax_info_' . $taxCode;
+            
+            // Kiểm tra cache
+            if (Cache::has($cacheKey)) {
+                $cachedData = Cache::get($cacheKey);
+                if (isset($cachedData['status']) && !$this->checkBusinessStatus($cachedData['status'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Doanh nghiệp đã ngưng hoạt động, không thể đặt hàng. Vui lòng sử dụng mã số thuế của công ty đang hoạt động.'
+                    ], 400);
+                }
+            } else {
+                // Tra cứu API để kiểm tra trạng thái
+                try {
+                    $response = Http::timeout(10)->get("https://api.vietqr.io/v2/business/{$taxCode}");
+                    if ($response->successful()) {
+                        $data = $response->json();
+                        if ($data && isset($data['code']) && $data['code'] === '00') {
+                            $business = $data['data'] ?? [];
+                            $status = $business['status'] ?? $business['businessStatus'] ?? 'Đang hoạt động';
+                            
+                            if (!$this->checkBusinessStatus($status)) {
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => 'Doanh nghiệp đã ngưng hoạt động, không thể đặt hàng. Vui lòng sử dụng mã số thuế của công ty đang hoạt động.'
+                                ], 400);
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Nếu API lỗi, bỏ qua kiểm tra (vẫn cho phép đặt hàng)
+                    Log::warning('Không thể kiểm tra trạng thái doanh nghiệp: ' . $e->getMessage());
+                }
+            }
+        }
+
         // Tính giá
         $unitPrice = $variant->is_on_sale && $variant->sale_price
             ? $variant->sale_price
             : $variant->price;
         $total = $unitPrice * $validated['quantity'];
 
-        // 4. Gom các thông tin bổ sung vào một mảng và encode JSON cho QuoteRequest
+        // 5. Gom các thông tin bổ sung vào một mảng và encode JSON cho QuoteRequest
         $extraData = [
             'address'       => $validated['address'],
             'city'          => $validated['city'],
@@ -442,7 +481,7 @@ class WholesaleController extends Controller
         });
         $requirementJson = json_encode($extraData, JSON_UNESCAPED_UNICODE);
 
-        // 5. Xây dựng nội dung ghi chú cho Order
+        // 6. Xây dựng nội dung ghi chú cho Order
         $orderNote = '';
         if (!empty($validated['note'])) {
             $orderNote .= $validated['note'] . "\n\n";
@@ -472,7 +511,7 @@ class WholesaleController extends Controller
         }
         $orderNote .= "-------------------------";
 
-        // 6. Lưu yêu cầu và đơn hàng vào DB
+        // 7. Lưu yêu cầu và đơn hàng vào DB
         try {
             DB::beginTransaction();
 
@@ -517,8 +556,9 @@ class WholesaleController extends Controller
             ]);
 
             // Sinh mã đơn hàng
-            $order->order_number = 'S' . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
+            $order->order_number = 'S' . now()->format('dmy') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
             $order->save();
+
 
             // --- Tạo chi tiết đơn hàng ---
             OrderDetail::create([
@@ -581,6 +621,17 @@ class WholesaleController extends Controller
         $cacheKey = 'tax_info_' . $taxCode;
         if (Cache::has($cacheKey)) {
             $cachedData = Cache::get($cacheKey);
+            
+            // Kiểm tra trạng thái hoạt động từ cache
+            if (isset($cachedData['status']) && !$this->checkBusinessStatus($cachedData['status'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động. Vui lòng kiểm tra lại.',
+                    'data' => $cachedData,
+                    'status' => $cachedData['status']
+                ], 400);
+            }
+            
             return response()->json([
                 'success' => true,
                 'data' => $cachedData,
@@ -611,15 +662,34 @@ class WholesaleController extends Controller
                     $companyName = $business['companyName'] ?? $business['name'] ?? '';
                     $email = $business['email'] ?? '';
                     $phone = $business['phone'] ?? $business['tel'] ?? '';
+                    $status = $business['status'] ?? $business['businessStatus'] ?? 'Đang hoạt động';
                     
-                    // Nếu có thông tin, trả về thành công
+                    // Nếu có thông tin, kiểm tra trạng thái hoạt động
                     if (!empty($companyName)) {
+                        // Kiểm tra trạng thái hoạt động kinh doanh
+                        $isActive = $this->checkBusinessStatus($status);
+                        
                         $result = [
                             'company_name' => $companyName,
                             'email' => $email,
                             'phone' => $phone,
+                            'status' => $status,
+                            'is_active' => $isActive
                         ];
                         
+                        if (!$isActive) {
+                            // Lưu cache 24 giờ với trạng thái không hoạt động
+                            Cache::put($cacheKey, $result, 86400);
+                            
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động. Vui lòng kiểm tra lại.',
+                                'data' => $result,
+                                'status' => $status
+                            ], 400);
+                        }
+                        
+                        // Doanh nghiệp đang hoạt động
                         // Lưu cache 24 giờ
                         Cache::put($cacheKey, $result, 86400);
                         
@@ -637,6 +707,23 @@ class WholesaleController extends Controller
             // ==========================================
             $mockData = $this->getMockCompanyData($taxCode);
             if ($mockData) {
+                // Kiểm tra trạng thái từ mock data
+                $status = $mockData['status'] ?? 'Đang hoạt động';
+                $isActive = $this->checkBusinessStatus($status);
+                $mockData['is_active'] = $isActive;
+                
+                if (!$isActive) {
+                    // Lưu cache 1 giờ cho mock data không hoạt động
+                    Cache::put($cacheKey, $mockData, 3600);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động. Vui lòng kiểm tra lại.',
+                        'data' => $mockData,
+                        'status' => $status
+                    ], 400);
+                }
+                
                 // Lưu cache 1 giờ cho mock data
                 Cache::put($cacheKey, $mockData, 3600);
                 
@@ -662,6 +749,20 @@ class WholesaleController extends Controller
             // Khi API lỗi, thử dùng dữ liệu mock
             $mockData = $this->getMockCompanyData($taxCode);
             if ($mockData) {
+                // Kiểm tra trạng thái từ mock data
+                $status = $mockData['status'] ?? 'Đang hoạt động';
+                $isActive = $this->checkBusinessStatus($status);
+                $mockData['is_active'] = $isActive;
+                
+                if (!$isActive) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Hộ kinh doanh/Doanh nghiệp đã ngưng hoạt động. Vui lòng kiểm tra lại.',
+                        'data' => $mockData,
+                        'status' => $status
+                    ], 400);
+                }
+                
                 return response()->json([
                     'success' => true,
                     'data' => $mockData,
@@ -677,6 +778,62 @@ class WholesaleController extends Controller
     }
 
     /**
+     * Kiểm tra trạng thái hoạt động kinh doanh
+     * 
+     * @param string $status
+     * @return bool
+     */
+    private function checkBusinessStatus($status)
+    {
+        // Danh sách các trạng thái "đang hoạt động"
+        $activeStatuses = [
+            'Đang hoạt động',
+            'Đang hoạt động (đã đăng ký)',
+            'Hoạt động',
+            'Active',
+            'Đang hoạt động (chưa đăng ký)',
+            'active',
+            'ACTIVE',
+            'Đang hoạt động'
+        ];
+        
+        // Danh sách các trạng thái "ngưng hoạt động"
+        $inactiveStatuses = [
+            'Ngưng hoạt động',
+            'Đã giải thể',
+            'Đã ngừng hoạt động',
+            'Tạm ngừng hoạt động',
+            'Inactive',
+            'inactive',
+            'INACTIVE',
+            'Ngừng hoạt động',
+            'Không hoạt động',
+            'Đã đóng mã số thuế',
+            'Đã chấm dứt hoạt động',
+            'chấm dứt hiệu lực',
+            'NNT ngừng hoạt động'
+        ];
+        
+        // Kiểm tra nếu status nằm trong danh sách không hoạt động
+        foreach ($inactiveStatuses as $inactive) {
+            if (stripos($status, $inactive) !== false) {
+                return false;
+            }
+        }
+        
+        // Kiểm tra nếu status nằm trong danh sách hoạt động
+        foreach ($activeStatuses as $active) {
+            if (stripos($status, $active) !== false) {
+                return true;
+            }
+        }
+        
+        // Mặc định: nếu status không rõ ràng, coi là đang hoạt động
+        // (ưu tiên cho phép giao dịch nếu không xác định được)
+        return true;
+    }
+
+    /**
      * Dữ liệu mẫu cho demo - Sử dụng khi API không hoạt động
      * 
      * @param string $taxCode
@@ -687,27 +844,42 @@ class WholesaleController extends Controller
         // Xóa ký tự đặc biệt, chỉ giữ số
         $cleanTaxCode = preg_replace('/[^0-9]/', '', $taxCode);
         
-        // Dữ liệu mẫu
+        // Dữ liệu mẫu với trạng thái hoạt động
         $mockDatabase = [
             '0312345678' => [
                 'company_name' => 'CÔNG TY TNHH BIGBAG VIỆT NAM',
                 'email' => 'contact@bigbag.vn',
                 'phone' => '02812345678',
+                'status' => 'Đang hoạt động',
+                'is_active' => true
             ],
             '0312345679' => [
                 'company_name' => 'CÔNG TY CỔ PHẦN THƯƠNG MẠI ABC',
                 'email' => 'info@abc.com.vn',
                 'phone' => '02898765432',
+                'status' => 'Đang hoạt động',
+                'is_active' => true
             ],
             '0101234567' => [
                 'company_name' => 'CÔNG TY TNHH MTV XYZ HÀ NỘI',
                 'email' => 'xyz@hanoi.vn',
                 'phone' => '02412345678',
+                'status' => 'Đang hoạt động',
+                'is_active' => true
             ],
             '0301234567' => [
                 'company_name' => 'CÔNG TY CỔ PHẦN ĐẦU TƯ PHÁT TRIỂN MẠNH PHÁT',
                 'email' => 'manhphat@company.com',
                 'phone' => '02511234567',
+                'status' => 'Ngưng hoạt động',
+                'is_active' => false
+            ],
+            '0312345680' => [
+                'company_name' => 'CÔNG TY TNHH SẢN XUẤT THƯƠNG MẠI DỊCH VỤ BÌNH MINH',
+                'email' => 'binhminh@company.com',
+                'phone' => '02837123456',
+                'status' => 'Đã giải thể',
+                'is_active' => false
             ],
         ];
 
