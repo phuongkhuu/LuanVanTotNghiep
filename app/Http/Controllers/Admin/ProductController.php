@@ -279,6 +279,10 @@ class ProductController extends Controller
                             'sale_price' => $info['sale_price'] ?? null,
                             'is_on_sale' => $info['is_on_sale'] ?? false,
                             'stock' => $v->stock,
+                            // Các trường nhập hàng
+                            'import_quantity' => $v->import_quantity ?? 0,
+                            'import_price' => $v->import_price ?? null,
+                            'last_import_date' => $v->last_import_date ? $v->last_import_date->format('Y-m-d H:i:s') : null,
                         ];
                     }),
                 ];
@@ -336,6 +340,9 @@ class ProductController extends Controller
             'variants.*.size_name' => 'nullable|string|max:100',
             'variants.*.price' => 'required|integer|min:0',
             'variants.*.stock' => 'required|integer|min:0',
+            // Thêm validation cho import
+            'variants.*.import_quantity' => 'sometimes|integer|min:0',
+            'variants.*.import_price' => 'sometimes|integer|min:0',
         ]);
 
         $media = $validated['image_url'] ?? [];
@@ -363,6 +370,10 @@ class ProductController extends Controller
         ]);
 
         foreach ($validated['variants'] as $variantData) {
+            $importQty = $variantData['import_quantity'] ?? 0;
+            $importPrice = $variantData['import_price'] ?? null;
+            $lastImport = ($importQty > 0) ? now() : null;
+
             ProductVariant::create([
                 'product_id' => $product->id,
                 'color_id' => $variantData['color_id'],
@@ -370,6 +381,9 @@ class ProductController extends Controller
                 'price' => $variantData['price'],
                 'stock' => $variantData['stock'],
                 'rating' => 0,
+                'import_quantity' => $importQty,
+                'import_price' => $importPrice,
+                'last_import_date' => $lastImport,
             ]);
         }
 
@@ -407,6 +421,9 @@ class ProductController extends Controller
             'variants.*.size_name' => 'nullable|string|max:100',
             'variants.*.price' => 'required|integer|min:0',
             'variants.*.stock' => 'required|integer|min:0',
+            // Thêm validation cho import
+            'variants.*.import_quantity' => 'sometimes|integer|min:0',
+            'variants.*.import_price' => 'sometimes|integer|min:0',
         ]);
 
         $oldMedia = $product->image_url ?? [];
@@ -446,15 +463,34 @@ class ProductController extends Controller
             if (isset($variantData['id'])) {
                 $variant = ProductVariant::find($variantData['id']);
                 if ($variant) {
+                    $oldQty = $variant->import_quantity ?? 0;
+                    $newQty = $variantData['import_quantity'] ?? 0;
+                    $importPrice = $variantData['import_price'] ?? null;
+
+                    // Nếu số lượng nhập thay đổi và >0 thì cập nhật ngày nhập mới
+                    if ($newQty > 0 && $newQty != $oldQty) {
+                        $lastImport = now();
+                    } else {
+                        $lastImport = $variant->last_import_date; // giữ nguyên
+                    }
+
                     $variant->update([
                         'color_id' => $variantData['color_id'],
                         'size_name' => $variantData['size_name'] ?? null,
                         'price' => $variantData['price'],
                         'stock' => $variantData['stock'],
+                        'import_quantity' => $newQty,
+                        'import_price' => $importPrice,
+                        'last_import_date' => $lastImport,
                     ]);
                     $submittedVariantIds[] = $variant->id;
                 }
             } else {
+                // Tạo mới variant
+                $importQty = $variantData['import_quantity'] ?? 0;
+                $importPrice = $variantData['import_price'] ?? null;
+                $lastImport = ($importQty > 0) ? now() : null;
+
                 $newVariant = ProductVariant::create([
                     'product_id' => $product->id,
                     'color_id' => $variantData['color_id'],
@@ -462,6 +498,9 @@ class ProductController extends Controller
                     'price' => $variantData['price'],
                     'stock' => $variantData['stock'],
                     'rating' => 0,
+                    'import_quantity' => $importQty,
+                    'import_price' => $importPrice,
+                    'last_import_date' => $lastImport,
                 ]);
                 $submittedVariantIds[] = $newVariant->id;
             }

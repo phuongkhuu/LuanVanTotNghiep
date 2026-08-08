@@ -108,17 +108,19 @@
             <!-- Products Table -->
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="w-full text-xs sm:text-sm">
                         <thead>
                             <tr class="bg-gray-50">
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">SẢN PHẨM</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">DANH MỤC</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">GIÁ GỐC</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">GIÁ SALE</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">GIẢM</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TỒN KHO</th>
-                                <th class="text-left py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">TRẠNG THÁI</th>
-                                <th class="text-center py-3 px-4 text-gray-600 font-semibold whitespace-nowrap">THAO TÁC</th>
+                                <th class="text-center py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">SẢN PHẨM</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">DANH MỤC</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ NHẬP</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ GỐC</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ SALE</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIẢM</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">SL NHẬP</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">TỒN</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">TRẠNG THÁI</th>
+                                <th class="text-center py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">THAO TÁC</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -128,9 +130,9 @@
                                 class="border-b border-gray-200 hover:bg-orange-50 transition-colors"
                                 :class="product.is_on_sale ? 'bg-green-50/30' : ''"
                             >
-                                <td class="py-3 px-4">
+                                <td class="py-2 px-2 md:px-3">
                                     <div class="flex items-center gap-2">
-                                        <div class="relative w-10 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                        <div class="relative w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                                             <img 
                                                 :src="product.thumbnail || ''" 
                                                 class="w-full h-full object-cover" 
@@ -138,85 +140,96 @@
                                             >
                                             <!-- Badge SALE -->
                                             <span v-if="product.is_on_sale && product.sale_percent > 0" 
-                                                  class="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+                                                  class="absolute -top-1 -right-1 bg-red-500 text-white text-[7px] px-1 py-0.5 rounded-full font-bold animate-pulse">
                                                 -{{ product.sale_percent }}%
                                             </span>
                                         </div>
                                         <div>
-                                            <span class="font-medium text-gray-800">{{ product.name }}</span>
+                                            <span class="font-medium text-gray-800 text-xs md:text-sm">{{ product.name }}</span>
                                             <div class="flex items-center gap-1">
                                                 <span v-if="product.is_on_sale" 
-                                                      class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-                                                    {{ product.sale_type === 'campaign' ? '🎯 Chiến dịch' : '⏳ Pre-order' }}
+                                                      class="text-[9px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">
+                                                    {{ product.sale_type === 'campaign' ? 'Chiến dịch' : 'Pre-order' }}
                                                 </span>
                                                 <span class="text-xs text-gray-400">({{ product.image_url?.length || 0 }})</span>
                                             </div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ product.category || '—' }}</td>
+                                <td class="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">{{ product.category || '—' }}</td>
                                 
-                                <!-- Cột GIÁ GỐC -->
-                                <td class="py-3 px-4 whitespace-nowrap">
+                                <!-- GIÁ NHẬP HÀNG -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap font-medium text-gray-700 text-center">
+                                    {{ product.min_import_price ? formatPrice(product.min_import_price) : '—' }}
+                                </td>
+                                
+                                <!-- GIÁ GỐC -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap">
                                     <span :class="product.is_on_sale ? 'text-gray-400 line-through' : 'text-gray-500'">
                                         {{ formatPrice(product.original_price || product.price) }}
                                     </span>
                                 </td>
                                 
-                                <!-- Cột GIÁ SALE -->
-                                <td class="py-3 px-4 whitespace-nowrap">
+                                <!-- GIÁ SALE -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap">
                                     <span v-if="product.is_on_sale && product.sale_price" 
-                                          class="font-bold text-red-600 text-base">
+                                          class="font-bold text-red-600 text-xs md:text-sm">
                                         {{ formatPrice(product.sale_price) }}
                                     </span>
                                     <span v-else class="text-gray-400">—</span>
                                 </td>
                                 
-                                <!-- Cột GIẢM -->
-                                <td class="py-3 px-4 whitespace-nowrap">
+                                <!-- GIẢM -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap">
                                     <span v-if="product.is_on_sale && product.sale_percent > 0" 
-                                          class="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold">
+                                          class="inline-flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
                                         -{{ product.sale_percent }}%
                                     </span>
                                     <span v-else class="text-gray-400">—</span>
                                 </td>
+
+                                <!-- SL NHẬP -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap text-gray-600 text-center">
+                                    {{ product.total_import_quantity || 0 }}
+                                </td>
                                 
-                                <td class="py-3 px-4 whitespace-nowrap" :class="product.stock < 10 ? 'text-yellow-600 font-semibold' : 'text-gray-600'">
+                                <!-- TỒN KHO -->
+                                <td class="py-2 px-2 md:px-3 whitespace-nowrap" :class="product.stock < 10 ? 'text-yellow-600 font-semibold' : 'text-gray-600'">
                                     {{ product.stock }}
                                 </td>
-                                <td class="py-3 px-4">
+                                
+                                <!-- TRẠNG THÁI -->
+                                <td class="py-2 px-2 md:px-3">
                                     <div class="flex items-center gap-1">
                                         <span 
-                                            class="text-xs px-2 py-1 rounded-full whitespace-nowrap"
+                                            class="text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap"
                                             :class="product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                                         >
                                             {{ product.stock > 0 ? 'Còn hàng' : 'Hết hàng' }}
                                         </span>
                                         <span v-if="product.is_on_sale" 
-                                              class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">
+                                              class="text-[9px] bg-red-100 text-red-700 px-1 py-0.5 rounded-full font-bold whitespace-nowrap">
                                             SALE
                                         </span>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <td class="py-2 px-2 md:px-3 text-center whitespace-nowrap">
                                     <button 
                                         @click="editProduct(product)" 
-                                        class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium"
-                                        title="Sửa sản phẩm"
+                                        class="px-2 py-1 text-[10px] md:text-xs text-green-600 hover:bg-green-100 rounded-lg transition-colors font-medium"
                                     >
                                         Sửa
                                     </button>
                                     <button 
                                         @click="deleteProduct(product.id)" 
-                                        class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors font-medium"
-                                        title="Xóa sản phẩm"
+                                        class="px-2 py-1 text-[10px] md:text-xs text-red-600 hover:bg-red-100 rounded-lg ml-1 transition-colors font-medium"
                                     >
                                         Xóa
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="paginatedProducts.length === 0">
-                                <td colspan="8" class="text-center py-8 text-gray-500">
+                                <td colspan="10" class="text-center py-8 text-gray-500">
                                     {{ search ? 'Không tìm thấy sản phẩm nào' : 'Không có sản phẩm nào' }}
                                 </td>
                             </tr>
@@ -224,7 +237,7 @@
                     </table>
                 </div>
 
-                <!-- Footer với phân trang -->
+                <!-- Footer phân trang -->
                 <div class="p-4 border-t border-gray-200">
                     <div class="text-center text-sm text-gray-500 mb-3">
                         Hiển thị {{ paginatedProducts.length }} / {{ filteredProducts.length }} sản phẩm
@@ -263,7 +276,7 @@
             </div>
         </div>
 
-        <!-- Modal Add/Edit -->
+        <!-- Modal Add/Edit (giữ nguyên) -->
         <div 
             v-if="showModal" 
             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
@@ -322,29 +335,11 @@
                                 >
                                     <img v-if="img.mediaType === 'image'" :src="img.url" class="w-full h-full object-cover" />
                                     <video v-else :src="img.url" class="w-full h-full object-cover" muted></video>
-                                    
-                                    <div class="absolute top-0 left-0 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-br">
-                                        {{ idx + 1 }}
-                                    </div>
-
+                                    <div class="absolute top-0 left-0 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-br">{{ idx + 1 }}</div>
                                     <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs flex justify-around items-center py-1 opacity-0 group-hover:opacity-100 transition">
-                                        <button 
-                                            @click="moveImage(idx, img.type, -1)" 
-                                            :disabled="(img.type === 'url' ? idx === 0 : idx === 0)" 
-                                            class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                            title="Di chuyển lên"
-                                        >▲</button>
-                                        <button 
-                                            @click="moveImage(idx, img.type, 1)" 
-                                            :disabled="(img.type === 'url' ? idx === form.imageUrls.length - 1 : idx === form.imageFiles.length - 1)" 
-                                            class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                            title="Di chuyển xuống"
-                                        >▼</button>
-                                        <button 
-                                            @click="removeImage(idx, img.type)" 
-                                            class="px-1.5 py-0.5 hover:bg-red-500/30 rounded text-red-300 hover:text-white"
-                                            title="Xóa"
-                                        >✕</button>
+                                        <button @click="moveImage(idx, img.type, -1)" :disabled="(img.type === 'url' ? idx === 0 : idx === 0)" class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed">▲</button>
+                                        <button @click="moveImage(idx, img.type, 1)" :disabled="(img.type === 'url' ? idx === form.imageUrls.length - 1 : idx === form.imageFiles.length - 1)" class="px-1.5 py-0.5 hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed">▼</button>
+                                        <button @click="removeImage(idx, img.type)" class="px-1.5 py-0.5 hover:bg-red-500/30 rounded text-red-300 hover:text-white">✕</button>
                                     </div>
                                 </div>
                             </div>
@@ -376,7 +371,7 @@
                     <!-- Biến thể (variants) -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <label class="text-sm font-medium text-gray-700">Biến thể (Màu sắc, Kích thước, Giá, Tồn kho)</label>
+                            <label class="text-sm font-medium text-gray-700">Biến thể (Màu sắc, Kích thước, Giá, Tồn kho, Nhập hàng)</label>
                             <button type="button" @click="addVariant" class="text-sm text-blue-600 hover:text-blue-800">+ Thêm biến thể</button>
                         </div>
                         <div class="overflow-x-auto border rounded-lg">
@@ -387,6 +382,8 @@
                                         <th class="px-2 py-2 text-left">Kích thước</th>
                                         <th class="px-2 py-2 text-left">Giá (₫)</th>
                                         <th class="px-2 py-2 text-left">Tồn kho</th>
+                                        <th class="px-2 py-2 text-left">SL nhập</th>
+                                        <th class="px-2 py-2 text-left">Giá nhập (₫)</th>
                                         <th class="px-2 py-2 text-center">Xóa</th>
                                     </tr>
                                 </thead>
@@ -423,12 +420,31 @@
                                                 min="0"
                                             >
                                         </td>
+                                        <td class="px-2 py-1">
+                                            <input 
+                                                type="number" 
+                                                v-model="variant.import_quantity"
+                                                class="w-20 border rounded px-2 py-1" 
+                                                placeholder="0"
+                                                min="0"
+                                            >
+                                        </td>
+                                        <td class="px-2 py-1">
+                                            <input 
+                                                type="number" 
+                                                v-model="variant.import_price"
+                                                class="w-28 border rounded px-2 py-1" 
+                                                placeholder="Giá nhập"
+                                                min="0"
+                                                step="1000"
+                                            >
+                                        </td>
                                         <td class="px-2 py-1 text-center">
                                             <button @click="removeVariant(idx)" class="text-red-500 hover:text-red-700" title="Xóa">✕</button>
                                         </td>
                                     </tr>
                                     <tr v-if="form.variants.length === 0">
-                                        <td colspan="5" class="text-center py-4 text-gray-400">Chưa có biến thể nào. Hãy nhấn "Thêm biến thể".</td>
+                                        <td colspan="7" class="text-center py-4 text-gray-400">Chưa có biến thể nào. Hãy nhấn "Thêm biến thể".</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -487,6 +503,23 @@ const productTypes = [
 
 const products = ref(props.initialProducts);
 
+// Tính tổng SL nhập và giá nhập thấp nhất
+const productsWithImport = computed(() => {
+    return products.value.map(p => {
+        const variants = p.variants || [];
+        const totalImportQty = variants.reduce((sum, v) => sum + (v.import_quantity || 0), 0);
+        const importPrices = variants
+            .map(v => v.import_price)
+            .filter(price => price !== null && price > 0);
+        const minImportPrice = importPrices.length ? Math.min(...importPrices) : null;
+        return {
+            ...p,
+            total_import_quantity: totalImportQty,
+            min_import_price: minImportPrice,
+        };
+    });
+});
+
 const showModal = ref(false);
 const editingId = ref(null);
 const isSubmitting = ref(false);
@@ -526,7 +559,7 @@ const allImagePreviews = computed(() => {
             type: 'file',
             file,
             mediaType: isVideo ? 'video' : 'image',
-            thumbnail: null // file không có thumbnail
+            thumbnail: null
         };
     });
     return [...urls, ...files];
@@ -557,7 +590,9 @@ const addVariant = () => {
         color_id: null,
         size_name: '',
         price: 0,
-        stock: 0
+        stock: 0,
+        import_quantity: 0,
+        import_price: null
     });
 };
 
@@ -566,8 +601,8 @@ const removeVariant = (index) => {
 };
 
 const filteredProducts = computed(() => {
-    if (!products.value.length) return [];
-    return products.value.filter(product => {
+    if (!productsWithImport.value.length) return [];
+    return productsWithImport.value.filter(product => {
         const matchType = product.type === activeType.value;
         const matchSearch = !search.value ||
             product.name.toLowerCase().includes(search.value.toLowerCase()) ||
@@ -702,7 +737,9 @@ const openModal = (product = null) => {
                 color_id: v.color_id,
                 size_name: v.size_name || '',
                 price: v.price,
-                stock: v.stock
+                stock: v.stock,
+                import_quantity: v.import_quantity ?? 0,
+                import_price: v.import_price ?? null
             })) : []
         };
     } else {
@@ -715,7 +752,14 @@ const openModal = (product = null) => {
             imageFiles: [],
             material: '',
             description: '',
-            variants: [{ color_id: null, size_name: '', price: 0, stock: 0 }]
+            variants: [{ 
+                color_id: null, 
+                size_name: '', 
+                price: 0, 
+                stock: 0,
+                import_quantity: 0,
+                import_price: null
+            }]
         };
     }
     showModal.value = true;
@@ -751,6 +795,14 @@ const saveProduct = async () => {
         }
         if (v.stock < 0) {
             alert(`Tồn kho của biến thể ${i + 1} không hợp lệ`);
+            return;
+        }
+        if (v.import_quantity < 0) {
+            alert(`Số lượng nhập của biến thể ${i + 1} không hợp lệ`);
+            return;
+        }
+        if (v.import_price !== null && v.import_price < 0) {
+            alert(`Giá nhập của biến thể ${i + 1} không hợp lệ`);
             return;
         }
     }
@@ -790,6 +842,8 @@ const saveProduct = async () => {
             formData.append(`variants[${index}][size_name]`, variant.size_name || '');
             formData.append(`variants[${index}][price]`, variant.price);
             formData.append(`variants[${index}][stock]`, variant.stock);
+            formData.append(`variants[${index}][import_quantity]`, variant.import_quantity ?? 0);
+            formData.append(`variants[${index}][import_price]`, variant.import_price ?? '');
         });
 
         try {
@@ -817,6 +871,11 @@ const saveProduct = async () => {
         const data = {
             ...form.value,
             image_url: form.value.imageUrls,
+            variants: form.value.variants.map(v => ({
+                ...v,
+                import_quantity: v.import_quantity ?? 0,
+                import_price: v.import_price ?? null
+            }))
         };
         delete data.imageFiles;
 
