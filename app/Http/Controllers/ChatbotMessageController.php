@@ -11,7 +11,18 @@ use Illuminate\Support\Facades\Auth;
 class ChatbotMessageController extends Controller
 {
     /**
-     * Danh sách từ khóa liên quan đến nội dung chatbot được phép
+     * Hướng dẫn hệ thống cho Gemini – giọng tự nhiên, cấm Markdown
+     */
+    private const SYSTEM_INSTRUCTION = [
+        'parts' => [
+            [
+                'text' => 'Bạn là trợ lý ảo của cửa hàng balo BigBag. Chỉ trả lời các câu hỏi về sản phẩm, khuyến mãi, voucher, đơn hàng và preorder. Nếu câu hỏi không thuộc phạm vi, hãy từ chối lịch sự. Trả lời bằng tiếng Việt, giọng điệu thân thiện, tự nhiên. Tuyệt đối không sử dụng bất kỳ cú pháp Markdown nào: không in đậm, không gạch đầu dòng, không dấu sao, không dấu gạch ngang, không heading. Trình bày thông tin thành các câu văn liền mạch, dễ đọc. Khi liệt kê nhiều sản phẩm hoặc chương trình, hãy viết thành đoạn văn hoặc tách bằng dấu chấm câu. Bạn có thể chèn thẻ HTML <img> để hiển thị ảnh sản phẩm khi được yêu cầu, nhưng không dùng bất kỳ thẻ HTML nào khác ngoài img.'
+            ]
+        ]
+    ];
+
+    /**
+     * Danh sách từ khóa cho phép (để lọc câu hỏi)
      */
     private const ALLOWED_KEYWORDS = [
         'balo', 'túi', 'ba lô', 'sản phẩm', 'hàng', 'mua', 'bán', 'giá', 'còn hàng',
@@ -32,7 +43,7 @@ class ChatbotMessageController extends Controller
             return response()->json(['reply' => 'Vui lòng nhập câu hỏi.'], 400);
         }
 
-        // ===== BỘ LỌC TỪ KHÓA =====
+        // Bộ lọc từ khóa
         if (!$this->isRelevantQuery($userMessage)) {
             return response()->json([
                 'reply' => 'Xin lỗi, tôi chỉ hỗ trợ các câu hỏi về sản phẩm, khuyến mãi, voucher, preorder và tra cứu đơn hàng của cửa hàng. Bạn vui lòng đặt câu hỏi về các nội dung đó nhé.'
@@ -61,6 +72,7 @@ class ChatbotMessageController extends Controller
                     ]
                 ]
             ],
+            'system_instruction' => self::SYSTEM_INSTRUCTION, // Thêm system instruction
             'tools' => $geminiTools,
             'generationConfig' => [
                 'temperature' => 0.3,
@@ -239,16 +251,19 @@ class ChatbotMessageController extends Controller
     {
         $data = $this->prepareToolData($functionName, $result);
 
+        // ===== CẬP NHẬT INSTRUCTION =====
+        // Yêu cầu rõ ràng: không dùng markdown, viết văn bản tự nhiên, có thể chèn ảnh
         $instruction = '';
         if ($functionName === 'get_products_by_filters' || $functionName === 'get_product_by_slug') {
-            // Giữ nguyên yêu cầu chèn ảnh, bổ sung hướng dẫn viết tự nhiên, mềm mại
-            $instruction = " Hãy trình bày thông tin sản phẩm một cách trực quan và tự nhiên, như đang trò chuyện thân mật với khách hàng. Với mỗi sản phẩm, hãy chèn thẻ <img> để hiển thị ảnh (src từ trường thumbnail, alt là tên sản phẩm, style='max-width:120px; height:auto; border-radius:8px;'). Sau đó mô tả ngắn gọn: tên, thương hiệu, giá, khuyến mãi (nếu có) và đặc điểm nổi bật. Trình bày thành một đoạn văn hoặc các câu liền mạch, không dùng dấu đầu dòng hay định dạng đặc biệt.";
-        } elseif ($functionName === 'get_vouchers') {
-            $instruction = " Hãy liệt kê các voucher bằng văn bản tự nhiên, mỗi voucher nêu mã, mức giảm, điều kiện và hạn sử dụng.";
-        } elseif ($functionName === 'get_preorder_info') {
-            $instruction = " Hãy giải thích chương trình preorder bằng văn bản tự nhiên, nêu rõ sản phẩm, mức giảm hiện tại và các mức giảm tiếp theo.";
+            $instruction = " Hãy mô tả sản phẩm bằng văn bản thuần túy, KHÔNG dùng dấu đầu dòng, không in đậm, không dùng dấu sao hay gạch ngang. Viết thành các câu văn liền mạch. Với mỗi sản phẩm, chèn thẻ <img> để hiển thị ảnh (src từ 'thumbnail', alt là tên sản phẩm, style='max-width:120px;height:auto;border-radius:8px;'), sau đó mô tả tên, thương hiệu, giá và đặc điểm nổi bật.";
         } elseif ($functionName === 'get_active_campaigns') {
-            $instruction = " Hãy mô tả các chương trình khuyến mãi bằng văn bản tự nhiên, bao gồm giảm giá và điều kiện áp dụng.";
+            $instruction = " Hãy mô tả các chương trình khuyến mãi bằng văn bản tự nhiên, KHÔNG dùng dấu đầu dòng, không in đậm. Trình bày thông tin thành đoạn văn, bao gồm tên chương trình, mức giảm, thời gian và điều kiện (nếu có).";
+        } elseif ($functionName === 'get_vouchers') {
+            $instruction = " Hãy liệt kê các voucher bằng văn bản tự nhiên, KHÔNG dùng dấu đầu dòng. Mỗi voucher nêu mã, mức giảm, điều kiện và hạn dùng, viết thành câu văn.";
+        } elseif ($functionName === 'get_preorder_info') {
+            $instruction = " Hãy giải thích chương trình preorder bằng văn bản tự nhiên, KHÔNG dùng markdown. Nêu rõ sản phẩm, mức giảm hiện tại và các mức giảm tiếp theo.";
+        } elseif ($functionName === 'get_order_status') {
+            $instruction = " Hãy trả lời tự nhiên, không dùng markdown, chỉ cần thông tin đơn hàng vừa tìm được.";
         }
 
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
@@ -262,6 +277,7 @@ class ChatbotMessageController extends Controller
                     ]
                 ]
             ],
+            'system_instruction' => self::SYSTEM_INSTRUCTION, // Thêm system instruction
             'generationConfig' => [
                 'temperature' => 0.3,
                 'maxOutputTokens' => 4096,
