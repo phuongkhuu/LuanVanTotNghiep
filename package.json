@@ -26,6 +26,7 @@
         "axios": "^1.17.0",
         "chart.js": "^4.5.1",
         "ckeditor5-custom-project": "file:ckeditor5-builder-48.3.0",
+        "html5-qrcode": "^2.3.8",
         "qrcode": "^1.5.4"
     }
 }

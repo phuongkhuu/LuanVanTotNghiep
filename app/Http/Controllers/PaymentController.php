@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
 use App\Models\Campaign;
+use App\Mail\OrderConfirmationMail;
+use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
 {
@@ -365,6 +367,8 @@ class PaymentController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
+        Log::info('Email khách hàng từ form: ' . $validated['customer_email']);
+
         $orderType = $validated['order_type'];
 
         Log::info('Order data:', [
@@ -372,6 +376,7 @@ class PaymentController extends Controller
             'discount_amount' => $validated['discount_amount'] ?? 0,
             'total_amount' => $validated['total_amount'],
             'order_type' => $orderType,
+            'customer_email' => $validated['customer_email'],
         ]);
 
         // ===== TÍNH TOÁN TIỀN CỌC CHO ĐƠN SỈ =====
@@ -415,6 +420,8 @@ class PaymentController extends Controller
             $response = $this->orderController->store($orderRequest);
             $responseData = $response->getData();
 
+            Log::info('OrderController response:', (array) $responseData);
+
             if ($responseData->success) {
                 // Xóa session giỏ hàng / pre-order / voucher
                 if ($orderType === 'retail') {
@@ -434,11 +441,9 @@ class PaymentController extends Controller
                 }
 
                 // ===== XỬ LÝ LƯU THÔNG TIN IN LOGO =====
-                $order = $responseData->order;
-                if ($order && isset($order->details)) {
-                    // Duyệt qua từng order_detail và kiểm tra meta
-                    foreach ($order->details as $detail) {
-                        // Tìm item tương ứng trong request->items
+                $orderData = $responseData->order;
+                if ($orderData && isset($orderData->details)) {
+                    foreach ($orderData->details as $detail) {
                         $matchedItem = collect($validated['items'])->firstWhere('id', $detail->product_variant_id);
                         if ($matchedItem && isset($matchedItem['meta']['logo'])) {
                             $logoMeta = $matchedItem['meta']['logo'];
@@ -458,13 +463,21 @@ class PaymentController extends Controller
                     }
                 }
 
+                // ===== GỬI EMAIL XÁC NHẬN ĐƠN HÀNG =====
+                Log::info('=== BẮT ĐẦU GỬI EMAIL SAU KHI TẠO ĐƠN HÀNG ===');
+                Log::info('Email sẽ gửi đến: ' . $validated['customer_email']);
+                
+                // Gửi email
+                $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email']);
+                
+                Log::info('=== HOÀN TẤT QUÁ TRÌNH GỬI EMAIL ===');
+
                 // Xác định redirect URL
                 $orderId = $responseData->order->id;
                 $redirectUrl = $validated['payment_method'] === 'payos'
                     ? route('payment.create', ['order_id' => $orderId])
                     : route('checkout.success');
 
-                // ==== QUAN TRỌNG: Chỉ trả JSON nếu request là API thực sự (có Accept JSON và KHÔNG có X-Inertia) ====
                 $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
 
                 if ($isApiRequest) {
@@ -475,7 +488,6 @@ class PaymentController extends Controller
                     ]);
                 }
 
-                // Mặc định: redirect cho Inertia và trình duyệt thông thường
                 return redirect()->to($redirectUrl);
             }
 
@@ -494,6 +506,8 @@ class PaymentController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Payment store error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             $errorMessage = 'Có lỗi xảy ra: ' . $e->getMessage();
             $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
 
@@ -505,6 +519,77 @@ class PaymentController extends Controller
             }
 
             return back()->withErrors(['error' => $errorMessage]);
+        }
+    }
+
+    /**
+     * Gửi email xác nhận đơn hàng
+     */
+    private function sendOrderConfirmationEmail($orderData, $customerEmail)
+    {
+        try {
+            Log::info('=== BẮT ĐẦU GỬI EMAIL XÁC NHẬN ĐƠN HÀNG ===');
+            Log::info('Email khách hàng: ' . $customerEmail);
+            
+            // Kiểm tra email có hợp lệ không
+            if (empty($customerEmail) || $customerEmail === 'N/A') {
+                Log::warning('Email khách hàng không hợp lệ: ' . $customerEmail);
+                return;
+            }
+
+            // Lấy order từ database với relationships
+            $order = Order::with([
+                'details.productVariant.product',
+                'details.productVariant.color',
+                'payment',
+                'user'
+            ])->find($orderData->id);
+
+            if (!$order) {
+                Log::error('Không tìm thấy order với ID: ' . $orderData->id);
+                return;
+            }
+
+            Log::info('Order ID: ' . $order->id);
+            Log::info('Số lượng order details: ' . $order->details->count());
+            Log::info('Email trong order: ' . $order->customer_email);
+            Log::info('Email user: ' . ($order->user?->email ?? 'null'));
+
+            // Lấy chi tiết đơn hàng
+            $orderDetails = [];
+            foreach ($order->details as $detail) {
+                $variant = $detail->productVariant;
+                $product = $variant ? $variant->product : null;
+                
+                $orderDetails[] = [
+                    'name' => $product ? $product->name : 'Sản phẩm không xác định',
+                    'quantity' => (int) $detail->quantity,
+                    'unit_price' => (int) $detail->unit_price,
+                    'subtotal' => (int) $detail->subtotal,
+                    'color' => $variant && $variant->color ? $variant->color->name : '',
+                    'size' => $variant ? $variant->size_name : '',
+                ];
+            }
+
+            Log::info('Số lượng sản phẩm đã xử lý: ' . count($orderDetails));
+
+            // Tạo display code
+            $displayCode = $this->generateOrderDisplayCode($order);
+            Log::info('Mã đơn hàng: ' . $displayCode);
+
+            // Lấy email để gửi (ưu tiên email trong order)
+            $emailToSend = $order->customer_email ?? $order->user?->email ?? $customerEmail;
+            Log::info('Email sẽ gửi đến: ' . $emailToSend);
+
+            // Gửi email
+            Mail::to($emailToSend)->send(new OrderConfirmationMail($order, $orderDetails, $displayCode));
+            
+            Log::info('✅ Email xác nhận đã được gửi thành công đến: ' . $emailToSend);
+            
+        } catch (\Exception $e) {
+            Log::error('❌ LỖI GỬI EMAIL: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            // Không throw exception để không làm gián đoạn quá trình đặt hàng
         }
     }
 
@@ -641,14 +726,13 @@ class PaymentController extends Controller
     }
 
     /**
-     * Hiển thị trang thanh toán thành công (LUÔN trả về Inertia, không redirect)
+     * Hiển thị trang thanh toán thành công
      */
     public function success()
     {
         $orderId = session('last_order_id');
         $displayCode = session('last_order_display_code');
 
-        // Không redirect khi thiếu orderId, mà render Inertia với thông báo lỗi
         if (!$orderId) {
             return Inertia::render('Web/CheckoutSuccess', [
                 'error' => 'Không tìm thấy thông tin đơn hàng',
@@ -712,10 +796,8 @@ class PaymentController extends Controller
         $payment = $order->payment;
         $paymentMethod = $payment ? $payment->payment_method : 'cod';
 
-        // ===== LẤY TRẠNG THÁI THANH TOÁN TỪ BẢNG ORDERS =====
         $paymentStatus = $order->payment_status ?? 'pending';
 
-        // ===== XỬ LÝ ĐƠN SỈ =====
         if ($order->order_code === 'wholesale') {
             if ($payment && ($payment->status === 'success' || $payment->status === 'paid')) {
                 $paymentStatus = 'deposit_paid';
@@ -734,7 +816,6 @@ class PaymentController extends Controller
             }
         }
 
-        // ===== CẬP NHẬT PAYMENT STATUS (nếu chưa được cập nhật) =====
         if ($payment && in_array($payment->status, ['pending', null])) {
             if ($paymentStatus === 'paid' || $paymentStatus === 'deposit_paid') {
                 $payment->status = 'success';

@@ -556,7 +556,7 @@ class WholesaleController extends Controller
             ]);
 
             // Sinh mã đơn hàng
-            $order->order_number = 'S' . now()->format('dmy') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
+            $order->order_number = 'S' . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
             $order->save();
 
 

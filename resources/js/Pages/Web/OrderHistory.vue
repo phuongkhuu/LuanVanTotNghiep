@@ -58,6 +58,14 @@
           </div>
           
           <div class="flex items-center gap-3">
+            <button 
+              @click="startQrScanner"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
+            >
+              <span class="material-symbols-outlined text-sm">qr_code_scanner</span>
+              Quét QR
+            </button>
+
             <div class="relative">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
               <input 
@@ -99,7 +107,14 @@
             </div>
             
             <div class="flex items-center gap-3">
-              <!-- Badge Pre-order -->
+              <button 
+                @click="showQrCode(order)"
+                class="p-2 text-gray-500 hover:text-purple-600 transition rounded-lg hover:bg-purple-50"
+                title="Hiển thị mã QR"
+              >
+                <span class="material-symbols-outlined text-sm">qr_code</span>
+              </button>
+
               <span 
                 v-if="order.order_code === 'preorder'"
                 class="inline-block px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full"
@@ -107,7 +122,6 @@
                 Pre-order
               </span>
               
-              <!-- Status Badge -->
               <span 
                 class="inline-block px-4 py-1.5 text-xs font-bold rounded-full"
                 :class="getStatusBadgeClass(order.order_status)"
@@ -190,6 +204,58 @@
         </div>
       </div>
     </main>
+
+    <!-- QR Code Modal -->
+    <div v-if="showQrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="closeQrModal">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-800">Mã QR đơn hàng</h3>
+          <button @click="closeQrModal" class="p-2 hover:bg-gray-100 rounded-lg transition">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <div v-if="qrOrder" class="text-center">
+          <p class="text-sm text-gray-500 mb-2">Mã đơn hàng: {{ qrOrder.display_code }}</p>
+          <div class="flex justify-center my-4">
+            <img 
+              v-if="qrCodeImage" 
+              :src="qrCodeImage" 
+              alt="Mã QR đơn hàng" 
+              class="w-64 h-64 object-contain"
+            />
+            <div v-else class="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span class="material-symbols-outlined text-gray-400 text-5xl">qr_code</span>
+            </div>
+          </div>
+          <p class="text-sm text-gray-500">Quét mã để xem nhanh thông tin đơn hàng</p>
+          <button 
+            @click="downloadQrCode"
+            class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
+          >
+            Tải mã QR
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div v-if="showScanner" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-800">Quét mã QR</h3>
+          <button @click="stopQrScanner" class="p-2 hover:bg-gray-100 rounded-lg transition">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <div id="qr-reader" class="w-full" style="min-height: 300px;"></div>
+        
+        <p class="text-sm text-gray-500 text-center mt-4">
+          Đưa mã QR vào khung hình để quét
+        </p>
+      </div>
+    </div>
 
     <!-- Order Detail Modal -->
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="closeModal">
@@ -319,13 +385,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Head, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
+import QRCode from 'qrcode'
+import { Html5Qrcode } from 'html5-qrcode'
 
-// Lấy user từ page props
 const page = usePage()
 const userEmail = computed(() => page.props.auth?.user?.email || '')
 
@@ -338,6 +405,13 @@ const searchQuery = ref('')
 const pagination = ref(null)
 const showModal = ref(false)
 const selectedOrder = ref(null)
+
+// QR Code states
+const showQrModal = ref(false)
+const qrOrder = ref(null)
+const qrCodeImage = ref(null)
+const showScanner = ref(false)
+let html5QrCode = null
 
 // Tabs filter
 const tabs = [
@@ -377,7 +451,6 @@ const fetchOrders = async () => {
     
     const data = await response.json()
     if (data.success) {
-      // Thay thế email nếu bị N/A bằng email user
       orders.value = (data.orders || []).map(order => ({
         ...order,
         customer_email: order.customer_email && order.customer_email !== 'N/A' 
@@ -548,14 +621,12 @@ const getProductSize = (item) => {
 const viewOrderDetail = (orderId) => {
   const order = orders.value.find(o => o.id === orderId)
   if (order) {
-    // Đảm bảo email được hiển thị
-    const orderWithEmail = {
+    selectedOrder.value = {
       ...order,
       customer_email: order.customer_email && order.customer_email !== 'N/A' 
         ? order.customer_email 
         : userEmail.value || 'N/A'
     }
-    selectedOrder.value = orderWithEmail
     showModal.value = true
   }
 }
@@ -563,6 +634,153 @@ const viewOrderDetail = (orderId) => {
 const closeModal = () => {
   showModal.value = false
   selectedOrder.value = null
+}
+
+// QR Code functions
+const showQrCode = async (order) => {
+  qrOrder.value = order
+  qrCodeImage.value = null
+  showQrModal.value = true
+  
+  await nextTick()
+  
+  if (order.qr_data) {
+    try {
+      const baseUrl = window.location.origin
+      const encodedData = encodeURIComponent(order.qr_data)
+      const qrLink = `${baseUrl}/qr-scan?data=${encodedData}`
+      
+      console.log('QR Link:', qrLink)
+      
+      qrCodeImage.value = await QRCode.toDataURL(qrLink, {
+        width: 250,
+        margin: 2,
+        color: {
+          dark: '#1a56db',
+          light: '#ffffff'
+        }
+      })
+    } catch (error) {
+      console.error('Error generating QR code:', error)
+      qrCodeImage.value = null
+    }
+  }
+}
+
+const closeQrModal = () => {
+  showQrModal.value = false
+  qrOrder.value = null
+  qrCodeImage.value = null
+}
+
+const downloadQrCode = () => {
+  if (qrCodeImage.value) {
+    try {
+      const link = document.createElement('a')
+      link.download = `QR_${qrOrder.value.display_code}.png`
+      link.href = qrCodeImage.value
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error downloading QR code:', error)
+      alert('Không thể tải mã QR. Vui lòng thử lại.')
+    }
+  } else {
+    alert('Không tìm thấy mã QR để tải')
+  }
+}
+
+// QR Scanner functions
+const startQrScanner = () => {
+  showScanner.value = true
+  
+  nextTick(() => {
+    try {
+      html5QrCode = new Html5Qrcode('qr-reader')
+      
+      html5QrCode.start(
+        { facingMode: 'environment' },
+        { 
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        onScanSuccess,
+        onScanError
+      )
+    } catch (error) {
+      console.error('Error starting QR scanner:', error)
+      alert('Không thể khởi tạo camera. Vui lòng kiểm tra quyền truy cập camera.')
+      stopQrScanner()
+    }
+  })
+}
+
+const onScanSuccess = async (decodedText) => {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop()
+      await html5QrCode.clear()
+    } catch (error) {
+      console.error('Error stopping scanner:', error)
+    }
+  }
+  html5QrCode = null
+  showScanner.value = false
+  
+  try {
+    let qrData
+    
+    if (decodedText.includes('/qr-scan?data=')) {
+      const url = new URL(decodedText)
+      const dataParam = url.searchParams.get('data')
+      if (dataParam) {
+        qrData = JSON.parse(decodeURIComponent(dataParam))
+      } else {
+        throw new Error('Không tìm thấy dữ liệu trong link')
+      }
+    } else {
+      try {
+        qrData = JSON.parse(decodedText)
+      } catch (e) {
+        const match = decodedText.match(/"order_id":(\d+)/)
+        if (match) {
+          qrData = { order_id: parseInt(match[1]) }
+        } else {
+          throw new Error('Dữ liệu QR không hợp lệ')
+        }
+      }
+    }
+    
+    if (!qrData || !qrData.order_id) {
+      throw new Error('Không tìm thấy mã đơn hàng trong QR')
+    }
+    
+    const encodedData = encodeURIComponent(JSON.stringify(qrData))
+    window.location.href = `/qr-scan?data=${encodedData}`
+    
+  } catch (error) {
+    console.error('Error processing QR scan:', error)
+    alert(`Không thể xử lý mã QR: ${error.message}`)
+  }
+}
+
+const onScanError = (error) => {
+  console.debug('QR scan error:', error)
+}
+
+const stopQrScanner = async () => {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop()
+      await html5QrCode.clear()
+    } catch (error) {
+      console.error('Error stopping scanner:', error)
+    }
+  }
+  html5QrCode = null
+  showScanner.value = false
 }
 
 // Print order
@@ -580,9 +798,7 @@ const printOrder = (order) => {
   printWindow.print()
 }
 
-// Generate print content
 const generatePrintContent = (order) => {
-  // Lấy email từ order hoặc từ user
   const email = order.customer_email && order.customer_email !== 'N/A' 
     ? order.customer_email 
     : userEmail.value || 'N/A'
@@ -697,10 +913,19 @@ const generatePrintContent = (order) => {
   `
 }
 
-// Pagination
-const goToPage = (page) => {
-  // Implement pagination logic
-}
+const goToPage = (page) => {}
+
+// Cleanup
+onBeforeUnmount(() => {
+  if (html5QrCode) {
+    try {
+      html5QrCode.stop()
+      html5QrCode.clear()
+    } catch (error) {
+      console.error('Error cleaning up QR scanner:', error)
+    }
+  }
+})
 
 // Lifecycle
 onMounted(() => {
@@ -709,7 +934,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Custom scrollbar cho modal */
 .modal-scroll::-webkit-scrollbar {
   width: 6px;
 }
@@ -726,5 +950,17 @@ onMounted(() => {
 
 .modal-scroll::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+#qr-reader {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#qr-reader video {
+  border-radius: 10px;
+  width: 100%;
+  height: auto;
 }
 </style>

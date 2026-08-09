@@ -62,6 +62,9 @@ class OrderHistoryController extends Controller
                     $customerEmail = $order->user?->email ?? 'N/A';
                 }
                 
+                // Tạo dữ liệu cho QR code
+                $qrData = $this->generateQrData($order);
+                
                 return [
                     'id' => $order->id,
                     'display_code' => $displayCode,
@@ -108,6 +111,7 @@ class OrderHistoryController extends Controller
                         'status' => $order->payment->status,
                         'transaction_code' => $order->payment->transaction_code,
                     ] : null,
+                    'qr_data' => $qrData,
                 ];
             });
 
@@ -129,13 +133,31 @@ class OrderHistoryController extends Controller
     }
 
     /**
+     * Tạo dữ liệu cho QR code
+     */
+    private function generateQrData($order)
+    {
+        $orderData = [
+            'order_id' => $order->id,
+            'display_code' => $this->generateDisplayCode($order),
+            'order_code' => $order->order_code,
+            'total_amount' => (int) $order->total_amount,
+            'final_amount' => (int) $order->final_amount,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'customer_email' => $order->customer_email ?? $order->user?->email ?? 'N/A',
+            'order_status' => $order->order_status,
+            'created_at' => $order->created_at->toISOString(),
+        ];
+        
+        return json_encode($orderData);
+    }
+
+    /**
      * Tạo mã hiển thị cho đơn hàng
-     * Format: [Loại đơn hàng][Ngày tạo dmY][ID 5 số]
-     * Ví dụ: L1307202600016 (L + 13072026 + 00016)
      */
     private function generateDisplayCode($order)
     {
-        // Nếu truyền vào là ID
         if (is_numeric($order)) {
             $order = Order::find($order);
             if (!$order) {
@@ -150,10 +172,7 @@ class OrderHistoryController extends Controller
             default => 'DH'
         };
 
-        // FIX: Dùng now() thay vì created_at để lấy ngày hiện tại
-        $date = now()->format('dmY'); // 13072026
-        
-        // Dùng ID của order làm sequence, format 5 số
+        $date = now()->format('dmY');
         $sequence = str_pad($order->id, 5, '0', STR_PAD_LEFT);
 
         return $prefix . $date . $sequence;
@@ -180,5 +199,115 @@ class OrderHistoryController extends Controller
         }
         
         return '/images/default-product.jpg';
+    }
+
+    /**
+     * API lấy thông tin đơn hàng từ mã QR
+     */
+    public function getOrderByQr(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng đăng nhập'
+                ], 401);
+            }
+
+            $request->validate([
+                'qr_data' => 'required|string'
+            ]);
+
+            $qrData = json_decode($request->qr_data, true);
+            
+            if (!$qrData || !isset($qrData['order_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu QR không hợp lệ'
+                ], 400);
+            }
+
+            $order = Order::where('id', $qrData['order_id'])
+                ->where('user_id', $user->id)
+                ->with([
+                    'details.productVariant.product',
+                    'details.productVariant.color',
+                    'payment',
+                    'user'
+                ])
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy đơn hàng'
+                ], 404);
+            }
+
+            $displayCode = $this->generateDisplayCode($order);
+            $customerEmail = $order->customer_email ?? $order->user?->email ?? 'N/A';
+
+            $formattedOrder = [
+                'id' => $order->id,
+                'display_code' => $displayCode,
+                'order_code' => $order->order_code,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'customer_email' => $customerEmail,
+                'receiver_name' => $order->receiver_name,
+                'receiver_phone' => $order->receiver_phone,
+                'shipping_address' => $order->shipping_address,
+                'note' => $order->note,
+                'total_amount' => (int) $order->total_amount,
+                'shipping_fee' => (int) $order->shipping_fee,
+                'discount_amount' => (int) $order->discount_amount,
+                'final_amount' => (int) $order->final_amount,
+                'order_status' => $order->order_status,
+                'created_at' => $order->created_at,
+                'details' => $order->details->map(function ($detail) {
+                    $variant = $detail->productVariant;
+                    $product = $variant ? $variant->product : null;
+                    
+                    return [
+                        'id' => $detail->id,
+                        'quantity' => (int) $detail->quantity,
+                        'unit_price' => (int) $detail->unit_price,
+                        'subtotal' => (int) $detail->subtotal,
+                        'product_name' => $product ? $product->name : null,
+                        'product' => $product ? [
+                            'name' => $product->name,
+                            'image_url' => $product->image_url,
+                            'thumbnail' => $product->thumbnail,
+                        ] : null,
+                        'color_name' => $variant && $variant->color ? $variant->color->name : null,
+                        'color' => $variant && $variant->color ? [
+                            'name' => $variant->color->name,
+                        ] : null,
+                        'size_name' => $variant ? $variant->size_name : null,
+                        'size' => $variant ? $variant->size_name : null,
+                        'image' => $product ? $this->getProductImage($product) : null,
+                    ];
+                }),
+                'payment' => $order->payment ? [
+                    'payment_method' => $order->payment->payment_method,
+                    'status' => $order->payment->status,
+                    'transaction_code' => $order->payment->transaction_code,
+                ] : null,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'order' => $formattedOrder
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting order by QR: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -19,6 +19,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Payment\PayOSController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderHistoryController;
+use App\Http\Controllers\QrScanController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatbotMessageController;
@@ -66,6 +67,9 @@ Route::get('/tim-kiem', [SearchController::class, 'index'])->name('search');
 Route::get('/san-pham/{slug}', [WebProductController::class, 'show'])->name('product.detail');
 Route::get('/danh-muc/{slug}', [WebCategoryController::class, 'show'])->name('category');
 
+// ==================== QR SCAN ROUTES ====================
+Route::get('/qr-scan', [QrScanController::class, 'show'])->name('qr.scan');
+
 // ==================== WHOLESALE ROUTES ====================
 Route::get('/mua-si', [WholesaleController::class, 'index'])->name('wholesale');
 
@@ -93,6 +97,7 @@ Route::post('/tuy-chinh', [LogoPrintRequestController::class, 'store'])->name('c
 Route::middleware(['auth'])->group(function () {
     Route::get('/lich-su-don-hang', [OrderHistoryController::class, 'index'])->name('orders.history');
     Route::get('/lich-su-don-hang/data', [OrderHistoryController::class, 'getOrders'])->name('orders.history.data');
+    Route::post('/lich-su-don-hang/qr-scan', [OrderHistoryController::class, 'getOrderByQr'])->name('orders.history.qr-scan');
 });
 
 // ==================== CART ROUTES ====================
