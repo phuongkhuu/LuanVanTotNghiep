@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\ProductVariant;
 use App\Models\Product;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReportExport;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -44,7 +44,185 @@ class ReportController extends Controller
         return Excel::download($export, $fileName);
     }
 
-    // ==================== Phương thức lấy dữ liệu ====================
+    // ==================== XU HƯỚNG SẢN PHẨM ====================
+
+    /**
+     * Trang xu hướng doanh thu sản phẩm
+     */
+    public function productTrend(Request $request)
+    {
+        $productId = $request->input('product_id');
+        $period = $request->input('period', 'week');
+
+        return Inertia::render('Admin/ProductTrend', [
+            'selectedProduct' => $productId,
+            'currentPeriod' => $period,
+        ]);
+    }
+
+    /**
+     * API tìm kiếm sản phẩm (autocomplete)
+     */
+    public function searchProducts(Request $request)
+    {
+        $keyword = $request->input('q', '');
+        if (strlen($keyword) < 2) {
+            return response()->json([]);
+        }
+
+        $products = Product::with('brand')
+            ->where('name', 'LIKE', "%{$keyword}%")
+            ->orWhere('slug', 'LIKE', "%{$keyword}%")
+            ->limit(10)
+            ->get(['id', 'name', 'brand_id']);
+
+        return response()->json($products);
+    }
+
+    /**
+     * Dữ liệu xu hướng doanh thu và số lượng sản phẩm (chỉ tính đơn không hủy)
+     */
+    public function productTrendData(Request $request)
+    {
+        try {
+            $productId = $request->input('product_id');
+            $period = $request->input('period', 'week');
+
+            if (!$productId) {
+                return response()->json(['revenue' => [], 'quantity' => []]);
+            }
+
+            $revenueData = [];
+            $quantityData = [];
+
+            // Điều kiện: đơn hàng không bị hủy
+            $cancelCondition = function ($query) {
+                $query->where(function ($q) {
+                    $q->where('orders.order_code', 'retail')
+                      ->where('orders.order_status', '!=', 4);
+                })->orWhere(function ($q) {
+                    $q->whereIn('orders.order_code', ['wholesale', 'preorder'])
+                      ->where('orders.order_status', '!=', 5);
+                });
+            };
+
+            if ($period === 'day') {
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = Carbon::today()->subDays($i);
+                    
+                    // Doanh thu
+                    $revenue = DB::table('orders')
+                        ->join('order_details', 'orders.id', '=', 'order_details.order_id')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereDate('orders.created_at', $date)
+                        ->where($cancelCondition)
+                        ->sum('orders.final_amount');
+                    
+                    // Số lượng
+                    $quantity = DB::table('order_details')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereDate('orders.created_at', $date)
+                        ->where($cancelCondition)
+                        ->sum('order_details.quantity');
+                    
+                    $label = $date->format('d/m');
+                    $revenueData[] = ['label' => $label, 'revenue' => $revenue ? (int)$revenue : 0];
+                    $quantityData[] = ['label' => $label, 'quantity' => $quantity ? (int)$quantity : 0];
+                }
+            } elseif ($period === 'week') {
+                for ($i = 3; $i >= 0; $i--) {
+                    $start = Carbon::today()->subWeeks($i)->startOfWeek();
+                    $end = Carbon::today()->subWeeks($i)->endOfWeek();
+                    
+                    $revenue = DB::table('orders')
+                        ->join('order_details', 'orders.id', '=', 'order_details.order_id')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereBetween('orders.created_at', [$start, $end])
+                        ->where($cancelCondition)
+                        ->sum('orders.final_amount');
+                    
+                    $quantity = DB::table('order_details')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereBetween('orders.created_at', [$start, $end])
+                        ->where($cancelCondition)
+                        ->sum('order_details.quantity');
+                    
+                    $label = $start->format('d/m') . ' - ' . $end->format('d/m');
+                    $revenueData[] = ['label' => $label, 'revenue' => $revenue ? (int)$revenue : 0];
+                    $quantityData[] = ['label' => $label, 'quantity' => $quantity ? (int)$quantity : 0];
+                }
+            } elseif ($period === 'month') {
+                for ($i = 11; $i >= 0; $i--) {
+                    $month = Carbon::today()->subMonths($i);
+                    
+                    $revenue = DB::table('orders')
+                        ->join('order_details', 'orders.id', '=', 'order_details.order_id')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereMonth('orders.created_at', $month->month)
+                        ->whereYear('orders.created_at', $month->year)
+                        ->where($cancelCondition)
+                        ->sum('orders.final_amount');
+                    
+                    $quantity = DB::table('order_details')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereMonth('orders.created_at', $month->month)
+                        ->whereYear('orders.created_at', $month->year)
+                        ->where($cancelCondition)
+                        ->sum('order_details.quantity');
+                    
+                    $label = $month->format('m/Y');
+                    $revenueData[] = ['label' => $label, 'revenue' => $revenue ? (int)$revenue : 0];
+                    $quantityData[] = ['label' => $label, 'quantity' => $quantity ? (int)$quantity : 0];
+                }
+            } else { // year
+                for ($i = 4; $i >= 0; $i--) {
+                    $year = Carbon::today()->subYears($i)->year;
+                    
+                    $revenue = DB::table('orders')
+                        ->join('order_details', 'orders.id', '=', 'order_details.order_id')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereYear('orders.created_at', $year)
+                        ->where($cancelCondition)
+                        ->sum('orders.final_amount');
+                    
+                    $quantity = DB::table('order_details')
+                        ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                        ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                        ->where('product_variants.product_id', $productId)
+                        ->whereYear('orders.created_at', $year)
+                        ->where($cancelCondition)
+                        ->sum('order_details.quantity');
+                    
+                    $label = (string) $year;
+                    $revenueData[] = ['label' => $label, 'revenue' => $revenue ? (int)$revenue : 0];
+                    $quantityData[] = ['label' => $label, 'quantity' => $quantity ? (int)$quantity : 0];
+                }
+            }
+
+            Log::info('productTrendData for product ' . $productId . ': revenue=' . json_encode($revenueData) . ', quantity=' . json_encode($quantityData));
+
+            return response()->json([
+                'revenue' => $revenueData,
+                'quantity' => $quantityData,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('productTrendData error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json(['revenue' => [], 'quantity' => [], 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC BÁO CÁO CHUNG ====================
 
     private function getReportData($period)
     {
@@ -149,7 +327,6 @@ class ReportController extends Controller
         $preorder = [];
 
         if ($period === 'day') {
-            // 7 ngày gần nhất
             for ($i = 6; $i >= 0; $i--) {
                 $date = Carbon::today()->subDays($i);
                 $labels[] = $date->format('d/m');
@@ -158,7 +335,6 @@ class ReportController extends Controller
                 $preorder[] = (int) Order::where('order_code', 'preorder')->whereDate('created_at', $date)->sum('final_amount');
             }
         } elseif ($period === 'week') {
-            // 4 tuần gần nhất
             for ($i = 3; $i >= 0; $i--) {
                 $start = Carbon::today()->subWeeks($i)->startOfWeek();
                 $end = Carbon::today()->subWeeks($i)->endOfWeek();
@@ -168,7 +344,6 @@ class ReportController extends Controller
                 $preorder[] = (int) Order::where('order_code', 'preorder')->whereBetween('created_at', [$start, $end])->sum('final_amount');
             }
         } elseif ($period === 'month') {
-            // 12 tháng gần nhất
             for ($i = 11; $i >= 0; $i--) {
                 $month = Carbon::today()->subMonths($i);
                 $labels[] = $month->format('m/Y');
@@ -185,8 +360,7 @@ class ReportController extends Controller
                     ->whereYear('created_at', $month->year)
                     ->sum('final_amount');
             }
-        } else { // year
-            // 5 năm gần nhất
+        } else {
             for ($i = 4; $i >= 0; $i--) {
                 $year = Carbon::today()->subYears($i)->year;
                 $labels[] = (string) $year;
@@ -212,8 +386,8 @@ class ReportController extends Controller
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->select(
                 'products.name',
-                \DB::raw('SUM(order_details.quantity) as sold'),
-                \DB::raw('SUM(order_details.subtotal) as revenue')
+                DB::raw('SUM(order_details.quantity) as sold'),
+                DB::raw('SUM(order_details.subtotal) as revenue')
             )
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('revenue')
@@ -235,9 +409,9 @@ class ReportController extends Controller
             ->where('customer_phone', '!=', '')
             ->select(
                 'customer_phone as phone',
-                \DB::raw('MAX(customer_name) as name'),
-                \DB::raw('COUNT(id) as orders'),
-                \DB::raw('SUM(final_amount) as total')
+                DB::raw('MAX(customer_name) as name'),
+                DB::raw('COUNT(id) as orders'),
+                DB::raw('SUM(final_amount) as total')
             )
             ->groupBy('customer_phone')
             ->orderByDesc('total')
@@ -253,10 +427,6 @@ class ReportController extends Controller
             });
     }
 
-    /**
-     * Phân bố doanh thu theo danh mục (tính %)
-     * Đảm bảo tổng luôn = 100% sau khi làm tròn
-     */
     private function getCategoryDistribution($startDate, $endDate)
     {
         $total = Order::whereBetween('created_at', [$startDate, $endDate])->sum('final_amount');
@@ -269,7 +439,7 @@ class ReportController extends Controller
             ->join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->join('categories', 'products.category_id', '=', 'categories.id')
-            ->select('categories.name', \DB::raw('SUM(order_details.subtotal) as revenue'))
+            ->select('categories.name', DB::raw('SUM(order_details.subtotal) as revenue'))
             ->groupBy('categories.name')
             ->orderByDesc('revenue')
             ->get();
@@ -323,11 +493,5 @@ class ReportController extends Controller
         }, $rounded);
 
         return $rounded;
-    }
-
-    private function getVietnameseDayOfWeek($dayNumber)
-    {
-        $days = [0 => 'CN', 1 => 'T2', 2 => 'T3', 3 => 'T4', 4 => 'T5', 5 => 'T6', 6 => 'T7'];
-        return $days[$dayNumber] ?? 'T' . ($dayNumber + 1);
     }
 }

@@ -11,6 +11,7 @@ const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
 const attributeSubmenuOpen = ref(false);
 const contentSubmenuOpen = ref(false);
+const reportSubmenuOpen = ref(false); // Thêm mới
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -36,6 +37,8 @@ const updateSubmenuState = () => {
         route?.includes('Categories') || route?.includes('Colors') || route?.includes('Brands'));
     contentSubmenuOpen.value = (route === 'Admin/Banners' || route === 'Admin/News' || 
         route?.includes('Banners') || route?.includes('News'));
+    reportSubmenuOpen.value = (route === 'Admin/Reports' || route === 'Admin/ProductTrend' || 
+        route?.includes('Reports') || route?.includes('ProductTrend'));
 };
 
 const toggleOrderSubmenu = () => { orderSubmenuOpen.value = !orderSubmenuOpen.value; };
@@ -43,7 +46,7 @@ const toggleProductSubmenu = () => { productSubmenuOpen.value = !productSubmenuO
 const toggleCustomerSubmenu = () => { customerSubmenuOpen.value = !customerSubmenuOpen.value; };
 const toggleAttributeSubmenu = () => { attributeSubmenuOpen.value = !attributeSubmenuOpen.value; };
 const toggleContentSubmenu = () => { contentSubmenuOpen.value = !contentSubmenuOpen.value; };
-
+const toggleReportSubmenu = () => { reportSubmenuOpen.value = !reportSubmenuOpen.value; };
 
 watch(currentRoute, () => {
     updateSubmenuState();
@@ -184,11 +187,26 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <!-- Báo cáo -->
-                    <Link :href="route('admin.reports')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.reports') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
-                        <span class="material-symbols-outlined">bar_chart</span>
-                        <span class="flex-1 text-sm font-medium">Báo cáo</span>
-                    </Link>
+                    <!-- Báo cáo (submenu) -->
+                    <div class="space-y-1">
+                        <div 
+                            @click="toggleReportSubmenu" 
+                            class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all"
+                            :class="isActive(['admin.reports', 'admin.reports.product-trend']) ? 'text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'"
+                        >
+                            <span class="material-symbols-outlined">bar_chart</span>
+                            <span class="flex-1 text-sm font-medium">Báo cáo</span>
+                            <span class="material-symbols-outlined text-sm transition-transform duration-200" :class="{ 'rotate-180': reportSubmenuOpen }">keyboard_arrow_down</span>
+                        </div>
+                        <div v-show="reportSubmenuOpen" class="ml-8 space-y-1">
+                            <Link :href="route('admin.reports')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.reports') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
+                                <span class="material-symbols-outlined">dashboard</span> Tổng quan
+                            </Link>
+                            <Link :href="route('admin.reports.product-trend')" class="flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all" :class="isActive('admin.reports.product-trend') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">
+                                <span class="material-symbols-outlined">trending_up</span> Xu hướng sản phẩm
+                            </Link>
+                        </div>
+                    </div>
 
                     <!-- Cài đặt -->
                     <Link :href="route('admin.settings.index')" class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all" :class="isActive('admin.settings.index') ? 'sidebar-item-active text-primary' : 'text-on-surface-variant hover:bg-hover-bg hover:text-primary'">

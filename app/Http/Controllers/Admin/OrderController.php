@@ -396,21 +396,79 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Cập nhật trạng thái đơn hàng theo quy trình luồng và tự động thêm ghi chú yêu cầu hoàn tiền
+     */
     public function updateStatus($id, Request $request)
     {
         try {
             $order = Order::findOrFail($id);
-            $newStatus = $request->status;
+            $newStatusKey = $request->status;
             $statusMap = $order->getStatusMap();
 
-            if (!isset($statusMap[$newStatus])) {
+            if (!isset($statusMap[$newStatusKey])) {
                 return back()->with('error', 'Trạng thái không hợp lệ');
             }
 
-            $order->order_status = $statusMap[$newStatus];
+            $newStatusValue = $statusMap[$newStatusKey];
+            $currentStatusValue = (int) $order->order_status;
+            $orderCode = $order->order_code ?? 'retail';
+
+            // Định nghĩa luồng chuyển đổi trạng thái được phép dựa trên loại đơn hàng (Số nguyên)
+            if ($orderCode === 'retail') {
+                // 0 -> [1, 4], 1 -> 2, 2 -> 3, 3 -> 4
+                $allowedTransitions = [
+                    0 => [1, 4],
+                    1 => [2],
+                    2 => [3],
+                    3 => [4],
+                ];
+            } else { // wholesale hoặc preorder
+                // 0 -> [1, 5], 1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5
+                $allowedTransitions = [
+                    0 => [1, 5],
+                    1 => [2],
+                    2 => [3],
+                    3 => [4],
+                    4 => [5],
+                ];
+            }
+
+            // Kiểm tra xem trạng thái hiện tại có được phép chuyển sang mới không
+            if (!isset($allowedTransitions[$currentStatusValue]) || 
+                !in_array($newStatusValue, $allowedTransitions[$currentStatusValue])) {
+                return back()->with('error', 'Không thể chuyển từ trạng thái hiện tại sang trạng thái mới theo quy trình');
+            }
+
+            // Xác định trường hợp cần thêm ghi chú yêu cầu hoàn tiền
+            $shouldRefund = false;
+            if ($orderCode === 'retail' && $currentStatusValue === 3 && $newStatusValue === 4) {
+                $shouldRefund = true; // Retail hủy từ Completed (3) -> Cancelled (4)
+            } elseif ($orderCode !== 'retail' && $currentStatusValue === 4 && $newStatusValue === 5) {
+                $shouldRefund = true; // Wholesale/Preorder hủy từ Completed (4) -> Cancelled (5)
+            }
+
+            // Tiến hành cập nhật
+            $order->order_status = $newStatusValue;
+
+            // Nếu yêu cầu hoàn tiền, tự động thêm ghi chú vào trường note
+            if ($shouldRefund) {
+                $refundNote = "[Hệ thống] Yêu cầu hoàn tiền do hủy đơn từ trạng thái hoàn thành.";
+                
+                // Nếu có lý do từ admin gửi lên Frontend, gộp vào ghi chú
+                $adminNote = $request->input('note');
+                if (!empty($adminNote)) {
+                    $refundNote .= " (Lý do: " . $adminNote . ")";
+                }
+
+                // Append vào ghi chú đơn hàng hiện tại
+                $order->note = trim(($order->note ?? '') . "\n" . $refundNote);
+            }
+
             $order->save();
 
             return back()->with('success', 'Cập nhật trạng thái thành công');
+
         } catch (\Exception $e) {
             Log::error('Update order status error: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi xảy ra khi cập nhật trạng thái');

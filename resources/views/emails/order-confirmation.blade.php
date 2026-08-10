@@ -142,7 +142,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>🏷️ BigBag Premium Utility Carry Gear</h1>
+        <h1>BigBag Premium Utility Carry Gear</h1>
         <p>Xác nhận đơn hàng #{{ $displayCode }}</p>
     </div>
 

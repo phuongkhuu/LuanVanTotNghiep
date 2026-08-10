@@ -74,6 +74,35 @@ const selectedOrder = ref(null);
 const originalStatus = ref(null);
 const isUpdating = ref(false);
 
+// --- TÍNH NĂNG MỚI: QUY TẮC CHUYỂN ĐỔI TRẠNG THÁI (FRONTEND VALIDATION) ---
+const getAllowedNextStatuses = (currentStatus, type) => {
+    const rules = {
+        retail: {
+            pending: ['processing', 'cancelled'],
+            processing: ['shipping'],
+            shipping: ['completed'],
+            completed: ['cancelled'],
+        },
+        wholesale: {
+            pending: ['approved', 'cancelled'],
+            approved: ['production'],
+            production: ['shipping'],
+            shipping: ['completed'],
+            completed: ['cancelled'],
+        },
+        preorder: {
+            pending: ['confirmed', 'cancelled'],
+            confirmed: ['waiting'],
+            waiting: ['shipping'],
+            shipping: ['completed'],
+            completed: ['cancelled'],
+        }
+    };
+    
+    return rules[type]?.[currentStatus] || [];
+};
+// -----------------------------------------------------------------------------
+
 // Lọc đơn hàng (có tìm kiếm)
 const filteredOrders = computed(() => {
     if (!orders.value || orders.value.length === 0) return [];
@@ -311,6 +340,138 @@ const exportFilteredOrders = () => {
     }
 };
 
+/* ========================================================== */
+/*                CHỨC NĂNG IN ĐƠN HÀNG (MỚI THÊM)              */
+/* ========================================================== */
+const printOrder = (order) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert('Vui lòng cho phép popup để in đơn hàng');
+        return;
+    }
+    const content = generatePrintContent(order);
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+};
+
+const generatePrintContent = (order) => {
+    const email = order.customer_email && order.customer_email !== 'N/A' 
+        ? order.customer_email 
+        : 'N/A';
+
+    const detailsHtml = order.products.map(item => `
+        <tr>
+            <td style="padding: 8px 12px; border: 1px solid #ddd;">${item.name}</td>
+            <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+            <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: right;">${formatPrice(item.price)}</td>
+            <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: right;">${formatPrice(item.subtotal)}</td>
+        </tr>
+    `).join('');
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Đơn hàng #${order.code}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: auto; }
+                h1 { color: #1a56db; border-bottom: 2px solid #1a56db; padding-bottom: 10px; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+                .info-box { background: #f9fafb; padding: 15px; border-radius: 8px; }
+                .info-box h3 { margin: 0 0 10px 0; color: #6b7280; font-size: 14px; text-transform: uppercase; }
+                .info-box p { margin: 5px 0; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th { background: #f9fafb; text-align: left; padding: 10px 12px; border: 1px solid #ddd; }
+                td { padding: 8px 12px; border: 1px solid #ddd; }
+                .footer { margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
+                .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: bold; }
+                .badge-pending { background: #fef3c7; color: #92400e; }
+                .badge-processing { background: #dbeafe; color: #1e40af; }
+                .badge-shipping { background: #f3e8ff; color: #6b21a8; }
+                .badge-completed { background: #d1fae5; color: #065f46; }
+                .badge-cancelled { background: #fee2e2; color: #991b1b; }
+                .badge-approved { background: #d1fae5; color: #065f46; }
+                .badge-production { background: #fef3c7; color: #92400e; }
+                .badge-confirmed { background: #dbeafe; color: #1e40af; }
+                .badge-waiting { background: #fef3c7; color: #92400e; }
+            </style>
+        </head>
+        <body>
+            <h1>HÓA ĐƠN ĐẶT HÀNG</h1>
+            <p><strong>Mã đơn hàng:</strong> ${order.code}</p>
+            <p><strong>Ngày đặt:</strong> ${order.date}</p>
+            
+            <div class="info-grid">
+                <div class="info-box">
+                    <h3>Thông tin người đặt</h3>
+                    <p><strong>Họ tên:</strong> ${order.customer || 'N/A'}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>SĐT:</strong> ${order.customer_phone || ''}</p>
+                </div>
+                <div class="info-box">
+                    <h3>Thông tin người nhận</h3>
+                    <p><strong>Họ tên:</strong> ${order.receiver || 'N/A'}</p>
+                    <p><strong>SĐT:</strong> ${order.receiver_phone || ''}</p>
+                    <p><strong>Địa chỉ:</strong> ${order.address || ''}</p>
+                </div>
+            </div>
+            
+            <h3>Danh sách sản phẩm</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sản phẩm</th>
+                        <th style="text-align: center;">Số lượng</th>
+                        <th style="text-align: right;">Đơn giá</th>
+                        <th style="text-align: right;">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${detailsHtml}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right; font-weight: bold;">Tạm tính</td>
+                        <td style="text-align: right;">${formatPrice(order.subtotal)}</td>
+                    </tr>
+                    ${order.shipping_fee > 0 ? `
+                        <tr>
+                            <td colspan="3" style="text-align: right;">Phí vận chuyển</td>
+                            <td style="text-align: right;">${formatPrice(order.shipping_fee)}</td>
+                        </tr>
+                    ` : ''}
+                    ${order.discount_amount > 0 ? `
+                        <tr>
+                            <td colspan="3" style="text-align: right;">Giảm giá</td>
+                            <td style="text-align: right; color: red;">-${formatPrice(order.discount_amount)}</td>
+                        </tr>
+                    ` : ''}
+                    <tr>
+                        <td colspan="3" style="text-align: right; font-weight: bold; font-size: 18px;">Tổng cộng</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 18px; color: #1a56db;">${formatPrice(order.final_amount)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div style="margin-top: 20px;">
+                <p><strong>Trạng thái:</strong> <span class="badge ${order.status.toLowerCase()}">${order.statusLabel}</span></p>
+                <p><strong>Phương thức thanh toán:</strong> ${order.payment || 'N/A'}</p>
+                <p><strong>Trạng thái thanh toán:</strong> ${order.payment_status || 'Chưa có thông tin'}</p>
+            </div>
+            
+            ${order.note ? `<p><strong>Ghi chú:</strong> ${order.note}</p>` : ''}
+            
+            <div class="footer">
+                <p>Cảm ơn bạn đã mua hàng tại BigBag!</p>
+                <p>Hotline: 1900 1234 | Email: support@bigbag.vn</p>
+                <p style="font-size: 10px; color: #9ca3af;">Hóa đơn được tạo tự động</p>
+            </div>
+        </body>
+        </html>
+    `;
+};
 </script>
 
 <template>
@@ -425,6 +586,7 @@ const exportFilteredOrders = () => {
                                             v-for="s in statusOptions[activeType]"
                                             :key="s.value"
                                             :value="s.value"
+                                            :disabled="!getAllowedNextStatuses(order.status, order.type).includes(s.value) && order.status !== s.value"
                                         >
                                             {{ s.label }}
                                         </option>
@@ -438,7 +600,9 @@ const exportFilteredOrders = () => {
                                     >
                                         Xem chi tiết
                                     </button>
+                                    <!-- Nút In đã được thêm sự kiện -->
                                     <button
+                                        @click="printOrder(order)"
                                         class="px-3 py-1.5 text-xs text-green-600 hover:bg-green-100 rounded-lg ml-1 transition-colors font-medium"
                                         title="In đơn hàng"
                                     >
@@ -553,6 +717,7 @@ const exportFilteredOrders = () => {
                                         v-for="s in statusOptions[selectedOrder.type]"
                                         :key="s.value"
                                         :value="s.value"
+                                        :disabled="!getAllowedNextStatuses(selectedOrder.status, selectedOrder.type).includes(s.value) && selectedOrder.status !== s.value"
                                     >
                                         {{ s.label }}
                                     </option>
@@ -607,6 +772,17 @@ const exportFilteredOrders = () => {
                                 </div>
                             </div>
                         </div>
+                         <!-- Địa chỉ -->
+                        <div class="border-t border-gray-200 pt-3">
+                            <p class="font-medium text-gray-800 mb-1">Địa chỉ giao hàng</p>
+                            <p class="text-sm text-gray-600">{{ selectedOrder.address }}</p>
+                        </div>
+
+                        <!-- Ghi chú -->
+                        <div v-if="selectedOrder.note" class="border-t border-gray-200 pt-3">
+                            <p class="font-medium text-gray-800 mb-1">Ghi chú</p>
+                            <p class="text-sm text-gray-600">{{ selectedOrder.note }}</p>
+                        </div>
 
                         <!-- Tổng hợp chi phí -->
                         <div class="border-t border-gray-200 pt-3 space-y-1 text-sm">
@@ -626,18 +802,6 @@ const exportFilteredOrders = () => {
                                 <span class="text-gray-800">Tổng cộng</span>
                                 <span class="text-orange-600">{{ formatPrice(selectedOrder.final_amount) }}</span>
                             </div>
-                        </div>
-
-                        <!-- Địa chỉ -->
-                        <div class="border-t border-gray-200 pt-3">
-                            <p class="font-medium text-gray-800 mb-1">Địa chỉ giao hàng</p>
-                            <p class="text-sm text-gray-600">{{ selectedOrder.address }}</p>
-                        </div>
-
-                        <!-- Ghi chú -->
-                        <div v-if="selectedOrder.note" class="border-t border-gray-200 pt-3">
-                            <p class="font-medium text-gray-800 mb-1">Ghi chú</p>
-                            <p class="text-sm text-gray-600">{{ selectedOrder.note }}</p>
                         </div>
                     </div>
 
