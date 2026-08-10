@@ -21,13 +21,14 @@ use Illuminate\Support\Facades\DB;
 class PromotionController extends Controller
 {
     const DEFAULT_BANNER = '/images/default-campaign-banner.jpg';
+    const MIN_FIXED_DISCOUNT = 15000; // 15.000đ tối thiểu cho giảm trực tiếp
     
     // ==================== INDEX ====================
 
     public function index()
     {
         try {
-            $this->checkExpiredPreorders(); //Kiểm tra campaign + preorder hết hạn -> Tắt đi
+            $this->checkExpiredPreorders();
 
             $allCampaigns = Campaign::with([
                 'configs', 
@@ -99,16 +100,13 @@ class PromotionController extends Controller
                         $currentSalePrice = $basePrice * (1 - $currentDiscount / 100);
                         $currentSalePrice = round($currentSalePrice);
 
-                        // ===== TÍNH TOÁN THỐNG KÊ DỰA TRÊN CAMPAIGN_ID =====
                         $campaignId = $campaign->id;
 
-                        // Số đơn hàng (chỉ đơn pre-order, không bị hủy)
                         $totalOrders = Order::where('campaign_id', $campaignId)
                             ->where('order_code', 'preorder')
                             ->where('order_status', '!=', 5) 
                             ->count();
 
-                        // Tổng số lượng sản phẩm đã đặt
                         $totalQuantity = OrderDetail::whereHas('order', function ($q) use ($campaignId) {
                                 $q->where('campaign_id', $campaignId)
                                   ->where('order_code', 'preorder')
@@ -116,7 +114,6 @@ class PromotionController extends Controller
                             })
                             ->sum('quantity');
 
-                        // Số người đặt duy nhất
                         $uniqueUsers = Order::where('campaign_id', $campaignId)
                             ->where('order_code', 'preorder')
                             ->where('order_status', '!=', 5)
@@ -251,6 +248,7 @@ class PromotionController extends Controller
                             'name' => $variant->color->name,
                         ] : null,
                         'price' => $variant->price ?? 0,
+                        'import_price' => $variant->import_price ?? 0,
                         'size_name' => $variant->size_name ?? '',
                         'stock' => $variant->stock ?? 0,
                     ];
@@ -282,6 +280,7 @@ class PromotionController extends Controller
                                     'name' => $variant->color->name,
                                 ] : null,
                                 'price' => $variant->price ?? 0,
+                                'import_price' => $variant->import_price ?? 0,
                                 'size_name' => $variant->size_name ?? '',
                             ];
                         }),
@@ -321,6 +320,69 @@ class PromotionController extends Controller
         }
     }
 
+    // ==================== KIỂM TRA GIÁ SALE TỐI THIỂU (CHỈ CHO CAMPAIGN VÀ PRE-ORDER) ====================
+
+    /**
+     * Kiểm tra giá sale có bị giảm xuống dưới mức cho phép (giá nhập + 20% giá nhập)
+     * CHỈ ÁP DỤNG CHO CAMPAIGN VÀ PRE-ORDER, KHÔNG ÁP DỤNG CHO VOUCHER
+     */
+    private function validateSalePrice($importPrice, $salePrice, $originalPrice = null)
+    {
+        if ($importPrice <= 0) {
+            return ['valid' => true, 'message' => '', 'min_price' => 0];
+        }
+        
+        $minPrice = $importPrice * 1.2;
+        
+        if ($salePrice < $minPrice) {
+            if ($originalPrice && $originalPrice > 0) {
+                $maxDiscountPercent = round((1 - $minPrice / $originalPrice) * 100, 1);
+                $message = "Không thể giảm xuống dưới " . number_format($minPrice) . "đ (120% giá nhập). Mức giảm tối đa là {$maxDiscountPercent}%.";
+            } else {
+                $message = "Giá sale tối thiểu là " . number_format($minPrice) . "đ (120% giá nhập). Vui lòng không giảm sâu hơn.";
+            }
+            
+            return [
+                'valid' => false, 
+                'message' => $message,
+                'min_price' => $minPrice
+            ];
+        }
+        
+        return ['valid' => true, 'message' => '', 'min_price' => $minPrice];
+    }
+
+    /**
+     * Kiểm tra tất cả sản phẩm trong campaign có vi phạm ràng buộc giá sale không
+     * CHỈ ÁP DỤNG CHO CAMPAIGN
+     */
+    private function validateCampaignSalePrices($productVariantIds, $discountPercent)
+    {
+        $errors = [];
+        
+        foreach ($productVariantIds as $variantId) {
+            $variant = ProductVariant::find($variantId);
+            if (!$variant) continue;
+            
+            $importPrice = $variant->import_price ?? 0;
+            $price = $variant->price ?? 0;
+            
+            if ($importPrice > 0 && $price > 0) {
+                $salePrice = $price * (1 - $discountPercent / 100);
+                $salePrice = round($salePrice);
+                
+                $result = $this->validateSalePrice($importPrice, $salePrice, $price);
+                
+                if (!$result['valid']) {
+                    $productName = $variant->product ? $variant->product->name : 'SP#' . $variantId;
+                    $errors[] = "{$productName}: " . $result['message'];
+                }
+            }
+        }
+        
+        return $errors;
+    }
+
     // ==================== CẬP NHẬT SALE PRICE ====================
     
     private function updateRetailSalePrice($campaign)
@@ -345,6 +407,19 @@ class PromotionController extends Controller
                 if ($discountPercent > 0) {
                     $salePrice = $originalPrice * (1 - $discountPercent / 100);
                     $salePrice = round($salePrice);
+                    
+                    // Kiểm tra ràng buộc giá sale tối thiểu
+                    $importPrice = $variant->import_price ?? 0;
+                    $minPrice = $importPrice * 1.2;
+                    
+                    if ($importPrice > 0 && $salePrice < $minPrice) {
+                        Log::warning('Sale price would violate minimum price constraint', [
+                            'variant_id' => $variantId,
+                            'sale_price' => $salePrice,
+                            'min_price' => $minPrice
+                        ]);
+                        // Vẫn cập nhật nhưng log warning
+                    }
                     
                     $variant->update([
                         'sale_price' => $salePrice,
@@ -724,6 +799,22 @@ class PromotionController extends Controller
                 ]);
             }
 
+            // ============ KIỂM TRA GIÁ SALE TỐI THIỂU CHO CAMPAIGN ============
+            if (!empty($validated['products']) && isset($validated['discountPercent'])) {
+                $errors = $this->validateCampaignSalePrices(
+                    $validated['products'], 
+                    $validated['discountPercent']
+                );
+                
+                if (!empty($errors)) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => 'Không thể tạo chiến dịch do vi phạm ràng buộc giá: ' . implode('; ', $errors)
+                    ]);
+                }
+            }
+
             if (!empty($validated['products'])) {
                 $conflicts = $this->checkProductConflicts($validated['products'], null);
                 if (!empty($conflicts)) {
@@ -814,6 +905,22 @@ class PromotionController extends Controller
                     'success' => false,
                     'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
                 ]);
+            }
+
+            // ============ KIỂM TRA GIÁ SALE TỐI THIỂU CHO CAMPAIGN ============
+            if (isset($validated['products']) && isset($validated['discountPercent'])) {
+                $errors = $this->validateCampaignSalePrices(
+                    $validated['products'], 
+                    $validated['discountPercent']
+                );
+                
+                if (!empty($errors)) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => 'Không thể cập nhật chiến dịch do vi phạm ràng buộc giá: ' . implode('; ', $errors)
+                    ]);
+                }
             }
 
             if (isset($validated['products'])) {
@@ -960,7 +1067,7 @@ class PromotionController extends Controller
         }
     }
 
-    // ==================== VOUCHER METHODS ====================
+    // ==================== VOUCHER METHODS (KHÔNG ÁP DỤNG RÀNG BUỘC GIÁ) ====================
 
     public function storeVoucher(Request $request)
     {
@@ -981,11 +1088,14 @@ class PromotionController extends Controller
                 'campaign_id' => 'nullable|exists:campaigns,id',
             ]);
 
-            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < 15000) {
+            // VOUCHER KHÔNG ÁP DỤNG RÀNG BUỘC GIÁ SALE TỐI THIỂU
+            // Chỉ kiểm tra các ràng buộc cơ bản
+            
+            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < self::MIN_FIXED_DISCOUNT) {
                 DB::rollBack();
                 return redirect()->back()->with([
                     'success' => false,
-                    'message' => 'Giá trị giảm trực tiếp tối thiểu là 15.000đ'
+                    'message' => 'Giá trị giảm trực tiếp tối thiểu là ' . number_format(self::MIN_FIXED_DISCOUNT) . 'đ'
                 ]);
             }
 
@@ -996,6 +1106,8 @@ class PromotionController extends Controller
                     'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
                 ]);
             }
+
+            // KHÔNG KIỂM TRA validateVoucherSalePrices() nữa
 
             $campaign = Campaign::create([
                 'name' => $validated['name'] ?? 'Voucher ' . $validated['code'],
@@ -1049,11 +1161,14 @@ class PromotionController extends Controller
                 'description' => 'nullable|string',
             ]);
 
-            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < 15000) {
+            // VOUCHER KHÔNG ÁP DỤNG RÀNG BUỘC GIÁ SALE TỐI THIỂU
+            // Chỉ kiểm tra các ràng buộc cơ bản
+            
+            if ($validated['discount_type'] === 'fixed' && $validated['discount_value'] < self::MIN_FIXED_DISCOUNT) {
                 DB::rollBack();
                 return redirect()->back()->with([
                     'success' => false,
-                    'message' => 'Giá trị giảm trực tiếp tối thiểu là 15.000đ'
+                    'message' => 'Giá trị giảm trực tiếp tối thiểu là ' . number_format(self::MIN_FIXED_DISCOUNT) . 'đ'
                 ]);
             }
 
@@ -1064,6 +1179,8 @@ class PromotionController extends Controller
                     'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
                 ]);
             }
+
+            // KHÔNG KIỂM TRA validateVoucherSalePrices() nữa
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,
@@ -1247,6 +1364,42 @@ class PromotionController extends Controller
                 'active' => 'boolean',
             ]);
 
+            // ============ KIỂM TRA GIÁ SALE TỐI THIỂU CHO PRE-ORDER ============
+            $product = Product::find($validated['product_id']);
+            if ($product) {
+                $variants = $product->variants;
+                $errors = [];
+                
+                foreach ($validated['tiers'] as $tier) {
+                    $discountPercent = $tier['discount'] ?? 0;
+                    
+                    foreach ($variants as $variant) {
+                        $importPrice = $variant->import_price ?? 0;
+                        $price = $variant->price ?? 0;
+                        
+                        if ($importPrice > 0 && $price > 0) {
+                            $salePrice = $price * (1 - $discountPercent / 100);
+                            $salePrice = round($salePrice);
+                            
+                            $result = $this->validateSalePrice($importPrice, $salePrice, $price);
+                            
+                            if (!$result['valid']) {
+                                $errors[] = "Mức giảm {$discountPercent}%: " . $result['message'];
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($errors)) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => 'Không thể tạo pre-order do vi phạm ràng buộc giá: ' . implode('; ', $errors)
+                    ]);
+                }
+            }
+
             $conflict = $this->checkPreorderProductConflict($validated['product_id'], null);
             if ($conflict) {
                 DB::rollBack();
@@ -1325,6 +1478,42 @@ class PromotionController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'active' => 'boolean',
             ]);
+
+            // ============ KIỂM TRA GIÁ SALE TỐI THIỂU CHO PRE-ORDER ============
+            $product = Product::find($validated['product_id']);
+            if ($product) {
+                $variants = $product->variants;
+                $errors = [];
+                
+                foreach ($validated['tiers'] as $tier) {
+                    $discountPercent = $tier['discount'] ?? 0;
+                    
+                    foreach ($variants as $variant) {
+                        $importPrice = $variant->import_price ?? 0;
+                        $price = $variant->price ?? 0;
+                        
+                        if ($importPrice > 0 && $price > 0) {
+                            $salePrice = $price * (1 - $discountPercent / 100);
+                            $salePrice = round($salePrice);
+                            
+                            $result = $this->validateSalePrice($importPrice, $salePrice, $price);
+                            
+                            if (!$result['valid']) {
+                                $errors[] = "Mức giảm {$discountPercent}%: " . $result['message'];
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($errors)) {
+                    DB::rollBack();
+                    return redirect()->back()->with([
+                        'success' => false,
+                        'message' => 'Không thể cập nhật pre-order do vi phạm ràng buộc giá: ' . implode('; ', $errors)
+                    ]);
+                }
+            }
 
             $conflict = $this->checkPreorderProductConflict($validated['product_id'], $id);
             if ($conflict) {

@@ -10,7 +10,6 @@
             </div>
         </div>
 
-
         <div class="p-4 md:p-8">
             <!-- Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -145,7 +144,6 @@
                             <span class="material-symbols-outlined text-5xl" :class="getBannerIconColor(campaign.status)">campaign</span>
                         </div>
                         
-                        <!-- Badge SALE -->
                         <div v-if="campaign.status === 'active' && campaign.discountPercent > 0" 
                              class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
                             SALE {{ campaign.discountPercent }}%
@@ -280,9 +278,7 @@
             <!-- ==================== PRE-ORDERS LIST ==================== -->
             <div v-if="activeTab === 'preorder'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="preorder in filteredPreorders" :key="preorder.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
-                    <!-- Header với ảnh sản phẩm -->
                     <div class="relative h-36 overflow-hidden bg-gradient-to-r from-purple-50 to-purple-100">
-                        <!-- Ảnh sản phẩm - Lấy trực tiếp từ preorder.product_image -->
                         <div v-if="preorder.product_image" class="w-full h-full">
                             <img 
                                 :src="preorder.product_image" 
@@ -292,12 +288,10 @@
                             >
                             <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                         </div>
-                        <!-- Fallback khi không có ảnh -->
                         <div v-else class="w-full h-full flex items-center justify-center">
                             <span class="material-symbols-outlined text-5xl text-purple-300">schedule</span>
                         </div>
                         
-                        <!-- Badge -->
                         <div class="absolute top-2 left-2 flex flex-col gap-1">
                             <span v-if="preorder.status === 'active' && preorder.current_discount > 0" 
                                 class="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse text-center">
@@ -316,7 +310,6 @@
                             </span>
                         </div>
                         
-                        <!-- Tên sản phẩm ở dưới ảnh -->
                         <div class="absolute bottom-2 left-3 right-3">
                             <h3 class="font-bold text-sm text-white truncate drop-shadow-lg">{{ preorder.name }}</h3>
                             <p class="text-[10px] text-white/80 drop-shadow">Sản phẩm: {{ preorder.product_name || getProductName(preorder.product_id) }}</p>
@@ -335,7 +328,6 @@
                             </div>
                         </div>
 
-                        <!-- Phần hiển thị giá sale -->
                         <div class="mt-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-2">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-[10px] font-medium">
@@ -346,7 +338,6 @@
                                 </span>
                             </div>
 
-                            <!-- Hiển thị giá -->
                             <div class="flex items-center justify-between mt-1">
                                 <div class="flex items-center gap-2">
                                     <span v-if="preorder.base_price > 0 && preorder.current_discount > 0" 
@@ -370,7 +361,6 @@
                                 </span>
                             </div>
 
-                            <!-- Progress bar -->
                             <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-2">
                                 <div 
                                     class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
@@ -378,7 +368,6 @@
                                 ></div>
                             </div>
 
-                            <!-- Tiers -->
                             <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px]">
                                 <div v-for="tier in preorder.tiers" :key="tier.from" 
                                     class="text-center p-1 bg-white rounded border"
@@ -416,8 +405,6 @@
             <!-- ==================== DISCOUNTS LIST ==================== -->
             <div v-if="activeTab === 'discounts'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="discount in filteredDiscounts" :key="discount.id" class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
-                    
-
                     <div class="p-4">
                         <div class="flex justify-between items-start">
                             <div class="flex-1 min-w-0">
@@ -552,7 +539,7 @@
                         <input type="hidden" v-model="campaignForm.status">
                     </div>
 
-                    <!-- Phần trăm giảm giá -->
+                    <!-- ===== PHẦN NHẬP % GIẢM GIÁ CÓ HIỂN THỊ LỖI REAL-TIME ===== -->
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Phần trăm giảm giá (%) *</label>
                         <input 
@@ -562,7 +549,21 @@
                             max="100"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                             placeholder="Nhập % giảm giá (1-100%)"
+                            @input="validateCampaignSalePriceOnInput"
                         >
+                        
+                        <!-- HIỂN THỊ CẢNH BÁO LỖI NGAY LẬP TỨC -->
+                        <div v-if="campaignSalePriceErrors.length > 0" class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm font-medium text-red-700 mb-1">⚠️ KHÔNG THỂ ÁP DỤNG MỨC GIẢM NÀY VÌ:</p>
+                            <ul class="text-xs text-red-600 space-y-0.5 list-disc pl-4 max-h-32 overflow-y-auto">
+                                <li v-for="(error, index) in campaignSalePriceErrors" :key="index">{{ error }}</li>
+                            </ul>
+                            <p class="text-xs text-red-500 mt-1 font-medium">👉 Vui lòng giảm % giảm giá xuống hoặc bỏ chọn sản phẩm vi phạm.</p>
+                        </div>
+                        <div v-else-if="campaignForm.discountPercent > 0 && campaignForm.products.length > 0" class="mt-1 text-xs text-green-600">
+                            ✅ Mức giảm này hợp lệ với tất cả {{ campaignForm.products.length }} sản phẩm đã chọn
+                        </div>
+                        <p class="text-xs text-orange-600 mt-1">⚠️ Mức giảm tối đa không được làm giá sale thấp hơn 120% giá nhập</p>
                     </div>
 
                     <!-- Sản phẩm áp dụng -->
@@ -570,7 +571,6 @@
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng *</label>
                         <p class="text-xs text-blue-600 mb-2">⚠️ Chỉ chọn sản phẩm RETAIL (không phải Pre-order)</p>
                         
-                        <!-- Filter Bar -->
                         <div class="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
                             <div class="flex-1 min-w-[120px]">
                                 <select 
@@ -624,16 +624,15 @@
                             </div>
                         </div>
 
-                        <!-- Hiển thị số lượng -->
                         <div class="text-xs text-gray-500 mb-1">
                             Hiển thị: <span class="font-semibold">{{ filteredProductVariants.length }}</span> sản phẩm 
                             <span v-if="filterBrand || filterCategory || filterSearchProduct" class="text-blue-500">
                                 (đã lọc)
                             </span>
                             | Đã chọn: <span class="font-semibold text-blue-600">{{ campaignForm.products.length }}</span>
+                            <span v-if="campaignSalePriceErrors.length > 0" class="text-red-500 ml-2">⚠️ Có lỗi ràng buộc giá</span>
                         </div>
 
-                        <!-- Danh sách sản phẩm -->
                         <div class="border border-gray-300 rounded-lg p-1.5 max-h-40 overflow-y-auto">
                             <div v-for="variant in filteredProductVariants" :key="variant.id" 
                                  class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs group">
@@ -652,8 +651,11 @@
                                     <span v-if="variant.product?.brand_name" class="text-blue-500 text-[10px] bg-blue-50 px-1 rounded">{{ variant.product.brand_name }}</span>
                                     <span v-if="variant.product?.category_name" class="text-green-500 text-[10px] bg-green-50 px-1 rounded">{{ variant.product.category_name }}</span>
                                     <span class="text-blue-600 text-[10px] font-medium">{{ formatPrice(variant.price) }}</span>
+                                    <span v-if="variant.import_price > 0" class="text-gray-400 text-[10px]">(Nhập: {{ formatPrice(variant.import_price) }})</span>
                                     <span v-if="variant.product?.is_preorder" class="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">Pre-order</span>
                                     <span v-if="isProductInOtherActiveCampaign(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Đang có campaign</span>
+                                    <!-- Hiển thị warning nếu sản phẩm này vi phạm ràng buộc giá -->
+                                    <span v-if="isProductViolatingPrice(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded animate-pulse">⚠️ Vi phạm giá</span>
                                 </label>
                             </div>
                         </div>
@@ -706,17 +708,22 @@
                     </button>
                     <button 
                         @click="saveCampaign" 
-                        class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                        :disabled="isSubmitting"
+                        class="px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors"
+                        :class="campaignSalePriceErrors.length > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                        :disabled="isSubmitting || campaignSalePriceErrors.length > 0"
                     >
                         <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        {{ isSubmitting ? 'Đang lưu...' : 'Lưu chiến dịch' }}
+                        <span v-if="campaignSalePriceErrors.length > 0" class="text-sm">🔒 Vui lòng sửa lỗi</span>
+                        <span v-else>{{ isSubmitting ? 'Đang lưu...' : 'Lưu chiến dịch' }}</span>
                     </button>
+                </div>
+                <div v-if="campaignSalePriceErrors.length > 0" class="text-xs text-red-500 text-center mt-2">
+                    ⚠️ Không thể lưu do vi phạm ràng buộc giá. Vui lòng sửa lỗi trước khi lưu.
                 </div>
             </div>
         </div>
 
-        <!-- ==================== VOUCHER MODAL ==================== -->
+        <!-- ==================== VOUCHER MODAL (KHÔNG ÁP DỤNG RÀNG BUỘC GIÁ) ==================== -->
         <div v-if="showVoucherModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeVoucherModal">
             <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
@@ -771,11 +778,13 @@
                             min="0"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                             :placeholder="voucherForm.discount_type === 'fixed' ? '15000 (tối thiểu)' : '1-100'"
+                            @input="validateDiscountValue"
                         >
                         <p v-if="voucherForm.discount_type === 'fixed'" class="text-xs text-orange-600 mt-1">
                             ⚠️ Giảm trực tiếp tối thiểu 15.000đ
                         </p>
                         <p v-else-if="voucherForm.discount_type === 'percent'" class="text-xs text-orange-600 mt-1">
+                            ⚠️ Giảm theo % từ 1% đến 100%
                         </p>
                         <p v-else class="text-xs text-gray-500 mt-1">Có thể để 0 nếu không giảm</p>
                     </div>
@@ -880,7 +889,7 @@
                             <select 
                                 v-model="preorderForm.product_id" 
                                 class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-                                @change="checkPreorderProductConflict"
+                                @change="checkPreorderProductConflict(); validatePreorderTiersOnInput()"
                             >
                                 <option :value="null">-- Chọn sản phẩm pre-order --</option>
                                 <option 
@@ -939,6 +948,7 @@
                         </div>
                     </div>
 
+                    <!-- ===== PHẦN TIERS CÓ HIỂN THỊ LỖI REAL-TIME ===== -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <label class="text-sm font-medium text-gray-700">Các mức giảm giá theo lượt</label>
@@ -955,6 +965,7 @@
                                             type="number" 
                                             class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                                             min="1"
+                                            @input="validatePreorderTiersOnInput"
                                         >
                                     </div>
                                     <div>
@@ -964,6 +975,7 @@
                                             type="number" 
                                             class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                                             min="1"
+                                            @input="validatePreorderTiersOnInput"
                                         >
                                     </div>
                                     <div>
@@ -974,6 +986,7 @@
                                             class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                                             min="1"
                                             max="100"
+                                            @input="validatePreorderTiersOnInput"
                                         >
                                         <p class="text-[8px] text-gray-400">1-100%</p>
                                     </div>
@@ -989,6 +1002,19 @@
                             </div>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">⚠️ Mỗi mức giảm và khoảng lượt không được trùng lặp</p>
+                        <p class="text-xs text-orange-600 mt-1">⚠️ Mức giảm không được làm giá sale thấp hơn 120% giá nhập</p>
+                        
+                        <!-- HIỂN THỊ CẢNH BÁO LỖI REAL-TIME CHO PRE-ORDER -->
+                        <div v-if="preorderTierErrors.length > 0" class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm font-medium text-red-700 mb-1">⚠️ KHÔNG THỂ ÁP DỤNG CÁC MỨC GIẢM NÀY VÌ:</p>
+                            <ul class="text-xs text-red-600 space-y-0.5 list-disc pl-4 max-h-32 overflow-y-auto">
+                                <li v-for="(error, index) in preorderTierErrors" :key="index">{{ error }}</li>
+                            </ul>
+                            <p class="text-xs text-red-500 mt-1 font-medium">👉 Vui lòng điều chỉnh các mức giảm xuống.</p>
+                        </div>
+                        <div v-else-if="preorderForm.product_id && preorderForm.tiers.length > 0" class="mt-1 text-xs text-green-600">
+                            ✅ Các mức giảm này hợp lệ
+                        </div>
                     </div>
 
                     <label class="flex items-center gap-2 cursor-pointer">
@@ -1011,12 +1037,17 @@
                     </button>
                     <button 
                         @click="savePreorder" 
-                        class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                        :disabled="isSubmitting"
+                        class="px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors"
+                        :class="preorderTierErrors.length > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white'"
+                        :disabled="isSubmitting || preorderTierErrors.length > 0"
                     >
                         <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        {{ isSubmitting ? 'Đang lưu...' : 'Lưu pre-order' }}
+                        <span v-if="preorderTierErrors.length > 0" class="text-sm">🔒 Vui lòng sửa lỗi</span>
+                        <span v-else>{{ isSubmitting ? 'Đang lưu...' : 'Lưu pre-order' }}</span>
                     </button>
+                </div>
+                <div v-if="preorderTierErrors.length > 0" class="text-xs text-red-500 text-center mt-2">
+                    ⚠️ Không thể lưu do vi phạm ràng buộc giá. Vui lòng sửa lỗi trước khi lưu.
                 </div>
             </div>
         </div>
@@ -1191,6 +1222,10 @@ const editingDiscount = ref(null);
 const isSubmitting = ref(false);
 const errorMessage = ref('');
 const preorderConflictError = ref('');
+
+// Error states for real-time validation (CHỈ CHO CAMPAIGN VÀ PRE-ORDER)
+const campaignSalePriceErrors = ref([]);
+const preorderTierErrors = ref([]);
 
 // Status options
 const statusOptions = [
@@ -1514,14 +1549,127 @@ const handleImageError = (e) => {
     }
 };
 
+// ==================== KIỂM TRA GIÁ SALE TỐI THIỂU (CHỦ YẾU CHO CAMPAIGN) ====================
+
+const validateCampaignSalePriceOnInput = () => {
+    const errors = [];
+    const discountPercent = campaignForm.value.discountPercent;
+    
+    if (!discountPercent || discountPercent < 1 || discountPercent > 100 || campaignForm.value.products.length === 0) {
+        campaignSalePriceErrors.value = [];
+        return;
+    }
+    
+    const selectedVariants = productVariants.value.filter(v => 
+        campaignForm.value.products.includes(v.id)
+    );
+    
+    for (const variant of selectedVariants) {
+        const importPrice = variant.import_price || 0;
+        const price = variant.price || 0;
+        
+        if (importPrice <= 0 || price <= 0) continue;
+        
+        const minPrice = importPrice * 1.2;
+        const salePrice = price * (1 - discountPercent / 100);
+        const roundedSalePrice = Math.round(salePrice);
+        const roundedMinPrice = Math.round(minPrice);
+        
+        if (salePrice < minPrice) {
+            const maxDiscount = Math.round((1 - minPrice / price) * 100 * 10) / 10;
+            const productName = variant.product?.name || 'SP#' + variant.id;
+            const colorName = variant.color?.name ? ` (${variant.color.name})` : '';
+            errors.push(
+                `"${productName}${colorName}": giá sale ${formatPrice(roundedSalePrice)} < ${formatPrice(roundedMinPrice)} (120% giá nhập). Mức giảm tối đa là ${maxDiscount}%.`
+            );
+        }
+    }
+    
+    campaignSalePriceErrors.value = errors;
+};
+
+const isProductViolatingPrice = (variantId) => {
+    const discountPercent = campaignForm.value.discountPercent;
+    if (!discountPercent || discountPercent < 1 || discountPercent > 100) return false;
+    
+    const variant = productVariants.value.find(v => v.id === variantId);
+    if (!variant) return false;
+    
+    const importPrice = variant.import_price || 0;
+    const price = variant.price || 0;
+    
+    if (importPrice <= 0 || price <= 0) return false;
+    
+    const minPrice = importPrice * 1.2;
+    const salePrice = price * (1 - discountPercent / 100);
+    
+    return salePrice < minPrice;
+};
+
+// ==================== KIỂM TRA PRE-ORDER TIERS ====================
+
+const validatePreorderTiersOnInput = () => {
+    const errors = [];
+    const productId = preorderForm.value.product_id;
+    const tiers = preorderForm.value.tiers;
+    
+    if (!productId || !tiers || tiers.length === 0) {
+        preorderTierErrors.value = [];
+        return;
+    }
+    
+    const product = preorderProducts.value.find(p => p.id === productId);
+    if (!product || !product.variants || product.variants.length === 0) {
+        preorderTierErrors.value = [];
+        return;
+    }
+    
+    for (const tier of tiers) {
+        const discountPercent = tier.discount || 0;
+        if (discountPercent < 1 || discountPercent > 100) continue;
+        
+        for (const variant of product.variants) {
+            const importPrice = variant.import_price || 0;
+            const price = variant.price || 0;
+            
+            if (importPrice <= 0 || price <= 0) continue;
+            
+            const salePrice = price * (1 - discountPercent / 100);
+            const roundedSalePrice = Math.round(salePrice);
+            const minPrice = importPrice * 1.2;
+            const roundedMinPrice = Math.round(minPrice);
+            
+            if (salePrice < minPrice) {
+                errors.push(
+                    `Mức giảm ${discountPercent}%: "${product.name}" giá sale ${formatPrice(roundedSalePrice)} < ${formatPrice(roundedMinPrice)} (120% giá nhập)`
+                );
+                break;
+            }
+        }
+    }
+    
+    preorderTierErrors.value = errors;
+};
+
+// ==================== WATCHERS ====================
+
+watch(() => campaignForm.value.discountPercent, () => {
+    validateCampaignSalePriceOnInput();
+});
+
+watch(() => campaignForm.value.products, () => {
+    validateCampaignSalePriceOnInput();
+}, { deep: true });
+
+watch(() => [preorderForm.value.product_id, preorderForm.value.tiers], () => {
+    validatePreorderTiersOnInput();
+}, { deep: true });
+
 // ==================== KIỂM TRA TRÙNG LẶP ====================
 
-// Kiểm tra sản phẩm có đang trong campaign active khác không
 const isProductInOtherActiveCampaign = (variantId) => {
-    // Nếu đang edit campaign, bỏ qua campaign hiện tại
     const excludeId = editingCampaign.value ? editingCampaign.value.id : null;
     
-    // Tìm campaign active khác có chứa sản phẩm này
     const conflict = campaigns.value.find(c => 
         c.id !== excludeId && 
         c.status === 'active' && 
@@ -1532,7 +1680,6 @@ const isProductInOtherActiveCampaign = (variantId) => {
     return !!conflict;
 };
 
-// Kiểm tra sản phẩm pre-order có đang trong pre-order active khác không
 const isProductInOtherActivePreorder = (productId) => {
     if (!productId) return false;
     
@@ -1617,6 +1764,7 @@ watch(() => campaignForm.value.endDate, () => {
 const openCampaignModal = (campaign = null) => {
     editingCampaign.value = campaign;
     errorMessage.value = '';
+    campaignSalePriceErrors.value = [];
     resetProductFilters();
     
     if (campaign) {
@@ -1649,6 +1797,10 @@ const openCampaignModal = (campaign = null) => {
         };
     }
     showModal.value = true;
+    
+    setTimeout(() => {
+        validateCampaignSalePriceOnInput();
+    }, 100);
 };
 
 const saveCampaign = async () => {
@@ -1657,7 +1809,6 @@ const saveCampaign = async () => {
         return;
     }
     
-    // Kiểm tra bắt buộc nhập ngày
     if (!campaignForm.value.startDate) {
         errorMessage.value = 'Vui lòng chọn ngày bắt đầu';
         return;
@@ -1679,6 +1830,12 @@ const saveCampaign = async () => {
     
     if (campaignForm.value.products.length === 0) {
         errorMessage.value = 'Vui lòng chọn ít nhất 1 sản phẩm để áp dụng';
+        return;
+    }
+
+    // ============ KIỂM TRA LỖI REAL-TIME TRƯỚC KHI LƯU ============
+    if (campaignSalePriceErrors.value.length > 0) {
+        errorMessage.value = '❌ Không thể lưu chiến dịch do vi phạm ràng buộc giá. Vui lòng điều chỉnh mức giảm hoặc bỏ chọn sản phẩm vi phạm.';
         return;
     }
     
@@ -1752,6 +1909,7 @@ const closeModal = () => {
     showModal.value = false;
     editingCampaign.value = null;
     errorMessage.value = '';
+    campaignSalePriceErrors.value = [];
     isSubmitting.value = false;
     resetProductFilters();
 };
@@ -1759,7 +1917,6 @@ const closeModal = () => {
 // ==================== PRODUCT SELECTION ====================
 
 const toggleProduct = (variantId) => {
-    // VẤN ĐỀ 3: Không cho chọn sản phẩm đã có trong campaign active khác
     if (isProductInOtherActiveCampaign(variantId)) {
         errorMessage.value = 'Sản phẩm này đang thuộc chiến dịch khác đang diễn ra';
         return;
@@ -1776,6 +1933,8 @@ const toggleProduct = (variantId) => {
         }
         campaignForm.value.products.push(variantId);
     }
+    
+    validateCampaignSalePriceOnInput();
 };
 
 const isProductSelected = (variantId) => {
@@ -1791,6 +1950,7 @@ const selectAllFilteredProducts = () => {
             campaignForm.value.products.push(id);
         }
     });
+    validateCampaignSalePriceOnInput();
 };
 
 const deselectAllFilteredProducts = () => {
@@ -1798,6 +1958,7 @@ const deselectAllFilteredProducts = () => {
         .filter(v => !v.product?.is_preorder)
         .map(v => v.id);
     campaignForm.value.products = campaignForm.value.products.filter(id => !variantIds.includes(id));
+    validateCampaignSalePriceOnInput();
 };
 
 const resetProductFilters = () => {
@@ -1806,7 +1967,7 @@ const resetProductFilters = () => {
     filterSearchProduct.value = '';
 };
 
-// ==================== VOUCHER FUNCTIONS ====================
+// ==================== VOUCHER FUNCTIONS (KHÔNG CÓ RÀNG BUỘC GIÁ) ====================
 
 const openVoucherModal = (voucher = null) => {
     editingVoucher.value = voucher;
@@ -1847,10 +2008,13 @@ const openVoucherModal = (voucher = null) => {
 const validateDiscountValue = () => {
     if (voucherForm.value.discount_type === 'fixed' && voucherForm.value.discount_value < 15000) {
         errorMessage.value = 'Giảm trực tiếp tối thiểu 15.000đ';
+        return false;
     } else if (voucherForm.value.discount_type === 'percent' && (voucherForm.value.discount_value < 1 || voucherForm.value.discount_value > 100)) {
         errorMessage.value = 'Giảm theo % phải từ 1% đến 100%';
+        return false;
     } else {
         errorMessage.value = '';
+        return true;
     }
 };
 
@@ -1860,7 +2024,6 @@ const saveVoucher = async () => {
         return;
     }
     
-    // VẤN ĐỀ 2: Kiểm tra ngày kết thúc bắt buộc
     if (!voucherForm.value.expiry) {
         errorMessage.value = 'Vui lòng chọn ngày kết thúc';
         return;
@@ -1876,13 +2039,11 @@ const saveVoucher = async () => {
         return;
     }
     
-    // VẤN ĐỀ 1: Giảm trực tiếp tối thiểu 15.000đ
     if (voucherForm.value.discount_type === 'fixed' && voucherForm.value.discount_value < 15000) {
         errorMessage.value = 'Giá trị giảm trực tiếp tối thiểu là 15.000đ';
         return;
     }
     
-    // VẤN ĐỀ 2: Giảm theo % từ 1-100%
     if (voucherForm.value.discount_type === 'percent' && (voucherForm.value.discount_value < 1 || voucherForm.value.discount_value > 100)) {
         errorMessage.value = 'Phần trăm giảm giá phải từ 1% đến 100%';
         return;
@@ -1940,9 +2101,6 @@ const closeVoucherModal = () => {
 
 // ==================== PRE-ORDER FUNCTIONS ====================
 
-
-
-// Xử lý lỗi ảnh
 const handleProductImageError = (e) => {
     e.target.style.display = 'none';
     const parent = e.target.parentElement;
@@ -1955,11 +2113,11 @@ const handleProductImageError = (e) => {
     }
 };
 
-
 const openPreorderModal = (preorder = null) => {
     editingPreorder.value = preorder;
     errorMessage.value = '';
     preorderConflictError.value = '';
+    preorderTierErrors.value = [];
     
     if (preorder) {
         preorderForm.value = {
@@ -1991,6 +2149,10 @@ const openPreorderModal = (preorder = null) => {
         };
     }
     showPreorderModal.value = true;
+    
+    setTimeout(() => {
+        validatePreorderTiersOnInput();
+    }, 100);
 };
 
 const validateTiers = () => {
@@ -2042,7 +2204,6 @@ const savePreorder = async () => {
         return;
     }
     
-    // VẤN ĐỀ 4: Kiểm tra ngày bắt buộc
     if (!preorderForm.value.start_date) {
         errorMessage.value = 'Vui lòng nhập ngày bắt đầu';
         return;
@@ -2057,16 +2218,20 @@ const savePreorder = async () => {
         return;
     }
     
-    // VẤN ĐỀ 1: Kiểm tra sản phẩm pre-order không bị trùng
     if (isProductInOtherActivePreorder(preorderForm.value.product_id)) {
         errorMessage.value = 'Sản phẩm này đang thuộc chương trình pre-order khác đang diễn ra';
         return;
     }
     
-    // VẤN ĐỀ 3: Validate tiers
     const tierError = validateTiers();
     if (tierError) {
         errorMessage.value = tierError;
+        return;
+    }
+
+    // ============ KIỂM TRA LỖI REAL-TIME TRƯỚC KHI LƯU ============
+    if (preorderTierErrors.value.length > 0) {
+        errorMessage.value = '❌ Không thể lưu pre-order do vi phạm ràng buộc giá. Vui lòng điều chỉnh các mức giảm.';
         return;
     }
     
@@ -2123,11 +2288,13 @@ const addTier = () => {
         to: newTo,
         discount: 5
     });
+    validatePreorderTiersOnInput();
 };
 
 const removeTier = (index) => {
     if (preorderForm.value.tiers.length > 1) {
         preorderForm.value.tiers.splice(index, 1);
+        validatePreorderTiersOnInput();
     }
 };
 
@@ -2136,6 +2303,7 @@ const closePreorderModal = () => {
     editingPreorder.value = null;
     errorMessage.value = '';
     preorderConflictError.value = '';
+    preorderTierErrors.value = [];
     isSubmitting.value = false;
 };
 
@@ -2169,7 +2337,6 @@ const saveDiscount = async () => {
         return;
     }
     
-    // VẤN ĐỀ 5: Giảm theo % từ 1-100%
     if (discountForm.value.discount_percent < 1 || discountForm.value.discount_percent > 100) {
         errorMessage.value = 'Phần trăm chiết khấu phải từ 1% đến 100%';
         return;

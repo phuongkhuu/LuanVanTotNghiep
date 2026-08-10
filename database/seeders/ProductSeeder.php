@@ -107,7 +107,7 @@ class ProductSeeder extends Seeder
                 'material' => 'Ballistic Nylon 1680D',
                 'image_url' => [
                     'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880',
-                    'https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500', // ảnh phụ
+                    'https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500',
                 ],
                 'description' => 'Balo chống nước cao cấp, ngăn laptop riêng biệt.',
                 'thumbnail' => 'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880',
@@ -118,11 +118,25 @@ class ProductSeeder extends Seeder
         );
         ProductVariant::updateOrCreate(
             ['product_id' => Product::where('slug', 'balo-laptop-bigbag-pro-15-6')->first()->id, 'color_id' => $colorBlack->id, 'size_name' => 'M'],
-            ['price' => 1450000, 'stock' => 50, 'rating' => 4.8]
+            [
+                'price' => 1450000,
+                'stock' => 50,
+                'rating' => 4.8,
+                'import_quantity' => 100,
+                'import_price' => 1050000,
+                'last_import_date' => now()->subDays(15),
+            ]
         );
         ProductVariant::updateOrCreate(
             ['product_id' => Product::where('slug', 'balo-laptop-bigbag-pro-15-6')->first()->id, 'color_id' => $colorGray->id, 'size_name' => 'M'],
-            ['price' => 1450000, 'stock' => 30, 'rating' => 4.7]
+            [
+                'price' => 1450000,
+                'stock' => 30,
+                'rating' => 4.7,
+                'import_quantity' => 80,
+                'import_price' => 1050000,
+                'last_import_date' => now()->subDays(20),
+            ]
         );
 
         // Sản phẩm Solo Adventure 40L
@@ -146,7 +160,14 @@ class ProductSeeder extends Seeder
         );
         ProductVariant::updateOrCreate(
             ['product_id' => Product::where('slug', 'solo-adventure-40l')->first()->id, 'color_id' => $colorBlack->id, 'size_name' => 'L'],
-            ['price' => 2100000, 'stock' => 25, 'rating' => 4.9]
+            [
+                'price' => 2100000,
+                'stock' => 25,
+                'rating' => 4.9,
+                'import_quantity' => 60,
+                'import_price' => 1650000,
+                'last_import_date' => now()->subDays(10),
+            ]
         );
 
         // Sản phẩm KingBag Crossbody Mini
@@ -170,7 +191,14 @@ class ProductSeeder extends Seeder
         );
         ProductVariant::updateOrCreate(
             ['product_id' => Product::where('slug', 'kingbag-crossbody-mini')->first()->id, 'color_id' => $colorBrown->id, 'size_name' => 'Free'],
-            ['price' => 450000, 'stock' => 100, 'rating' => 4.5]
+            [
+                'price' => 450000,
+                'stock' => 100,
+                'rating' => 4.5,
+                'import_quantity' => 200,
+                'import_price' => 300000,
+                'last_import_date' => now()->subDays(5),
+            ]
         );
 
         // --------------------------------------------
@@ -192,8 +220,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => true,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorBlack, 'size' => 'L', 'price' => 2350000, 'stock' => 40, 'rating' => 4.9],
-                    ['color' => $colorGray, 'size' => 'L', 'price' => 2350000, 'stock' => 25, 'rating' => 4.8],
+                    ['color' => $colorBlack, 'size' => 'L', 'price' => 2350000, 'stock' => 40, 'rating' => 4.9, 'import_quantity' => 80, 'import_price' => 1750000, 'last_import_date' => now()->subDays(12)],
+                    ['color' => $colorGray, 'size' => 'L', 'price' => 2350000, 'stock' => 25, 'rating' => 4.8, 'import_quantity' => 60, 'import_price' => 1750000, 'last_import_date' => now()->subDays(18)],
                 ]
             ],
             [
@@ -211,7 +239,7 @@ class ProductSeeder extends Seeder
                 'is_featured' => true,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorNavy, 'size' => 'M', 'price' => 1250000, 'stock' => 60, 'rating' => 4.7],
+                    ['color' => $colorNavy, 'size' => 'M', 'price' => 1250000, 'stock' => 60, 'rating' => 4.7, 'import_quantity' => 120, 'import_price' => 850000, 'last_import_date' => now()->subDays(8)],
                 ]
             ],
             [
@@ -229,8 +257,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => false,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorBlack, 'size' => 'M', 'price' => 1890000, 'stock' => 35, 'rating' => 4.8],
-                    ['color' => $colorGray, 'size' => 'M', 'price' => 1890000, 'stock' => 20, 'rating' => 4.7],
+                    ['color' => $colorBlack, 'size' => 'M', 'price' => 1890000, 'stock' => 35, 'rating' => 4.8, 'import_quantity' => 70, 'import_price' => 1350000, 'last_import_date' => now()->subDays(14)],
+                    ['color' => $colorGray, 'size' => 'M', 'price' => 1890000, 'stock' => 20, 'rating' => 4.7, 'import_quantity' => 50, 'import_price' => 1350000, 'last_import_date' => now()->subDays(21)],
                 ]
             ],
             [
@@ -248,8 +276,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => true,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorRed, 'size' => 'S', 'price' => 550000, 'stock' => 80, 'rating' => 4.6],
-                    ['color' => $colorWhite, 'size' => 'S', 'price' => 550000, 'stock' => 70, 'rating' => 4.5],
+                    ['color' => $colorRed, 'size' => 'S', 'price' => 550000, 'stock' => 80, 'rating' => 4.6, 'import_quantity' => 150, 'import_price' => 350000, 'last_import_date' => now()->subDays(6)],
+                    ['color' => $colorWhite, 'size' => 'S', 'price' => 550000, 'stock' => 70, 'rating' => 4.5, 'import_quantity' => 140, 'import_price' => 350000, 'last_import_date' => now()->subDays(7)],
                 ]
             ],
             [
@@ -267,7 +295,7 @@ class ProductSeeder extends Seeder
                 'is_featured' => false,
                 'is_preorder' => true,
                 'variants' => [
-                    ['color' => $colorBlack, 'size' => 'M', 'price' => 990000, 'stock' => 45, 'rating' => 4.4],
+                    ['color' => $colorBlack, 'size' => 'M', 'price' => 990000, 'stock' => 45, 'rating' => 4.4, 'import_quantity' => 100, 'import_price' => 650000, 'last_import_date' => now()->subDays(3)],
                 ]
             ],
             [
@@ -285,7 +313,7 @@ class ProductSeeder extends Seeder
                 'is_featured' => false,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorOrange, 'size' => 'S', 'price' => 1850000, 'stock' => 15, 'rating' => 4.9],
+                    ['color' => $colorOrange, 'size' => 'S', 'price' => 1850000, 'stock' => 15, 'rating' => 4.9, 'import_quantity' => 40, 'import_price' => 1350000, 'last_import_date' => now()->subDays(25)],
                 ]
             ],
             [
@@ -303,8 +331,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => true,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorGreen, 'size' => 'Free', 'price' => 350000, 'stock' => 120, 'rating' => 4.3],
-                    ['color' => $colorBlack, 'size' => 'Free', 'price' => 350000, 'stock' => 110, 'rating' => 4.2],
+                    ['color' => $colorGreen, 'size' => 'Free', 'price' => 350000, 'stock' => 120, 'rating' => 4.3, 'import_quantity' => 250, 'import_price' => 220000, 'last_import_date' => now()->subDays(4)],
+                    ['color' => $colorBlack, 'size' => 'Free', 'price' => 350000, 'stock' => 110, 'rating' => 4.2, 'import_quantity' => 230, 'import_price' => 220000, 'last_import_date' => now()->subDays(4)],
                 ]
             ],
             [
@@ -322,8 +350,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => false,
                 'is_preorder' => true,
                 'variants' => [
-                    ['color' => $colorNavy, 'size' => 'XL', 'price' => 2850000, 'stock' => 20, 'rating' => 4.8],
-                    ['color' => $colorBrown, 'size' => 'XL', 'price' => 2850000, 'stock' => 10, 'rating' => 4.7],
+                    ['color' => $colorNavy, 'size' => 'XL', 'price' => 2850000, 'stock' => 20, 'rating' => 4.8, 'import_quantity' => 45, 'import_price' => 2150000, 'last_import_date' => now()->subDays(16)],
+                    ['color' => $colorBrown, 'size' => 'XL', 'price' => 2850000, 'stock' => 10, 'rating' => 4.7, 'import_quantity' => 30, 'import_price' => 2150000, 'last_import_date' => now()->subDays(22)],
                 ]
             ],
             [
@@ -341,7 +369,7 @@ class ProductSeeder extends Seeder
                 'is_featured' => false,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorGray, 'size' => 'M', 'price' => 1190000, 'stock' => 55, 'rating' => 4.5],
+                    ['color' => $colorGray, 'size' => 'M', 'price' => 1190000, 'stock' => 55, 'rating' => 4.5, 'import_quantity' => 100, 'import_price' => 750000, 'last_import_date' => now()->subDays(11)],
                 ]
             ],
             [
@@ -359,8 +387,8 @@ class ProductSeeder extends Seeder
                 'is_featured' => true,
                 'is_preorder' => false,
                 'variants' => [
-                    ['color' => $colorGreen, 'size' => 'M', 'price' => 650000, 'stock' => 90, 'rating' => 4.4],
-                    ['color' => $colorBrown, 'size' => 'M', 'price' => 650000, 'stock' => 85, 'rating' => 4.3],
+                    ['color' => $colorGreen, 'size' => 'M', 'price' => 650000, 'stock' => 90, 'rating' => 4.4, 'import_quantity' => 180, 'import_price' => 400000, 'last_import_date' => now()->subDays(9)],
+                    ['color' => $colorBrown, 'size' => 'M', 'price' => 650000, 'stock' => 85, 'rating' => 4.3, 'import_quantity' => 170, 'import_price' => 400000, 'last_import_date' => now()->subDays(9)],
                 ]
             ],
         ];
@@ -374,7 +402,7 @@ class ProductSeeder extends Seeder
                     'brand_id' => $np['brand']->id,
                     'name' => $np['name'],
                     'material' => $np['material'],
-                    'image_url' => $np['image_url'], // mảng
+                    'image_url' => $np['image_url'],
                     'thumbnail' => $np['thumbnail'],
                     'description' => $np['description'],
                     'is_featured' => $np['is_featured'],
@@ -394,6 +422,9 @@ class ProductSeeder extends Seeder
                         'price' => $variant['price'],
                         'stock' => $variant['stock'],
                         'rating' => $variant['rating'],
+                        'import_quantity' => $variant['import_quantity'] ?? 0,
+                        'import_price' => $variant['import_price'] ?? null,
+                        'last_import_date' => $variant['last_import_date'] ?? null,
                     ]
                 );
             }

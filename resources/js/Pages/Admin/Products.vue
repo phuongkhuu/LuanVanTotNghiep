@@ -114,7 +114,7 @@
                                 <th class="text-center py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">SẢN PHẨM</th>
                                 <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">DANH MỤC</th>
                                 <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ NHẬP</th>
-                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ GỐC</th>
+                                <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ BÁN</th>
                                 <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIÁ SALE</th>
                                 <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">GIẢM</th>
                                 <th class="text-left py-2 px-2 md:px-3 text-gray-600 font-semibold whitespace-nowrap">SL NHẬP</th>
@@ -163,7 +163,7 @@
                                     {{ product.min_import_price ? formatPrice(product.min_import_price) : '—' }}
                                 </td>
                                 
-                                <!-- GIÁ GỐC -->
+                                <!-- GIÁ BÁN -->
                                 <td class="py-2 px-2 md:px-3 whitespace-nowrap">
                                     <span :class="product.is_on_sale ? 'text-gray-400 line-through' : 'text-gray-500'">
                                         {{ formatPrice(product.original_price || product.price) }}

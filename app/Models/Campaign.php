@@ -62,27 +62,18 @@ class Campaign extends Model
         return $this->belongsTo(Product::class);
     }
 
-    // =============== THÊM QUAN HỆ VỚI BANNER ===============
+    // =============== QUAN HỆ VỚI BANNER ===============
     
-    /**
-     * Quan hệ với bảng banners (một campaign có nhiều banner)
-     */
     public function banners()
     {
         return $this->hasMany(Banner::class);
     }
 
-    /**
-     * Lấy banner đầu tiên của campaign
-     */
     public function banner()
     {
         return $this->hasOne(Banner::class)->latest();
     }
 
-    /**
-     * Lấy banner đang hoạt động của campaign
-     */
     public function activeBanner()
     {
         return $this->hasOne(Banner::class)
@@ -132,18 +123,13 @@ class Campaign extends Model
         return $this->productVariants->pluck('id')->toArray();
     }
 
-    /**
-     * Lấy URL banner cho campaign (ưu tiên từ bảng banners, fallback từ cột banner)
-     */
     public function getBannerUrlAttribute()
     {
-        // Ưu tiên lấy từ bảng banners
         $banner = $this->banners()->where('status', Banner::STATUS_ACTIVE)->first();
         if ($banner && $banner->image) {
             return $banner->image;
         }
         
-        // Fallback: lấy từ cột banner cũ
         if ($this->attributes['banner'] ?? false) {
             return $this->attributes['banner'];
         }
