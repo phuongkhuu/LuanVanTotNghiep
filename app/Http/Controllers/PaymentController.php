@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
 use App\Models\Campaign;
 use App\Mail\OrderConfirmationMail;
+use App\Mail\CustomOrderConfirmation;
+use App\Mail\NewCustomOrderAdmin;
 use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
@@ -26,13 +28,24 @@ class PaymentController extends Controller
     }
 
     /**
-     * Tính giá sale cho variant
+     * Tính giá sale cho variant – ưu tiên sale_price có sẵn trong variant
      */
     private function calculateSalePrice($variant)
     {
-        $originalPrice = $variant->price;
+        // 1. Nếu variant đã có sale_price và is_on_sale = true, dùng luôn
+        if (!empty($variant->sale_price) && $variant->is_on_sale) {
+            return [
+                'original_price' => (float) $variant->price,
+                'sale_price'      => (float) $variant->sale_price,
+                'discount_percent'=> (float) ($variant->discount_percent ?? 0),
+                'is_on_sale'      => true,
+            ];
+        }
+
+        // 2. Nếu không, tính từ campaign
+        $originalPrice = (float) $variant->price;
         $salePrice = $originalPrice;
-        $discountPercent = 0;
+        $discountPercent = 0.0;
         $now = now();
 
         // Kiểm tra campaign (retail)
@@ -56,7 +69,7 @@ class PaymentController extends Controller
 
         foreach ($campaigns as $campaign) {
             $config = $campaign->configs()->first();
-            $currentDiscount = $config ? (float) $config->discount_percent : 0;
+            $currentDiscount = $config ? (float) $config->discount_percent : 0.0;
             if ($currentDiscount > $discountPercent) {
                 $discountPercent = $currentDiscount;
             }
@@ -79,25 +92,25 @@ class PaymentController extends Controller
                 ->first();
 
             if ($preorder) {
-                $currentBuyers = $preorder->current_buyers ?? 0;
+                $currentBuyers = (int) ($preorder->current_buyers ?? 0);
                 $tiers = $preorder->tiers ?? [];
                 
                 usort($tiers, function($a, $b) {
                     return ($a['from'] ?? 0) - ($b['from'] ?? 0);
                 });
                 
-                $preorderDiscount = 0;
+                $preorderDiscount = 0.0;
                 foreach ($tiers as $tier) {
-                    $from = $tier['from'] ?? 0;
-                    $to = $tier['to'] ?? PHP_INT_MAX;
+                    $from = (int) ($tier['from'] ?? 0);
+                    $to = (int) ($tier['to'] ?? PHP_INT_MAX);
                     if ($currentBuyers >= $from && $currentBuyers <= $to) {
-                        $preorderDiscount = $tier['discount'] ?? 0;
+                        $preorderDiscount = (float) ($tier['discount'] ?? 0);
                         break;
                     }
                 }
                 
-                if ($preorderDiscount == 0 && !empty($tiers)) {
-                    $preorderDiscount = $tiers[0]['discount'] ?? 0;
+                if ($preorderDiscount == 0.0 && !empty($tiers)) {
+                    $preorderDiscount = (float) ($tiers[0]['discount'] ?? 0);
                 }
                 
                 if ($preorderDiscount > $discountPercent) {
@@ -113,9 +126,9 @@ class PaymentController extends Controller
 
         return [
             'original_price' => $originalPrice,
-            'sale_price' => $salePrice,
-            'discount_percent' => $discountPercent,
-            'is_on_sale' => $discountPercent > 0,
+            'sale_price'      => $salePrice,
+            'discount_percent'=> $discountPercent,
+            'is_on_sale'      => $discountPercent > 0,
         ];
     }
 
@@ -180,10 +193,16 @@ class PaymentController extends Controller
                     continue;
                 }
 
+                // --- Lấy giá sau giảm giá (ưu tiên sale_price có sẵn) ---
                 $saleInfo = $this->calculateSalePrice($variant);
-                $basePrice = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                $basePrice = $saleInfo['sale_price']; // Đây là giá đã giảm (hoặc giá gốc nếu không giảm)
 
-                // ===== LẤY META VÀ TÍNH PHÍ IN LOGO =====
+                // Nếu không có giảm giá, basePrice sẽ bằng original_price
+                if (!$saleInfo['is_on_sale']) {
+                    $basePrice = $saleInfo['original_price'];
+                }
+
+                // --- Tính phí in logo nếu có ---
                 $meta = $item['meta'] ?? null;
                 $additionalPrice = 0;
                 if (!empty($meta['logo'])) {
@@ -192,10 +211,43 @@ class PaymentController extends Controller
                 }
 
                 $finalPrice = $basePrice + $additionalPrice;
-                $quantity = $item['quantity'] ?? 1;
+                $quantity = (int) ($item['quantity'] ?? 1);
                 $total = $finalPrice * $quantity;
                 $subtotal += $total;
 
+                // ---- LOG CHI TIẾT ĐỂ GỠ RỐI ----
+                Log::info('Product price detail', [
+                    'variant_id'        => $variant->id,
+                    'variant_price'     => (float) $variant->price,
+                    'variant_sale_price'=> $variant->sale_price ?? null,
+                    'sale_info'         => $saleInfo,
+                    'basePrice'         => $basePrice,
+                    'additionalPrice'   => $additionalPrice,
+                    'finalPrice'        => $finalPrice,
+                    'quantity'          => $quantity,
+                    'total'             => $total,
+                    'subtotal'          => $subtotal,
+                    'meta'              => $meta,
+                ]);
+
+                // Cảnh báo nếu giá quá cao (trên 100 triệu)
+                if ($basePrice > 100000000) {
+                    Log::warning('⚠️ Product price is unusually high!', [
+                        'variant_id'   => $variant->id,
+                        'basePrice'    => $basePrice,
+                        'product_name' => $variant->product->name ?? 'Unknown',
+                    ]);
+                }
+
+                if ($additionalPrice > 20000000) {
+                    Log::warning('⚠️ Logo print fee is unusually high!', [
+                        'variant_id'      => $variant->id,
+                        'basePrice'       => $basePrice,
+                        'additionalPrice' => $additionalPrice,
+                    ]);
+                }
+
+                // --- Lấy ảnh sản phẩm ---
                 $images = $variant->product->image_url ?? [];
                 if (!is_array($images)) {
                     $images = [];
@@ -204,24 +256,23 @@ class PaymentController extends Controller
                     $images = [$variant->product->thumbnail];
                 }
 
-                // Tạo dữ liệu sản phẩm trả về cho view
+                // --- Tạo dữ liệu sản phẩm cho frontend ---
                 $productData = [
-                    'id' => $variant->id,
-                    'name' => $variant->product->name,
-                    'variant_name' => $variant->name ?? '',
-                    'price' => $finalPrice,
-                    'quantity' => $quantity,
-                    'total' => $total,
-                    'image' => $images[0] ?? '/images/default-product.jpg',
-                    'color' => $variant->color->name ?? 'Đen',
-                    'size' => $variant->size_name ?? 'M',
-                    'is_pre_order' => false,
-                    'is_on_sale' => $saleInfo['is_on_sale'],
-                    'original_price' => $variant->price,
-                    'discount_percent' => $saleInfo['discount_percent'],
+                    'id'              => $variant->id,
+                    'name'            => $variant->product->name,
+                    'variant_name'    => $variant->name ?? '',
+                    'price'           => $finalPrice,       // Đơn giá sau cùng
+                    'quantity'        => $quantity,
+                    'total'           => $total,            // Thành tiền cho sản phẩm này
+                    'image'           => $images[0] ?? '/images/default-product.jpg',
+                    'color'           => $variant->color->name ?? 'Đen',
+                    'size'            => $variant->size_name ?? 'M',
+                    'is_pre_order'    => false,
+                    'is_on_sale'      => $saleInfo['is_on_sale'],
+                    'original_price'  => $saleInfo['original_price'],
+                    'discount_percent'=> $saleInfo['discount_percent'],
                 ];
 
-                // Thêm meta nếu có để hiển thị thông tin in logo ở checkout
                 if ($meta !== null) {
                     $productData['meta'] = $meta;
                 }
@@ -232,16 +283,19 @@ class PaymentController extends Controller
             $isPreOrder = false;
         }
 
-        // Xử lý pre-order (giữ nguyên)
+        // Xử lý pre-order (nếu giỏ hàng rỗng và có session pre-order)
         if (empty($products)) {
             $preOrderVariantId = Session::get('pre_order_variant_id');
             if ($preOrderVariantId) {
                 $variant = ProductVariant::with('product', 'color')->find($preOrderVariantId);
                 if ($variant && ($variant->product->is_preorder ?? false)) {
-                    $quantity = Session::get('pre_order_quantity', 1);
+                    $quantity = (int) (Session::get('pre_order_quantity', 1));
                     
                     $saleInfo = $this->calculateSalePrice($variant);
-                    $price = $saleInfo['is_on_sale'] ? $saleInfo['sale_price'] : $variant->price;
+                    $price = $saleInfo['sale_price'];
+                    if (!$saleInfo['is_on_sale']) {
+                        $price = $saleInfo['original_price'];
+                    }
                     
                     $total = $price * $quantity;
                     $subtotal = $total;
@@ -255,28 +309,27 @@ class PaymentController extends Controller
                     }
 
                     $products[] = [
-                        'id' => $variant->id,
-                        'name' => $variant->product->name,
-                        'variant_name' => $variant->name ?? '',
-                        'price' => $price,
-                        'quantity' => $quantity,
-                        'total' => $total,
-                        'image' => $images[0] ?? '/images/default-product.jpg',
-                        'color' => $variant->color->name ?? 'Đen',
-                        'size' => $variant->size_name ?? 'M',
-                        'is_pre_order' => true,
-                        'is_on_sale' => $saleInfo['is_on_sale'],
-                        'original_price' => $variant->price,
-                        'discount_percent' => $saleInfo['discount_percent'],
+                        'id'              => $variant->id,
+                        'name'            => $variant->product->name,
+                        'variant_name'    => $variant->name ?? '',
+                        'price'           => $price,
+                        'quantity'        => $quantity,
+                        'total'           => $total,
+                        'image'           => $images[0] ?? '/images/default-product.jpg',
+                        'color'           => $variant->color->name ?? 'Đen',
+                        'size'            => $variant->size_name ?? 'M',
+                        'is_pre_order'    => true,
+                        'is_on_sale'      => $saleInfo['is_on_sale'],
+                        'original_price'  => $saleInfo['original_price'],
+                        'discount_percent'=> $saleInfo['discount_percent'],
                     ];
 
                     $orderType = 'preorder';
                     $isPreOrder = true;
-                    Log::info('Checkout - Pre-order mode with sale price:', [
-                        'original_price' => $variant->price,
-                        'sale_price' => $price,
+                    Log::info('Checkout - Pre-order mode:', [
+                        'original_price'   => $saleInfo['original_price'],
+                        'sale_price'       => $price,
                         'discount_percent' => $saleInfo['discount_percent'],
-                        'is_on_sale' => $saleInfo['is_on_sale'],
                     ]);
                 }
             }
@@ -295,7 +348,7 @@ class PaymentController extends Controller
                 ->first();
             
             if ($voucher) {
-                $discountValue = $voucher->discount_value;
+                $discountValue = (float) $voucher->discount_value;
                 $discountType = $voucher->discount_type;
                 
                 if ($discountType === 'percent') {
@@ -319,24 +372,30 @@ class PaymentController extends Controller
         $shippingFee = 0;
         $finalTotal = max(0, $subtotal + $shippingFee - $discount);
 
+        Log::info('Checkout - Final calculation', [
+            'subtotal'    => $subtotal,
+            'discount'    => $discount,
+            'final_total' => $finalTotal,
+        ]);
+
         $user = Auth::user();
         $userData = $user ? [
-            'name' => $user->name,
+            'name'  => $user->name,
             'email' => $user->email,
             'phone' => $user->phone ?? '',
         ] : null;
 
         return Inertia::render('Web/Checkout', [
-            'user' => $userData,
-            'products' => $products,
-            'subtotal' => $subtotal,
-            'shipping_fee' => $shippingFee,
-            'discount' => $discount,
-            'final_total' => $finalTotal,
-            'order_type' => $orderType,
-            'is_pre_order' => $isPreOrder,
-            'voucher_code' => $voucherCode,
-            'voucher_discount' => $voucherDiscount,
+            'user'            => $userData,
+            'products'        => $products,
+            'subtotal'        => $subtotal,
+            'shipping_fee'    => $shippingFee,
+            'discount'        => $discount,
+            'final_total'     => $finalTotal,
+            'order_type'      => $orderType,
+            'is_pre_order'    => $isPreOrder,
+            'voucher_code'    => $voucherCode,
+            'voucher_discount'=> $voucherDiscount,
         ]);
     }
 
@@ -442,12 +501,13 @@ class PaymentController extends Controller
 
                 // ===== XỬ LÝ LƯU THÔNG TIN IN LOGO =====
                 $orderData = $responseData->order;
+                $logoRequests = collect();
                 if ($orderData && isset($orderData->details)) {
                     foreach ($orderData->details as $detail) {
                         $matchedItem = collect($validated['items'])->firstWhere('id', $detail->product_variant_id);
                         if ($matchedItem && isset($matchedItem['meta']['logo'])) {
                             $logoMeta = $matchedItem['meta']['logo'];
-                            LogoPrintRequest::create([
+                            $logoRequest = LogoPrintRequest::create([
                                 'order_detail_id' => $detail->id,
                                 'logo_image' => $logoMeta['file'] ?? null,
                                 'print_position' => $logoMeta['position'] ?? '',
@@ -458,6 +518,7 @@ class PaymentController extends Controller
                                            "SĐT: " . ($logoMeta['phone'] ?? ''),
                                 'status' => 'pending',
                             ]);
+                            $logoRequests->push($logoRequest);
                             Log::info('LogoPrintRequest created for order detail: ' . $detail->id);
                         }
                     }
@@ -467,8 +528,28 @@ class PaymentController extends Controller
                 Log::info('=== BẮT ĐẦU GỬI EMAIL SAU KHI TẠO ĐƠN HÀNG ===');
                 Log::info('Email sẽ gửi đến: ' . $validated['customer_email']);
                 
-                // Gửi email
-                $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email']);
+                // Gửi email xác nhận đơn hàng thông thường (có kèm logo nếu có)
+                $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email'], $logoRequests);
+                
+                // ===== NẾU CÓ YÊU CẦU IN LOGO, GỬI EMAIL TÙY CHỈNH =====
+                if ($logoRequests->isNotEmpty()) {
+                    // Lấy order với relationships đầy đủ
+                    $orderWithRelations = Order::with([
+                        'details.productVariant.product',
+                        'details.productVariant.color'
+                    ])->find($orderData->id);
+                    
+                    if ($orderWithRelations) {
+                        // Gửi email cho khách hàng
+                        Mail::to($validated['customer_email'])->send(new CustomOrderConfirmation($orderWithRelations, $logoRequests));
+                        
+                        // Gửi email cho admin (có thể thay email admin bằng config)
+                        $adminEmail = config('mail.admin_email', 'admin@bigbag.vn');
+                        Mail::to($adminEmail)->send(new NewCustomOrderAdmin($orderWithRelations, $logoRequests));
+                        
+                        Log::info('Custom order emails sent for order ID: ' . $orderData->id);
+                    }
+                }
                 
                 Log::info('=== HOÀN TẤT QUÁ TRÌNH GỬI EMAIL ===');
 
@@ -525,7 +606,7 @@ class PaymentController extends Controller
     /**
      * Gửi email xác nhận đơn hàng
      */
-    private function sendOrderConfirmationEmail($orderData, $customerEmail)
+    private function sendOrderConfirmationEmail($orderData, $customerEmail, $logoRequests = [])
     {
         try {
             Log::info('=== BẮT ĐẦU GỬI EMAIL XÁC NHẬN ĐƠN HÀNG ===');
@@ -552,37 +633,40 @@ class PaymentController extends Controller
 
             Log::info('Order ID: ' . $order->id);
             Log::info('Số lượng order details: ' . $order->details->count());
-            Log::info('Email trong order: ' . $order->customer_email);
-            Log::info('Email user: ' . ($order->user?->email ?? 'null'));
 
-            // Lấy chi tiết đơn hàng
+            // Lấy chi tiết đơn hàng (bao gồm id để match với logo)
             $orderDetails = [];
             foreach ($order->details as $detail) {
                 $variant = $detail->productVariant;
                 $product = $variant ? $variant->product : null;
                 
                 $orderDetails[] = [
-                    'name' => $product ? $product->name : 'Sản phẩm không xác định',
-                    'quantity' => (int) $detail->quantity,
-                    'unit_price' => (int) $detail->unit_price,
-                    'subtotal' => (int) $detail->subtotal,
-                    'color' => $variant && $variant->color ? $variant->color->name : '',
-                    'size' => $variant ? $variant->size_name : '',
+                    'id'          => $detail->id,
+                    'name'        => $product ? $product->name : 'Sản phẩm không xác định',
+                    'quantity'    => (int) $detail->quantity,
+                    'unit_price'  => (int) $detail->unit_price,
+                    'subtotal'    => (int) $detail->subtotal,
+                    'color'       => $variant && $variant->color ? $variant->color->name : '',
+                    'size'        => $variant ? $variant->size_name : '',
                 ];
             }
 
             Log::info('Số lượng sản phẩm đã xử lý: ' . count($orderDetails));
 
-            // Tạo display code
+            // Nếu chưa có logoRequests, thử lấy từ database
+            if (empty($logoRequests) && $order->details->isNotEmpty()) {
+                $logoRequests = LogoPrintRequest::whereIn('order_detail_id', $order->details->pluck('id'))->get();
+                Log::info('Logo requests loaded from DB: ' . $logoRequests->count());
+            }
+
             $displayCode = $this->generateOrderDisplayCode($order);
             Log::info('Mã đơn hàng: ' . $displayCode);
 
-            // Lấy email để gửi (ưu tiên email trong order)
             $emailToSend = $order->customer_email ?? $order->user?->email ?? $customerEmail;
             Log::info('Email sẽ gửi đến: ' . $emailToSend);
 
-            // Gửi email
-            Mail::to($emailToSend)->send(new OrderConfirmationMail($order, $orderDetails, $displayCode));
+            // Gửi email với logo requests
+            Mail::to($emailToSend)->send(new OrderConfirmationMail($order, $orderDetails, $displayCode, $logoRequests));
             
             Log::info('✅ Email xác nhận đã được gửi thành công đến: ' . $emailToSend);
             
@@ -606,10 +690,10 @@ class PaymentController extends Controller
         }
 
         $prefix = match($order->order_code) {
-            'retail' => 'L',
+            'retail'    => 'L',
             'wholesale' => 'S',
-            'preorder' => 'P',
-            default => 'DH'
+            'preorder'  => 'P',
+            default     => 'DH'
         };
 
         $date = now()->format('dmY');
@@ -782,14 +866,14 @@ class PaymentController extends Controller
             }
             
             return [
-                'id' => $detail->id,
-                'name' => $product ? $product->name : 'Sản phẩm không xác định',
-                'image' => $image,
-                'quantity' => (int) $detail->quantity,
-                'unit_price' => (int) $detail->unit_price,
-                'subtotal' => (int) $detail->subtotal,
-                'color' => $variant && $variant->color ? $variant->color->name : '',
-                'size' => $variant ? $variant->size_name : '',
+                'id'          => $detail->id,
+                'name'        => $product ? $product->name : 'Sản phẩm không xác định',
+                'image'       => $image,
+                'quantity'    => (int) $detail->quantity,
+                'unit_price'  => (int) $detail->unit_price,
+                'subtotal'    => (int) $detail->subtotal,
+                'color'       => $variant && $variant->color ? $variant->color->name : '',
+                'size'        => $variant ? $variant->size_name : '',
             ];
         });
 
@@ -824,29 +908,29 @@ class PaymentController extends Controller
         }
 
         $orderData = [
-            'id' => $order->id,
-            'customer_name' => $order->customer_name,
-            'customer_phone' => $order->customer_phone,
-            'customer_email' => $customerEmail,
-            'receiver_name' => $order->receiver_name,
-            'receiver_phone' => $order->receiver_phone,
-            'shipping_address' => $order->shipping_address,
-            'note' => $order->note,
-            'total_amount' => (int) $order->total_amount,
-            'shipping_fee' => (int) $order->shipping_fee,
-            'discount_amount' => (int) $order->discount_amount,
-            'final_amount' => (int) $order->final_amount,
-            'deposit_amount' => (int) ($order->deposit_amount ?? 0),
-            'remaining_amount' => (int) ($order->remaining_amount ?? 0),
-            'status' => $order->getStatusText(),
-            'order_code' => $order->order_code ?? 'retail',
-            'payment_method' => $paymentMethod,
-            'payment_status' => $paymentStatus,
-            'transaction_code' => $payment ? $payment->transaction_code : null,
-            'details' => $orderDetails,
-            'created_at' => $order->created_at,
-            'display_code' => $displayCode,
-            'order_display_code' => $displayCode,
+            'id'                => $order->id,
+            'customer_name'     => $order->customer_name,
+            'customer_phone'    => $order->customer_phone,
+            'customer_email'    => $customerEmail,
+            'receiver_name'     => $order->receiver_name,
+            'receiver_phone'    => $order->receiver_phone,
+            'shipping_address'  => $order->shipping_address,
+            'note'              => $order->note,
+            'total_amount'      => (int) $order->total_amount,
+            'shipping_fee'      => (int) $order->shipping_fee,
+            'discount_amount'   => (int) $order->discount_amount,
+            'final_amount'      => (int) $order->final_amount,
+            'deposit_amount'    => (int) ($order->deposit_amount ?? 0),
+            'remaining_amount'  => (int) ($order->remaining_amount ?? 0),
+            'status'            => $order->getStatusText(),
+            'order_code'        => $order->order_code ?? 'retail',
+            'payment_method'    => $paymentMethod,
+            'payment_status'    => $paymentStatus,
+            'transaction_code'  => $payment ? $payment->transaction_code : null,
+            'details'           => $orderDetails,
+            'created_at'        => $order->created_at,
+            'display_code'      => $displayCode,
+            'order_display_code'=> $displayCode,
         ];
 
         session()->forget(['last_order_id', 'last_order_display_code']);

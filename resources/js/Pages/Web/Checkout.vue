@@ -339,7 +339,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
@@ -370,6 +370,7 @@ const cartItems = ref(props.products || [])
 const loading = ref(false)
 const isAuthenticated = ref(!!props.user)
 
+// Ưu tiên thông tin từ user (nếu đã đăng nhập), nhưng có thể bị ghi đè bởi query params (cho phép điền sẵn từ customize)
 const customerInfo = ref({
   name: props.user?.name || '',
   email: props.user?.email || '',
@@ -396,7 +397,7 @@ const promoMessage = ref('')
 const discountAmount = ref(props.voucher_discount || 0)
 
 if (promoApplied.value && props.voucher_code) {
-  promoMessage.value = `✅ Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`
+  promoMessage.value = `Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`
 }
 
 // ============ COMPUTED ============
@@ -444,15 +445,15 @@ const applyPromoCode = async () => {
     if (response.data.success) {
       discountAmount.value = response.data.discount_amount || 0
       promoApplied.value = true
-      promoMessage.value = `✅ ${response.data.message}`
+      promoMessage.value = `${response.data.message}`
     } else {
-      promoMessage.value = '❌ ' + (response.data.message || 'Mã không hợp lệ')
+      promoMessage.value = (response.data.message || 'Mã không hợp lệ')
       promoApplied.value = false
       discountAmount.value = 0
     }
   } catch (error) {
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại'
-    promoMessage.value = '❌ ' + errorMsg
+    promoMessage.value = errorMsg
     promoApplied.value = false
     discountAmount.value = 0
   }
@@ -466,7 +467,7 @@ const removePromoCode = async () => {
       discountAmount.value = 0
       promoApplied.value = false
       promoCode.value = ''
-      promoMessage.value = '✅ Đã xóa mã giảm giá'
+      promoMessage.value = 'Đã xóa mã giảm giá'
       
       if (response.data.clear_local) {
         window.dispatchEvent(new CustomEvent('voucher:cleared'))
@@ -540,39 +541,29 @@ const placeOrder = () => {
     },
     onError: (errors) => {
       loading.value = false
-      console.error('❌ Lỗi đặt hàng:', errors)
+      console.error('Lỗi đặt hàng:', errors)
       const errorMsg = errors.error || 'Có lỗi xảy ra, vui lòng thử lại.'
       alert(errorMsg)
     },
   })
 }
 
-
 const checkVoucherOnLoad = async () => {
-    // Nếu có voucher trong props
     if (props.voucher_code) {
         try {
-            // Gọi API để kiểm tra và tính toán lại
             const response = await axios.post('/checkout/apply-voucher', {
                 code: props.voucher_code,
                 subtotal: subtotal.value
             });
             
             if (response.data.success) {
-                // Cập nhật với giá trị mới nhất
                 discountAmount.value = response.data.discount_amount;
                 promoApplied.value = true;
-                promoMessage.value = `✅ Đã áp dụng mã: ${response.data.code} (giảm ${formatPrice(response.data.discount_amount)})`;
-                
-                // Cập nhật finalTotal
-                finalTotal.value = subtotal.value - discountAmount.value;
+                promoMessage.value = `Đã áp dụng mã: ${response.data.code} (giảm ${formatPrice(response.data.discount_amount)})`;
             } else {
-                // Voucher không còn hiệu lực
                 promoApplied.value = false;
                 discountAmount.value = 0;
-                promoMessage.value = '❌ ' + response.data.message;
-                
-                // Xóa session
+                promoMessage.value = response.data.message;
                 await axios.post('/checkout/remove-voucher');
             }
         } catch (error) {
@@ -582,14 +573,24 @@ const checkVoucherOnLoad = async () => {
 };
 
 // ============ LIFECYCLE ============
-onMounted(() => {    
+onMounted(() => {
+    // 1. Đọc query params để điền sẵn thông tin người đặt (từ trang customize)
+    const urlParams = new URLSearchParams(window.location.search)
+    const name = urlParams.get('name')
+    const email = urlParams.get('email')
+    const phone = urlParams.get('phone')
+    
+    if (name) customerInfo.value.name = name
+    if (email) customerInfo.value.email = email
+    if (phone) customerInfo.value.phone = phone
+    
+    // 2. Xử lý voucher nếu có
     if (props.voucher_code && props.voucher_discount > 0) {
         discountAmount.value = props.voucher_discount;
         promoApplied.value = true;
         promoMessage.value = `Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`;
     }
     
-    // ============ KIỂM TRA VOUCHER KHI LOAD ============
     checkVoucherOnLoad();
 });
 </script>

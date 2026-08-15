@@ -286,6 +286,26 @@ const formatPrice = (value) => {
     return value.toLocaleString('vi-VN') + '₫';
 };
 
+// ====== HÀM HỖ TRỢ PREVIEW ẢNH ======
+/**
+ * Kiểm tra tên file có phải định dạng ảnh hay không
+ */
+const isImageFile = (fileName) => {
+    if (!fileName) return false;
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff'];
+    const ext = fileName.split('.').pop().toLowerCase();
+    return imageExtensions.includes(ext);
+};
+
+/**
+ * Tạo đường dẫn tuyệt đối để xem trước file
+ */
+const getDesignFileUrl = (fileName) => {
+    if (!fileName) return '';
+    return '/storage/' + fileName;
+};
+// ====== KẾT THÚC HÀM HỖ TRỢ ======
+
 // Initial fetch
 if (requests.value.length === 0) {
     fetchRequests();
@@ -531,9 +551,21 @@ if (requests.value.length === 0) {
                         </div>
                     </div>
                     
-                    <!-- File đính kèm -->
+                    <!-- ===== FILE THIẾT KẾ - CÓ PREVIEW ẢNH ===== -->
                     <div v-if="selectedRequest?.designFile" class="border-t border-gray-200 pt-3">
                         <h4 class="font-semibold text-gray-700 mb-2">File thiết kế</h4>
+                        
+                        <!-- Preview ảnh nếu là file ảnh -->
+                        <div v-if="isImageFile(selectedRequest.designFile)" class="mb-3">
+                            <img 
+                                :src="getDesignFileUrl(selectedRequest.designFile)" 
+                                alt="Design preview"
+                                class="max-w-full max-h-64 rounded border object-contain"
+                                @error="(e) => e.target.style.display = 'none'"
+                            />
+                        </div>
+                        
+                        <!-- Đường dẫn tải file (luôn hiển thị) -->
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-gray-500">attach_file</span>
                             <a href="#" @click.prevent="downloadFile(selectedRequest.designFile)" class="text-orange-600 hover:underline">
@@ -541,6 +573,7 @@ if (requests.value.length === 0) {
                             </a>
                         </div>
                     </div>
+                    <!-- ===== KẾT THÚC FILE THIẾT KẾ ===== -->
                     
                     <!-- Trạng thái -->
                     <div class="border-t border-gray-200 pt-3">

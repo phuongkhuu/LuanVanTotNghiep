@@ -276,7 +276,7 @@
             </div>
         </div>
 
-        <!-- Modal Add/Edit (giữ nguyên) -->
+        <!-- Modal Add/Edit -->
         <div 
             v-if="showModal" 
             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
@@ -290,13 +290,25 @@
                         class="text-gray-400 hover:text-gray-600 transition-colors text-xl"
                     >✕</button>
                 </div>
+
+                <!-- Hiển thị lỗi chung -->
+                <div v-if="formErrors.general" class="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                    {{ formErrors.general }}
+                </div>
                 
                 <div class="space-y-4">
                     <!-- Thông tin cơ bản -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Tên sản phẩm</label>
-                            <input v-model="form.name" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="Nhập tên sản phẩm">
+                            <input 
+                                v-model="form.name" 
+                                type="text" 
+                                class="w-full border rounded-lg px-3 py-2"
+                                :class="formErrors.name ? 'border-red-500' : 'border-gray-300'"
+                                placeholder="Nhập tên sản phẩm"
+                            >
+                            <p v-if="formErrors.name" class="text-xs text-red-500 mt-1">{{ formErrors.name }}</p>
                         </div>
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Loại sản phẩm</label>
@@ -311,6 +323,7 @@
                                 <option :value="null">-- Chọn danh mục --</option>
                                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                             </select>
+                            <p v-if="formErrors.category_id" class="text-xs text-red-500 mt-1">{{ formErrors.category_id }}</p>
                         </div>
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Thương hiệu</label>
@@ -318,10 +331,12 @@
                                 <option :value="null">-- Chọn thương hiệu --</option>
                                 <option v-for="brand in brands" :key="brand.id" :value="brand.id">{{ brand.name }}</option>
                             </select>
+                            <p v-if="formErrors.brand_id" class="text-xs text-red-500 mt-1">{{ formErrors.brand_id }}</p>
                         </div>
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Chất liệu</label>
                             <input v-model="form.material" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="VD: Canvas, Da, ...">
+                            <p v-if="formErrors.material" class="text-xs text-red-500 mt-1">{{ formErrors.material }}</p>
                         </div>
                         <!-- PHẦN HÌNH ẢNH -->
                         <div>
@@ -360,12 +375,14 @@
                                 <p class="text-xs text-gray-400 mt-1">Chọn nhiều ảnh/video (ảnh tối đa 2MB, video tối đa 20MB mỗi file)</p>
                                 <div v-if="fileError" class="text-red-500 text-sm mt-1">{{ fileError }}</div>
                             </div>
+                            <p v-if="formErrors.image_url" class="text-xs text-red-500 mt-1">{{ formErrors.image_url }}</p>
                         </div>
                     </div>
 
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
                         <CKEditor v-model="form.description" />
+                        <p v-if="formErrors.description" class="text-xs text-red-500 mt-1">{{ formErrors.description }}</p>
                     </div>
 
                     <!-- Biến thể (variants) -->
@@ -394,11 +411,13 @@
                                                 v-model="variant.color_id"
                                                 :colors="colors"
                                                 placeholder="-- Chọn màu --"
-                                                :error="false"
+                                                :error="!!formErrors[`variants.${idx}.color_id`]"
                                             />
+                                            <p v-if="formErrors[`variants.${idx}.color_id`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.color_id`] }}</p>
                                         </td>
                                         <td class="px-2 py-1">
                                             <input type="text" v-model="variant.size_name" class="w-full border rounded px-2 py-1" placeholder="VD: S, M, L, XL, Free...">
+                                            <p v-if="formErrors[`variants.${idx}.size_name`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.size_name`] }}</p>
                                         </td>
                                         <td class="px-2 py-1">
                                             <input 
@@ -408,7 +427,9 @@
                                                 class="w-28 border rounded px-2 py-1" 
                                                 placeholder="Giá"
                                                 min="0"
+                                                :class="formErrors[`variants.${idx}.price`] ? 'border-red-500' : ''"
                                             >
+                                            <p v-if="formErrors[`variants.${idx}.price`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.price`] }}</p>
                                         </td>
                                         <td class="px-2 py-1">
                                             <input 
@@ -418,7 +439,9 @@
                                                 class="w-20 border rounded px-2 py-1" 
                                                 placeholder="Tồn"
                                                 min="0"
+                                                :class="formErrors[`variants.${idx}.stock`] ? 'border-red-500' : ''"
                                             >
+                                            <p v-if="formErrors[`variants.${idx}.stock`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.stock`] }}</p>
                                         </td>
                                         <td class="px-2 py-1">
                                             <input 
@@ -448,6 +471,7 @@
                                     </tr>
                                 </tbody>
                             </table>
+                            <p v-if="formErrors.variants" class="text-xs text-red-500 p-2">{{ formErrors.variants }}</p>
                         </div>
                     </div>
                 </div>
@@ -525,6 +549,94 @@ const editingId = ref(null);
 const isSubmitting = ref(false);
 const modalTitle = computed(() => editingId.value ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới');
 
+// ============ LƯU LỖI FORM ============
+const formErrors = ref({});
+
+// Hàm xóa lỗi khi người dùng sửa input
+const clearFieldError = (field) => {
+    if (formErrors.value[field]) {
+        delete formErrors.value[field];
+    }
+};
+
+// Hàm gán lỗi từ server
+const setErrors = (errors) => {
+    formErrors.value = {};
+    if (errors) {
+        // Chuyển đổi từ định dạng của Laravel (có thể là mảng hoặc đối tượng)
+        if (typeof errors === 'object') {
+            Object.keys(errors).forEach(key => {
+                // Nếu là mảng, lấy phần tử đầu tiên
+                const msg = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+                formErrors.value[key] = msg;
+            });
+        }
+    }
+};
+
+// Hàm kiểm tra lỗi client-side (trả về true nếu có lỗi, false nếu không)
+const validateForm = () => {
+    formErrors.value = {};
+    let hasError = false;
+
+    if (!form.value.name.trim()) {
+        formErrors.value.name = 'Vui lòng nhập tên sản phẩm';
+        hasError = true;
+    }
+
+    if (!form.value.category_id) {
+        formErrors.value.category_id = 'Vui lòng chọn danh mục';
+        hasError = true;
+    }
+
+    if (!form.value.brand_id) {
+        formErrors.value.brand_id = 'Vui lòng chọn thương hiệu';
+        hasError = true;
+    }
+
+    const material = form.value.material.trim();
+    if (material && !/^[a-zA-ZÀ-ỹ0-9\s\-]+$/.test(material)) {
+        formErrors.value.material = 'Chất liệu chỉ được chứa chữ cái (có dấu), chữ số, dấu cách và dấu gạch ngang.';
+        hasError = true;
+    }
+
+    if (form.value.variants.length === 0) {
+        formErrors.value.variants = 'Vui lòng thêm ít nhất một biến thể';
+        hasError = true;
+    } else {
+        for (let i = 0; i < form.value.variants.length; i++) {
+            const v = form.value.variants[i];
+            if (!v.color_id) {
+                formErrors.value[`variants.${i}.color_id`] = `Vui lòng chọn màu cho biến thể thứ ${i + 1}`;
+                hasError = true;
+            }
+            if (v.price <= 0) {
+                formErrors.value[`variants.${i}.price`] = `Giá của biến thể ${i + 1} phải lớn hơn 0`;
+                hasError = true;
+            }
+            if (v.stock < 0) {
+                formErrors.value[`variants.${i}.stock`] = `Tồn kho của biến thể ${i + 1} không hợp lệ`;
+                hasError = true;
+            }
+            if (v.import_quantity < 0) {
+                formErrors.value[`variants.${i}.import_quantity`] = `Số lượng nhập của biến thể ${i + 1} không hợp lệ`;
+                hasError = true;
+            }
+            if (v.import_price !== null && v.import_price < 0) {
+                formErrors.value[`variants.${i}.import_price`] = `Giá nhập của biến thể ${i + 1} không hợp lệ`;
+                hasError = true;
+            }
+        }
+    }
+
+    if (fileError.value) {
+        formErrors.value.image_url = fileError.value;
+        hasError = true;
+    }
+
+    return !hasError;
+};
+
 const imageInputMode = ref('url');
 const fileError = ref('');
 
@@ -576,6 +688,9 @@ const updatePrice = (variant, event) => {
     const newVal = enforceNonNegative(raw);
     variant.price = newVal;
     event.target.value = newVal;
+    // Xóa lỗi nếu có
+    const idx = form.value.variants.indexOf(variant);
+    if (idx !== -1) clearFieldError(`variants.${idx}.price`);
 };
 
 const updateStock = (variant, event) => {
@@ -583,6 +698,8 @@ const updateStock = (variant, event) => {
     const newVal = enforceNonNegative(raw);
     variant.stock = newVal;
     event.target.value = newVal;
+    const idx = form.value.variants.indexOf(variant);
+    if (idx !== -1) clearFieldError(`variants.${idx}.stock`);
 };
 
 const addVariant = () => {
@@ -598,6 +715,12 @@ const addVariant = () => {
 
 const removeVariant = (index) => {
     form.value.variants.splice(index, 1);
+    // Xóa lỗi liên quan đến variant đó
+    Object.keys(formErrors.value).forEach(key => {
+        if (key.startsWith(`variants.${index}`)) {
+            delete formErrors.value[key];
+        }
+    });
 };
 
 const filteredProducts = computed(() => {
@@ -659,19 +782,20 @@ const addImageUrl = () => {
     const input = document.getElementById('imageUrlInput');
     const url = input.value.trim();
     if (!url) {
-        alert('Vui lòng nhập URL');
+        formErrors.value.image_url = 'Vui lòng nhập URL';
         return;
     }
     if (!url.match(/^https?:\/\/.+/)) {
-        alert('URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)');
+        formErrors.value.image_url = 'URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)';
         return;
     }
     if (form.value.imageUrls.length + form.value.imageFiles.length >= 10) {
-        alert('Tối đa 10 ảnh');
+        formErrors.value.image_url = 'Tối đa 10 ảnh';
         return;
     }
     form.value.imageUrls.push(url);
     input.value = '';
+    clearFieldError('image_url');
 };
 
 const removeImage = (index, type) => {
@@ -680,6 +804,7 @@ const removeImage = (index, type) => {
     } else if (type === 'file') {
         form.value.imageFiles.splice(index, 1);
     }
+    clearFieldError('image_url');
 };
 
 const handleFileChange = (event) => {
@@ -707,6 +832,7 @@ const handleFileChange = (event) => {
         form.value.imageFiles.push(file);
     }
     event.target.value = '';
+    clearFieldError('image_url');
 };
 
 const clearFiles = () => {
@@ -721,6 +847,7 @@ const openModal = (product = null) => {
     imageInputMode.value = 'url';
     fileError.value = '';
     form.value.imageFiles = [];
+    formErrors.value = {};
 
     if (product) {
         form.value = {
@@ -768,47 +895,14 @@ const openModal = (product = null) => {
 const editProduct = (product) => openModal(product);
 
 const saveProduct = async () => {
-    if (!form.value.name.trim()) {
-        alert('Vui lòng nhập tên sản phẩm');
-        return;
-    }
+    // Reset lỗi
+    formErrors.value = {};
 
-    const material = form.value.material.trim();
-    if (material && !/^[a-zA-ZÀ-ỹ0-9\s\-]+$/.test(material)) {
-        alert('Chất liệu chỉ được chứa chữ cái (có dấu), chữ số, dấu cách và dấu gạch ngang.');
-        return;
-    }
-
-    if (form.value.variants.length === 0) {
-        alert('Vui lòng thêm ít nhất một biến thể');
-        return;
-    }
-    for (let i = 0; i < form.value.variants.length; i++) {
-        const v = form.value.variants[i];
-        if (!v.color_id) {
-            alert(`Vui lòng chọn màu cho biến thể thứ ${i + 1}`);
-            return;
-        }
-        if (v.price <= 0) {
-            alert(`Giá của biến thể ${i + 1} phải lớn hơn 0`);
-            return;
-        }
-        if (v.stock < 0) {
-            alert(`Tồn kho của biến thể ${i + 1} không hợp lệ`);
-            return;
-        }
-        if (v.import_quantity < 0) {
-            alert(`Số lượng nhập của biến thể ${i + 1} không hợp lệ`);
-            return;
-        }
-        if (v.import_price !== null && v.import_price < 0) {
-            alert(`Giá nhập của biến thể ${i + 1} không hợp lệ`);
-            return;
-        }
-    }
-
-    if (fileError.value) {
-        alert(fileError.value);
+    // Kiểm tra client-side
+    if (!validateForm()) {
+        // Cuộn lên đầu modal để hiển thị lỗi
+        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+        if (modal) modal.scrollTop = 0;
         return;
     }
 
@@ -857,13 +951,22 @@ const saveProduct = async () => {
                     router.reload({ only: ['initialProducts'] });
                 },
                 onError: (errors) => {
-                    console.error(errors);
-                    alert(errors.image_files?.[0] || errors.image_url?.[0] || 'Có lỗi xảy ra');
+                    setErrors(errors);
+                    if (errors.image_files) {
+                        formErrors.value.image_url = errors.image_files[0] || 'Lỗi tải file';
+                    } else if (errors.image_url) {
+                        formErrors.value.image_url = errors.image_url[0];
+                    }
+                    // Cuộn lên đầu
+                    const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                    if (modal) modal.scrollTop = 0;
                 }
             });
         } catch (error) {
             console.error(error);
-            alert('Có lỗi xảy ra khi gửi dữ liệu');
+            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
+            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+            if (modal) modal.scrollTop = 0;
         } finally {
             isSubmitting.value = false;
         }
@@ -889,8 +992,9 @@ const saveProduct = async () => {
                         router.reload({ only: ['initialProducts'] });
                     },
                     onError: (errors) => {
-                        console.error(errors);
-                        alert(errors.image_url?.[0] || 'Có lỗi xảy ra');
+                        setErrors(errors);
+                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                        if (modal) modal.scrollTop = 0;
                     }
                 });
             } else {
@@ -902,14 +1006,17 @@ const saveProduct = async () => {
                         router.reload({ only: ['initialProducts'] });
                     },
                     onError: (errors) => {
-                        console.error(errors);
-                        alert(errors.image_url?.[0] || 'Có lỗi xảy ra');
+                        setErrors(errors);
+                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                        if (modal) modal.scrollTop = 0;
                     }
                 });
             }
         } catch (error) {
             console.error(error);
-            alert('Có lỗi xảy ra khi gửi dữ liệu');
+            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
+            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+            if (modal) modal.scrollTop = 0;
         } finally {
             isSubmitting.value = false;
         }
@@ -943,7 +1050,8 @@ const deleteProduct = async (id) => {
             },
             onError: (errors) => {
                 console.error(errors);
-                alert('Có lỗi xảy ra khi xóa sản phẩm');
+                // Hiển thị lỗi dạng thông báo (có thể dùng toast sau)
+                alert(errors.error || 'Có lỗi xảy ra khi xóa sản phẩm');
             }
         });
     } catch (error) {
@@ -955,6 +1063,7 @@ const deleteProduct = async (id) => {
 const closeModal = () => {
     showModal.value = false;
     clearFiles();
+    formErrors.value = {};
 };
 
 const changeActiveType = (typeValue) => {
@@ -985,6 +1094,28 @@ watch(() => props.initialProducts, (val) => {
     products.value = val;
     currentPage.value = 1;
 }, { immediate: true });
+
+// Xóa lỗi khi người dùng thay đổi input (v-model)
+watch(
+    () => form.value.name,
+    () => clearFieldError('name')
+);
+watch(
+    () => form.value.category_id,
+    () => clearFieldError('category_id')
+);
+watch(
+    () => form.value.brand_id,
+    () => clearFieldError('brand_id')
+);
+watch(
+    () => form.value.material,
+    () => clearFieldError('material')
+);
+watch(
+    () => form.value.description,
+    () => clearFieldError('description')
+);
 </script>
 
 <style scoped>

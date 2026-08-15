@@ -69,7 +69,7 @@
             <!-- Khối 2: Tùy chỉnh vị trí & kích thước -->
             <div class="space-y-4">
               <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">2. Thông số bản in</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 mb-1">Vị trí in <span class="text-rose-500">*</span></label>
                   <select 
@@ -77,7 +77,7 @@
                     required 
                     class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border text-gray-700"
                   >
-                    <option value="">-- Chọn vị trí --</option>
+                    <option value="">-- Chọn --</option>
                     <option value="front">Mặt trước</option>
                     <option value="back">Mặt sau</option>
                     <option value="side">Bên hông</option>
@@ -90,11 +90,22 @@
                     required 
                     class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border text-gray-700"
                   >
-                    <option value="">-- Chọn kích thước --</option>
+                    <option value="">-- Chọn --</option>
                     <option value="small">Nhỏ (S)</option>
                     <option value="medium">Vừa (M)</option>
                     <option value="large">Lớn (L)</option>
                   </select>
+                </div>
+                <!-- ===== SỐ LƯỢNG ===== -->
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Số lượng <span class="text-rose-500">*</span></label>
+                  <input 
+                    v-model.number="form.quantity" 
+                    type="number" 
+                    min="1" 
+                    required 
+                    class="w-full text-sm border-gray-200 bg-gray-50/50 rounded-lg p-2.5 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none border"
+                  >
                 </div>
               </div>
 
@@ -139,7 +150,7 @@
               >
                 <span v-if="isSubmitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                 <span v-else class="material-symbols-outlined text-lg">shopping_bag</span>
-                {{ isSubmitting ? 'Đang xử lý...' : 'Thêm vào giỏ hàng' }}
+                {{ isSubmitting ? 'Đang xử lý...' : 'Tiến hành thanh toán' }}
               </button>
             </div>
           </form>
@@ -147,10 +158,9 @@
 
         <!-- Bên phải: Thông tin sản phẩm & Bảng giá (5 Cột) -->
         <aside class="lg:col-span-5 space-y-6">
-          <!-- Thông tin sản phẩm (Đã thiết kế lại với ảnh nhỏ gọn) -->
+          <!-- Thông tin sản phẩm -->
           <div v-if="product" class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
             <div class="flex gap-4 items-center">
-              <!-- Ảnh sản phẩm nhỏ gọn -->
               <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
                 <img 
                   :src="product.image || '/images/default-product.jpg'" 
@@ -159,8 +169,6 @@
                   @error="handleImageError"
                 >
               </div>
-
-              <!-- Thông tin cơ bản -->
               <div class="flex-1 min-w-0 space-y-1">
                 <span v-if="product.brand" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ product.brand }}</span>
                 <h3 class="font-bold text-gray-900 text-base line-clamp-1" :title="product.name">{{ product.name || 'Sản phẩm' }}</h3>
@@ -168,13 +176,26 @@
                 <div class="text-sm font-semibold text-gray-900 pt-1">
                   Giá gốc: {{ formatPrice(product.price) }}
                 </div>
+                <!-- ===== HIỂN THỊ GIÁ SALE NẾU CÓ ===== -->
+                <div v-if="selectedVariant && selectedVariant.is_on_sale" class="text-xs text-red-500 font-semibold">
+                  Giá bán: {{ formatPrice(selectedVariant.sale_price) }}
+                </div>
               </div>
             </div>
 
-            <!-- Tính toán giá in ước tính khi user chọn thông số -->
+            <!-- Tính toán giá in ước tính -->
             <div v-if="calculatedPrintFee > 0" class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center bg-slate-50 p-3 rounded-xl">
               <span class="text-xs font-semibold text-gray-600">Phí in ước tính:</span>
               <span class="text-sm font-bold text-primary">+ {{ formatPrice(calculatedPrintFee) }}</span>
+            </div>
+            <!-- Hiển thị số lượng và tổng -->
+            <div v-if="form.quantity > 0 && product.price > 0" class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
+              <span class="text-xs font-semibold text-gray-600">Số lượng:</span>
+              <span class="text-sm font-bold text-gray-800">{{ form.quantity }}</span>
+            </div>
+            <div v-if="form.quantity > 0 && product.price > 0" class="flex justify-between items-center">
+              <span class="text-xs font-semibold text-gray-600">Tổng tiền dự kiến:</span>
+              <span class="text-sm font-bold text-primary">{{ formatPrice((Number(finalProductPrice) + Number(calculatedPrintFee)) * Number(form.quantity)) }}</span>
             </div>
           </div>
 
@@ -232,12 +253,11 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Head, Link, usePage } from '@inertiajs/vue3'
+import { Head, Link, usePage, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
-import { useCart } from '@/utils/useCart'
 
 const page = usePage()
 const props = defineProps({
@@ -247,10 +267,24 @@ const props = defineProps({
   }
 })
 
-const { addToCart } = useCart()
-
 const product = computed(() => {
   return props.selectedProduct || page.props.selectedProduct || null
+})
+
+// Lấy variant đầu tiên (hoặc cho phép người dùng chọn nếu có)
+const selectedVariant = computed(() => {
+  if (!product.value || !product.value.variants) return null
+  return product.value.variants[0] || null
+})
+
+// Giá sau giảm giá (ưu tiên sale_price)
+const finalProductPrice = computed(() => {
+  const variant = selectedVariant.value
+  if (!variant) return 0
+  if (variant.is_on_sale && variant.sale_price) {
+    return variant.sale_price
+  }
+  return variant.price || product.value.price || 0
 })
 
 const formatPrice = (price) => {
@@ -265,6 +299,7 @@ const form = ref({
   phone: '',
   position: '',
   size: '',
+  quantity: 1,
   note: ''
 })
 
@@ -275,11 +310,11 @@ const isSubmitting = ref(false)
 const message = ref('')
 const messageType = ref('success')
 
-// Tính toán chi phí in tạm tính
+// Tính toán chi phí in tạm tính (trên 1 sản phẩm)
 const calculatedPrintFee = computed(() => {
-  if (!product.value || !product.value.price || !form.value.position || !form.value.size) return 0
+  if (!product.value || !finalProductPrice.value || !form.value.position || !form.value.size) return 0
   
-  const basePrice = product.value.price
+  const basePrice = finalProductPrice.value
   const rateMap = {
     front: { small: 0.1, medium: 0.15, large: 0.2 },
     back: { small: 0.12, medium: 0.18, large: 0.25 },
@@ -335,13 +370,19 @@ const submitRequest = async () => {
     return
   }
 
+  if (!form.value.quantity || form.value.quantity < 1) {
+    message.value = 'Vui lòng nhập số lượng hợp lệ (tối thiểu 1).'
+    messageType.value = 'error'
+    return
+  }
+
   if (!product.value) {
     message.value = 'Không tìm thấy sản phẩm.'
     messageType.value = 'error'
     return
   }
 
-  const variant = product.value.variants?.[0]
+  const variant = selectedVariant.value
   if (!variant) {
     message.value = 'Sản phẩm không có biến thể khả dụng.'
     messageType.value = 'error'
@@ -369,42 +410,49 @@ const submitRequest = async () => {
       }
     }
 
-    const meta = {
-      logo: {
-        position: form.value.position,
-        size: form.value.size,
-        note: form.value.note || '',
-        file: logoPath,
-        fullName: form.value.fullName,
-        email: form.value.email,
-        phone: form.value.phone
+    // Tính giá cuối cùng cho sản phẩm (sau giảm giá + phí in)
+    const basePrice = finalProductPrice.value
+    const printFee = calculatedPrintFee.value
+    const finalPrice = basePrice + printFee
+
+    // Tạo dữ liệu cart để truyền qua URL
+    const cartData = {
+      [variant.id]: {
+        quantity: form.value.quantity,
+        price: finalPrice,
+        meta: {
+          logo: {
+            position: form.value.position,
+            size: form.value.size,
+            note: form.value.note || '',
+            file: logoPath,
+            fullName: form.value.fullName,
+            email: form.value.email,
+            phone: form.value.phone
+          }
+        }
       }
     }
 
-    await addToCart(variant.id, 1, meta)
+    // Chuẩn bị query params
+    const params = new URLSearchParams({
+      cart: JSON.stringify(cartData),
+      name: form.value.fullName,
+      email: form.value.email,
+      phone: form.value.phone
+    })
 
-    message.value = 'Đã thêm sản phẩm tùy chỉnh vào giỏ hàng thành công!'
-    messageType.value = 'success'
-    
-    form.value = { fullName: '', email: '', phone: '', position: '', size: '', note: '' }
-    uploadedFileName.value = ''
-    fileInput.value.value = ''
-
-    setTimeout(() => {
-      window.location.href = route('cart')
-    }, 1200)
+    // Chuyển thẳng đến checkout
+    window.location.href = route('checkout') + '?' + params.toString()
 
   } catch (error) {
     console.error('Error:', error)
     message.value = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.'
     messageType.value = 'error'
+    isSubmitting.value = false
   } finally {
     isSubmitting.value = false
   }
-}
-
-const saveDesign = () => {
-  alert('Tính năng lưu mẫu thiết kế đang được phát triển.')
 }
 </script>
 

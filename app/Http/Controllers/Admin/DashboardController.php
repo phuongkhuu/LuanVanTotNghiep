@@ -15,40 +15,33 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $period = $request->input('period', 'week'); // 'week' or 'month'
+        $period = $request->input('period', 'week');
 
-        // Thống kê tổng quan
         $today = Carbon::today();
         $yesterday = Carbon::yesterday();
 
-        // Doanh thu theo loại hình hôm nay
         $todayRevenue = [
             'retail' => $this->getRevenueByType('retail', $today),
             'wholesale' => $this->getRevenueByType('wholesale', $today),
             'preorder' => $this->getRevenueByType('preorder', $today),
         ];
 
-        // Tăng trưởng so với hôm qua
         $growth = [
             'retail' => $this->calcGrowth('retail', $today, $yesterday),
             'wholesale' => $this->calcGrowth('wholesale', $today, $yesterday),
             'preorder' => $this->calcGrowth('preorder', $today, $yesterday),
         ];
 
-        // Tổng số đơn hàng, khách hàng, sản phẩm tồn kho thấp
         $totalOrders = Order::count();
         $totalCustomers = User::where('role', 'user')->count();
         $lowStockProducts = ProductVariant::where('stock', '<', 10)->count();
 
-        // Đơn hàng gần đây (5 đơn) - sử dụng order_number
         $recentOrders = Order::with(['details.productVariant.product'])
             ->latest()
             ->limit(5)
             ->get()
             ->map(function ($order) {
-                // Lấy mã đơn hàng từ order_number (đã được sinh tự động)
                 $code = $order->order_number ?? '#ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
-                
                 return [
                     'code' => $code,
                     'customer' => $order->customer_name ?? $order->receiver_name,
@@ -59,12 +52,10 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Top sản phẩm bán chạy theo loại hình (số lượng bán)
         $topRetail = $this->getTopProducts('retail', 3);
         $topWholesale = $this->getTopProducts('wholesale', 3);
         $topPreorder = $this->getTopProducts('preorder', 3);
 
-        // Dữ liệu biểu đồ theo period
         if ($period === 'week') {
             $chartData = $this->getRevenueChartData('week');
         } else {
@@ -91,9 +82,6 @@ class DashboardController extends Controller
 
     // ==================== Helper Methods ====================
 
-    /**
-     * Lấy tổng doanh thu (final_amount) theo loại hình và ngày
-     */
     private function getRevenueByType($type, $date)
     {
         return Order::where('order_code', $type)
@@ -101,9 +89,6 @@ class DashboardController extends Controller
             ->sum('final_amount') ?: 0;
     }
 
-    /**
-     * Tính phần trăm tăng trưởng so với hôm qua
-     */
     private function calcGrowth($type, $today, $yesterday)
     {
         $todayRevenue = $this->getRevenueByType($type, $today);
@@ -116,9 +101,6 @@ class DashboardController extends Controller
         return round(($todayRevenue - $yesterdayRevenue) / $yesterdayRevenue * 100, 1);
     }
 
-    /**
-     * Top sản phẩm bán chạy theo loại hình (dựa trên số lượng bán)
-     */
     private function getTopProducts($type, $limit)
     {
         return Order::where('order_code', $type)
@@ -140,6 +122,8 @@ class DashboardController extends Controller
 
     /**
      * Dữ liệu biểu đồ doanh thu theo tuần hoặc tháng
+     * - Tuần: nhãn là thứ (T2, T3, ..., CN)
+     * - Tháng: nhãn là khoảng ngày (dd/mm - dd/mm)
      */
     private function getRevenueChartData($period)
     {
@@ -153,16 +137,18 @@ class DashboardController extends Controller
             for ($i = 6; $i >= 0; $i--) {
                 $date = Carbon::today()->subDays($i);
                 $labels[] = $this->getVietnameseDayOfWeek($date->dayOfWeek);
-                $retail[] = $this->getRevenueByType('retail', $date) / 1000000; // triệu
+                $retail[] = $this->getRevenueByType('retail', $date) / 1000000;
                 $wholesale[] = $this->getRevenueByType('wholesale', $date) / 1000000;
                 $preorder[] = $this->getRevenueByType('preorder', $date) / 1000000;
             }
         } else {
-            // 4 tuần gần nhất
+            // 4 tuần gần nhất – hiển thị khoảng ngày
             for ($i = 3; $i >= 0; $i--) {
                 $start = Carbon::today()->subWeeks($i)->startOfWeek();
                 $end = Carbon::today()->subWeeks($i)->endOfWeek();
-                $labels[] = 'Tuần ' . (4 - $i);
+                // Định dạng: dd/mm - dd/mm (ví dụ: 27/10 - 02/11)
+                $labels[] = $start->format('d/m') . ' - ' . $end->format('d/m');
+
                 $retail[] = Order::where('order_code', 'retail')
                     ->whereBetween('created_at', [$start, $end])
                     ->sum('final_amount') / 1000000;
@@ -183,9 +169,6 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * Chuyển đổi số thứ tự ngày trong tuần sang tiếng Việt
-     */
     private function getVietnameseDayOfWeek($dayNumber)
     {
         $days = [
@@ -200,9 +183,6 @@ class DashboardController extends Controller
         return $days[$dayNumber] ?? 'T' . ($dayNumber + 1);
     }
 
-    /**
-     * Nhãn cho loại đơn hàng
-     */
     private function getTypeLabel($type)
     {
         $map = [
@@ -213,9 +193,6 @@ class DashboardController extends Controller
         return $map[$type] ?? $type;
     }
 
-    /**
-     * Nhãn trạng thái đơn hàng
-     */
     private function getStatusLabel($status)
     {
         $map = [
@@ -228,9 +205,6 @@ class DashboardController extends Controller
         return $map[$status] ?? 'Không xác định';
     }
 
-    /**
-     * Class CSS cho trạng thái
-     */
     private function getStatusClass($status)
     {
         $map = [

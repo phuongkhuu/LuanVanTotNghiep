@@ -11,7 +11,7 @@ const productSubmenuOpen = ref(false);
 const customerSubmenuOpen = ref(false);
 const attributeSubmenuOpen = ref(false);
 const contentSubmenuOpen = ref(false);
-const reportSubmenuOpen = ref(false); // Thêm mới
+const reportSubmenuOpen = ref(false);
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);

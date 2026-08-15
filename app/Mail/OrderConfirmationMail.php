@@ -16,12 +16,14 @@ class OrderConfirmationMail extends Mailable
     public $orderDetails;
     public $displayCode;
     public $customerEmail;
+    public $logoRequests; // Thêm property
 
-    public function __construct($order, $orderDetails, $displayCode)
+    public function __construct($order, $orderDetails, $displayCode, $logoRequests = [])
     {
         $this->order = $order;
         $this->orderDetails = $orderDetails;
         $this->displayCode = $displayCode;
+        $this->logoRequests = $logoRequests;
         
         $this->customerEmail = $order->customer_email ?? $order->user?->email ?? 'N/A';
         
@@ -29,6 +31,7 @@ class OrderConfirmationMail extends Mailable
             'order_id' => $order->id ?? null,
             'displayCode' => $displayCode,
             'details_count' => count($orderDetails),
+            'logo_count' => count($logoRequests),
             'customer_email' => $this->customerEmail
         ]);
     }

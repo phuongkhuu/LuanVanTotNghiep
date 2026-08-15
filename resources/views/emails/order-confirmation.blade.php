@@ -108,6 +108,25 @@
             background: #fee2e2;
             color: #991b1b;
         }
+        .logo-container {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .logo-image {
+            max-width: 120px;
+            max-height: 80px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 4px;
+            background: white;
+            object-fit: contain;
+        }
+        .logo-info {
+            font-size: 11px;
+            color: #6b7280;
+        }
         .footer {
             text-align: center;
             padding: 20px 0;
@@ -221,6 +240,22 @@
                         @endif
                         @if(isset($item['size']) && $item['size'])
                         <small style="color: #666;"> | Size: {{ $item['size'] }}</small>
+                        @endif
+
+                        {{-- ===== HIỂN THỊ LOGO THIẾT KẾ NẾU CÓ ===== --}}
+                        @php
+                            $detailId = $item['id'] ?? null;
+                            $logo = $detailId && isset($logoRequests) ? $logoRequests->firstWhere('order_detail_id', $detailId) : null;
+                        @endphp
+                        @if($logo && $logo->logo_image)
+                        <div class="logo-container">
+                            <img src="{{ asset('storage/' . $logo->logo_image) }}" 
+                                 alt="Logo thiết kế" 
+                                 class="logo-image">
+                            <span class="logo-info">
+                                🖨️ In logo: {{ $logo->print_position }} - {{ $logo->print_size }}
+                            </span>
+                        </div>
                         @endif
                     </td>
                     <td class="text-center">{{ $item['quantity'] }}</td>
