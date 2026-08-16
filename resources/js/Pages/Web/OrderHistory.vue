@@ -58,14 +58,6 @@
           </div>
           
           <div class="flex items-center gap-3">
-            <button 
-              @click="startQrScanner"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
-            >
-              <span class="material-symbols-outlined text-sm">qr_code_scanner</span>
-              Quét QR
-            </button>
-
             <div class="relative">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
               <input 

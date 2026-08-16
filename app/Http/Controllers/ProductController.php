@@ -51,10 +51,9 @@ class ProductController extends Controller
                 $isPreorder = true;
                 $isPreorderActive = true;
 
-                // ===== TÍNH TOTAL_ORDERS (số đơn hàng) =====
                 $totalOrders = Order::where('campaign_id', $preorder->id)
                     ->where('order_code', 'preorder')
-                    ->where('order_status', '!=', 4) // 4 = hủy
+                    ->where('order_status', '!=', 4)
                     ->count();
 
                 $tiers = $preorder->tiers ?? [];
@@ -75,7 +74,6 @@ class ProductController extends Controller
                     }
                 }
 
-                // Lấy discount hiện tại
                 if ($currentTier) {
                     $preorderDiscount = $currentTier['discount'] ?? 0;
                 } elseif (!empty($tiers)) {
@@ -94,7 +92,7 @@ class ProductController extends Controller
 
                 $preorderInfo = [
                     'campaign_id' => $preorder->id,
-                    'total_orders' => $totalOrders, // Thay vì current_buyers
+                    'total_orders' => $totalOrders,
                     'tiers' => $tiers,
                     'current_discount' => $preorderDiscount,
                     'next_tier' => $nextTier,
@@ -122,7 +120,6 @@ class ProductController extends Controller
         $salePercent = 0;
         $discountPercent = 0;
 
-        // ============ TÍNH SALE CHO PRE-ORDER ============
         if ($product->is_preorder && $isPreorderActive && $preorderDiscount > 0) {
             $salePrice = round($minPriceAll * (1 - $preorderDiscount / 100));
             $displayPrice = $salePrice;
@@ -132,7 +129,6 @@ class ProductController extends Controller
             $discountPercent = $preorderDiscount;
         }
 
-        // ============ TÍNH SALE CHO RETAIL (CAMPAIGN) ============
         if (!$product->is_preorder && !$hasSale) {
             $variantIds = $product->variants->pluck('id')->toArray();
             $now = now();
@@ -171,14 +167,12 @@ class ProductController extends Controller
             }
         }
 
-        // Nếu không có sale, giá hiển thị là giá thấp nhất
         if (!$hasSale) {
             $displayPrice = $minPriceAll;
             $originalPrice = 0;
             $salePercent = 0;
         }
 
-        // Tính discount cho display (nếu không có sale)
         $discount = null;
         if (!$hasSale && $maxPrice > $minPriceAll) {
             $discount = round((1 - $minPriceAll / $maxPrice) * 100) . '%';
@@ -186,15 +180,23 @@ class ProductController extends Controller
 
         $sizes = $product->variants->pluck('size_name')->unique()->filter()->values();
 
-        $colors = $product->variants->map(function ($variant) {
+        // ============ LẤY MÀU SẮC ĐÚNG ============
+        $colors = [];
+        $colorMap = [];
+        
+        foreach ($product->variants as $variant) {
             if ($variant->color) {
-                return [
-                    'value' => $variant->color->code ?? '#000000',
-                    'label' => $variant->color->name
-                ];
+                $colorId = $variant->color_id;
+                if (!isset($colorMap[$colorId])) {
+                    $colorMap[$colorId] = [
+                        'value' => $colorId,
+                        'code' => $variant->color->code ?? '#000000',
+                        'label' => $variant->color->name
+                    ];
+                }
             }
-            return null;
-        })->filter()->unique('value')->values();
+        }
+        $colors = array_values($colorMap);
 
         $images = $product->image_url ?? [];
         if (!is_array($images)) {
@@ -206,6 +208,9 @@ class ProductController extends Controller
 
         // ============ CHUẨN BỊ DỮ LIỆU VARIANTS ============
         $variantsData = $product->variants->map(function($variant) use ($product, $preorderDiscount, $isPreorderActive) {
+            // Lấy stock trực tiếp từ model
+            $stock = (int) $variant->stock;
+            
             $variantPrice = (int) $variant->price;
             $variantSalePrice = null;
             $variantIsOnSale = false;
@@ -216,9 +221,8 @@ class ProductController extends Controller
                 $variantIsOnSale = true;
             }
 
-            // Retail campaign sale (chỉ khi chưa có pre-order sale)
+            // Retail campaign sale
             if (!$product->is_preorder && !$variantIsOnSale) {
-                // Tính campaign cho variant này
                 $now = now();
                 $campaign = Campaign::where('status', 'active')
                     ->where('type', '!=', 'voucher')
@@ -255,7 +259,7 @@ class ProductController extends Controller
                 'price' => $variantPrice,
                 'sale_price' => $variantIsOnSale ? $variantSalePrice : null,
                 'is_on_sale' => $variantIsOnSale,
-                'stock' => (int) $variant->stock,
+                'stock' => $stock,
             ];
         });
 
@@ -265,18 +269,15 @@ class ProductController extends Controller
             'slug' => $product->slug,
             'name' => $product->name,
 
-            // Giá hiển thị (chuỗi đã format)
             'price' => number_format($displayPrice) . '₫',
             'oldPrice' => $hasSale && $originalPrice ? number_format($originalPrice) . '₫' : ($maxPrice > $minPriceAll ? number_format($maxPrice) . '₫' : null),
             'discount' => $hasSale ? $salePercent . '%' : $discount,
 
-            // Giá dạng số (cho Vue tính toán)
             'displayPrice' => (int) $displayPrice,
             'originalPrice' => (int) $originalPrice,
             'hasSale' => $hasSale,
             'salePercent' => $salePercent,
 
-            // Các trường khác
             'reviewCount' => $product->reviews->count(),
             'thumbnails' => $images,
             'sizes' => $sizes,

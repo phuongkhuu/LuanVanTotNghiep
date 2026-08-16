@@ -291,7 +291,7 @@
 
               <div class="space-y-4 border-t border-gray-200 pt-4 mb-4">
                 <div class="flex justify-between text-sm text-gray-600">
-                  <span>Tạm tính ({{ cartItems.length }} sản phẩm)</span>
+                  <span>Tạm tính </span>
                   <span class="text-gray-800 font-semibold">{{ formatPrice(subtotal) }}</span>
                 </div>
                 <div class="flex justify-between text-sm text-gray-600">

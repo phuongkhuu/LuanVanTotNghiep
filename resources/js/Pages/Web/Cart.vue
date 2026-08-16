@@ -68,6 +68,13 @@
                   <span class="material-symbols-outlined text-[16px]">error</span>
                   {{ stockErrors[item.id] }}
                 </p>
+
+                <!-- Hiển thị thông báo đã tự động điều chỉnh số lượng -->
+                <p v-if="stockWarnings[item.id]" class="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">warning</span>
+                  {{ stockWarnings[item.id] }}
+                </p>
+
                 <button @click="removeItem(idx)" class="text-primary text-sm flex items-center mt-2 hover:text-primary-dark">
                   <span class="material-symbols-outlined text-[18px] mr-1">delete</span> Xóa
                 </button>
@@ -211,13 +218,16 @@ const {
   loading,
   setVoucherFromSession,
   restoreVoucher,
-  clearVoucherStorage
+  clearVoucherStorage,
+  stockErrors,
+  stockWarnings,
+  toastMessage,
+  toastType,
+  showToast,
+  showToastMessage
 } = useCart()
 
 const page = usePage()
-
-// State lưu lỗi tồn kho cho từng sản phẩm
-const stockErrors = ref({})
 
 // Tạo dữ liệu cart để gửi qua URL
 const cartDataForCheckout = computed(() => {
@@ -226,7 +236,7 @@ const cartDataForCheckout = computed(() => {
     data[item.id] = {
       quantity: item.quantity,
       price: item.price,
-      meta: item.meta || null  // <--- THÊM DÒNG NÀY
+      meta: item.meta || null
     }
   })
   return data
@@ -234,14 +244,12 @@ const cartDataForCheckout = computed(() => {
 
 // ============ LẮNG NGHE SỰ KIỆN XÓA VOUCHER TỪ CHECKOUT ============
 const handleVoucherCleared = () => {
-  // Xóa voucher khỏi state
   discountAmount.value = 0
   appliedCoupon.value = null
   couponCode.value = ''
   couponError.value = ''
-  
-  // Xóa localStorage
   clearVoucherStorage()
+  showToastMessage('Đã xóa mã giảm giá', 'success')
 }
 
 watch(cartItems, (newItems, oldItems) => {
@@ -274,35 +282,40 @@ const updateQuantity = async (index, delta) => {
   if (!item) return
   
   const newQuantity = item.quantity + delta
+  
   if (newQuantity < 1) {
     await removeItem(index)
     return
   }
 
-  // ============ KIỂM TRA TỒN KHO TRƯỚC KHI CẬP NHẬT ============
-  // Kiểm tra nếu tăng số lượng (delta > 0)
+  // ============ KIỂM TRA TỒN KHO KHI TĂNG SỐ LƯỢNG ============
   if (delta > 0 && item.stock !== undefined && newQuantity > item.stock) {
-    // Hiển thị thông báo lỗi cho sản phẩm này
+    const errorMsg = `Số lượng vượt quá tồn kho (còn ${item.stock})`
     stockErrors.value = {
       ...stockErrors.value,
-      [item.id]: 'Số lượng vượt quá tồn kho'
+      [item.id]: errorMsg
     }
+    showToastMessage(errorMsg, 'error', 5000)
     
-    // Tự động xóa lỗi sau 3 giây
     setTimeout(() => {
       const newErrors = { ...stockErrors.value }
       delete newErrors[item.id]
       stockErrors.value = newErrors
-    }, 3000)
+    }, 5000)
     
-    return // Giữ nguyên số lượng hiện tại
+    return
   }
 
-  // Xóa lỗi nếu có
+  // Xóa lỗi/warning nếu có
   if (stockErrors.value[item.id]) {
     const newErrors = { ...stockErrors.value }
     delete newErrors[item.id]
     stockErrors.value = newErrors
+  }
+  if (stockWarnings.value[item.id]) {
+    const newWarnings = { ...stockWarnings.value }
+    delete newWarnings[item.id]
+    stockWarnings.value = newWarnings
   }
 
   try {
@@ -310,20 +323,20 @@ const updateQuantity = async (index, delta) => {
   } catch (error) {
     const errorMessage = error.response?.data?.message || 'Cập nhật thất bại'
     
-    // Kiểm tra nếu lỗi từ server liên quan đến tồn kho
     if (errorMessage.includes('tồn kho') || errorMessage.includes('stock')) {
       stockErrors.value = {
         ...stockErrors.value,
-        [item.id]: 'Số lượng vượt quá tồn kho'
+        [item.id]: errorMessage
       }
+      showToastMessage(errorMessage, 'error', 5000)
       
       setTimeout(() => {
         const newErrors = { ...stockErrors.value }
         delete newErrors[item.id]
         stockErrors.value = newErrors
-      }, 3000)
+      }, 5000)
     } else {
-      alert(errorMessage)
+      showToastMessage(errorMessage, 'error', 4000)
     }
   }
 }
@@ -334,22 +347,27 @@ const removeItem = async (index) => {
   
   if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) return
 
-  // Xóa lỗi của sản phẩm nếu có
   if (stockErrors.value[item.id]) {
     const newErrors = { ...stockErrors.value }
     delete newErrors[item.id]
     stockErrors.value = newErrors
   }
+  if (stockWarnings.value[item.id]) {
+    const newWarnings = { ...stockWarnings.value }
+    delete newWarnings[item.id]
+    stockWarnings.value = newWarnings
+  }
 
   try {
     await removeFromCart(item.id)
   } catch (error) {
-    alert('Xóa sản phẩm thất bại')
+    showToastMessage('Xóa sản phẩm thất bại', 'error')
   }
 }
 
 const handleApplyCoupon = async () => {
   if (!couponCode.value.trim()) {
+    showToastMessage('Vui lòng nhập mã giảm giá', 'warning')
     return
   }
   try {
@@ -360,7 +378,6 @@ const handleApplyCoupon = async () => {
 }
 
 const handleRemoveCoupon = async () => {
-  console.log('Voucher removed successfully')
   try {
     await removeCoupon()
   } catch (error) {
@@ -377,7 +394,6 @@ onMounted(() => {
   loadCart()
   loadVoucherFromSession()
   
-  // Lắng nghe sự kiện xóa voucher từ Checkout
   window.addEventListener('voucher:cleared', handleVoucherCleared)
 })
 
