@@ -178,9 +178,11 @@ class ProductController extends Controller
             $discount = round((1 - $minPriceAll / $maxPrice) * 100) . '%';
         }
 
-        $sizes = $product->variants->pluck('size_name')->unique()->filter()->values();
+        // ============ LẤY DANH SÁCH SIZE VÀ MÀU ============
+        // Lấy tất cả size có trong sản phẩm
+        $allSizes = $product->variants->pluck('size_name')->unique()->filter()->values();
 
-        // ============ LẤY MÀU SẮC ĐÚNG ============
+        // Lấy màu sắc
         $colors = [];
         $colorMap = [];
         
@@ -198,6 +200,21 @@ class ProductController extends Controller
         }
         $colors = array_values($colorMap);
 
+        // ============ XÂY DỰNG MAP SIZE THEO MÀU ============
+        $sizeByColor = [];
+        foreach ($product->variants as $variant) {
+            $colorId = $variant->color_id;
+            $sizeName = $variant->size_name;
+            if ($colorId && $sizeName) {
+                if (!isset($sizeByColor[$colorId])) {
+                    $sizeByColor[$colorId] = [];
+                }
+                if (!in_array($sizeName, $sizeByColor[$colorId])) {
+                    $sizeByColor[$colorId][] = $sizeName;
+                }
+            }
+        }
+
         $images = $product->image_url ?? [];
         if (!is_array($images)) {
             $images = [];
@@ -208,20 +225,17 @@ class ProductController extends Controller
 
         // ============ CHUẨN BỊ DỮ LIỆU VARIANTS ============
         $variantsData = $product->variants->map(function($variant) use ($product, $preorderDiscount, $isPreorderActive) {
-            // Lấy stock trực tiếp từ model
             $stock = (int) $variant->stock;
             
             $variantPrice = (int) $variant->price;
             $variantSalePrice = null;
             $variantIsOnSale = false;
 
-            // Pre-order sale
             if ($product->is_preorder && $isPreorderActive && $preorderDiscount > 0) {
                 $variantSalePrice = round($variantPrice * (1 - $preorderDiscount / 100));
                 $variantIsOnSale = true;
             }
 
-            // Retail campaign sale
             if (!$product->is_preorder && !$variantIsOnSale) {
                 $now = now();
                 $campaign = Campaign::where('status', 'active')
@@ -280,8 +294,9 @@ class ProductController extends Controller
 
             'reviewCount' => $product->reviews->count(),
             'thumbnails' => $images,
-            'sizes' => $sizes,
+            'allSizes' => $allSizes, // Tất cả size
             'colors' => $colors,
+            'sizeByColor' => $sizeByColor, // Map size theo màu
             'features' => [
                 ['icon' => 'verified', 'text' => 'Bảo hành 12 tháng'],
                 ['icon' => 'local_shipping', 'text' => 'Miễn phí vận chuyển'],

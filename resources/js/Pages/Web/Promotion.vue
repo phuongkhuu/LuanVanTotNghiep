@@ -293,7 +293,7 @@ const getCampaignLink = (campaign) => {
   // 3. Fallback: link đến trang chi tiết campaign
   if (campaign.id) {
     // Có thể tạo route riêng cho campaign
-    return route('campaign.detail', { id: campaign.id })
+    //return route('campaign.detail', { id: campaign.id })
   }
   
   return null

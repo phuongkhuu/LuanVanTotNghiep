@@ -779,7 +779,7 @@ class PromotionController extends Controller
 
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
-                'type' => 'nullable|string|max:50',
+                // 'type' => 'nullable|string|max:50', // ĐÃ BỎ - MẶC ĐỊNH seasonal
                 'description' => 'nullable|string',
                 'startDate' => 'required|date',
                 'endDate' => 'required|date|after_or_equal:startDate',
@@ -837,7 +837,7 @@ class PromotionController extends Controller
 
             $campaign = Campaign::create([
                 'name' => $validated['name'] ?? 'Chiến dịch ' . now()->format('d/m/Y'),
-                'type' => $validated['type'] ?? 'seasonal',
+                'type' => 'seasonal', // MẶC ĐỊNH LÀ seasonal
                 'campaign_type' => 'campaign',
                 'description' => $validated['description'] ?? '',
                 'start_time' => $validated['startDate'],
@@ -887,7 +887,7 @@ class PromotionController extends Controller
 
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
-                'type' => 'nullable|string|max:50',
+                // 'type' => 'nullable|string|max:50', // ĐÃ BỎ - GIỮ NGUYÊN seasonal
                 'description' => 'nullable|string',
                 'startDate' => 'required|date',
                 'endDate' => 'required|date|after_or_equal:startDate',
@@ -952,7 +952,7 @@ class PromotionController extends Controller
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,
-                'type' => $validated['type'] ?? $campaign->type,
+                // 'type' => $validated['type'] ?? $campaign->type, // KHÔNG CẬP NHẬT TYPE, GIỮ NGUYÊN seasonal
                 'description' => $validated['description'] ?? $campaign->description,
                 'start_time' => $validated['startDate'],
                 'end_time' => $validated['endDate'],
@@ -1107,8 +1107,6 @@ class PromotionController extends Controller
                 ]);
             }
 
-            // KHÔNG KIỂM TRA validateVoucherSalePrices() nữa
-
             $campaign = Campaign::create([
                 'name' => $validated['name'] ?? 'Voucher ' . $validated['code'],
                 'type' => 'voucher',
@@ -1179,8 +1177,6 @@ class PromotionController extends Controller
                     'message' => 'Phần trăm giảm giá phải từ 1% đến 100%'
                 ]);
             }
-
-            // KHÔNG KIỂM TRA validateVoucherSalePrices() nữa
 
             $campaign->update([
                 'name' => $validated['name'] ?? $campaign->name,

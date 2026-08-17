@@ -8,16 +8,22 @@ import Chart from 'chart.js/auto';
 const props = defineProps({
     selectedProduct: [Number, String],
     currentPeriod: String,
+    brands: {
+        type: Array,
+        default: () => []
+    }
 });
 
 const productId = ref(props.selectedProduct || '');
 const period = ref(props.currentPeriod || 'week');
 const periods = ['day', 'week', 'month', 'year'];
 const isLoading = ref(false);
-const searchKeyword = ref('');
-const searchResults = ref([]);
-const showSuggestions = ref(false);
-let searchTimeout = null;
+
+// Filter states
+const selectedBrand = ref('');
+const productsInBrand = ref([]);
+const isLoadingProducts = ref(false);
+const errorMessage = ref('');
 
 // Refs cho canvas
 const revenueChartRef = ref(null);
@@ -67,32 +73,48 @@ const formatProductDisplay = (product) => {
     return product.name + (product.brand ? ` (${product.brand.name})` : '');
 };
 
-const searchProducts = async () => {
-    const keyword = searchKeyword.value.trim();
-    if (keyword.length < 2) {
-        searchResults.value = [];
-        showSuggestions.value = false;
+/**
+ * Lấy danh sách sản phẩm theo thương hiệu
+ */
+const loadProductsByBrand = async () => {
+    if (!selectedBrand.value) {
+        productsInBrand.value = [];
+        errorMessage.value = '';
+        if (productId.value) {
+            productId.value = '';
+        }
         return;
     }
 
+    isLoadingProducts.value = true;
+    errorMessage.value = '';
+    
     try {
-        const response = await axios.get(route('admin.reports.search-products'), {
-            params: { q: keyword }
+        console.log('🔄 Đang tải sản phẩm cho brand_id:', selectedBrand.value);
+        
+        const response = await axios.get('/admin/reports/products-by-brand', {
+            params: { brand_id: selectedBrand.value }
         });
-        searchResults.value = response.data || [];
-        showSuggestions.value = searchResults.value.length > 0;
+        
+        console.log('📦 Dữ liệu trả về:', response.data);
+        
+        productsInBrand.value = response.data || [];
+        
+        if (productsInBrand.value.length === 0) {
+            errorMessage.value = 'Thương hiệu này chưa có sản phẩm nào';
+        } else if (productsInBrand.value.length === 1) {
+            // Tự động chọn sản phẩm nếu chỉ có 1
+            productId.value = productsInBrand.value[0].id;
+        } else {
+            productId.value = '';
+        }
     } catch (error) {
-        console.error('Lỗi tìm kiếm sản phẩm:', error);
-        searchResults.value = [];
-        showSuggestions.value = false;
+        console.error('❌ Lỗi tải sản phẩm theo thương hiệu:', error);
+        errorMessage.value = 'Có lỗi xảy ra khi tải sản phẩm';
+        productsInBrand.value = [];
+    } finally {
+        isLoadingProducts.value = false;
     }
-};
-
-const selectProduct = (product) => {
-    productId.value = product.id;
-    searchKeyword.value = formatProductDisplay(product);
-    showSuggestions.value = false;
-    searchResults.value = [];
 };
 
 const loadData = async () => {
@@ -104,7 +126,7 @@ const loadData = async () => {
     }
     isLoading.value = true;
     try {
-        const response = await axios.get(route('admin.reports.product-trend-data'), {
+        const response = await axios.get('/admin/reports/product-trend-data', {
             params: {
                 product_id: productId.value,
                 period: period.value
@@ -232,38 +254,33 @@ const initCharts = () => {
     }
 };
 
-const closeSuggestions = () => {
-    window.setTimeout(() => {
-        showSuggestions.value = false;
-    }, 200);
-};
-
+// Watch cho productId và period
 watch([productId, period], () => {
     loadData();
 });
 
-watch(searchKeyword, (newVal) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = window.setTimeout(() => {
-        searchProducts();
-    }, 400);
+// Watch cho selectedBrand
+watch(selectedBrand, () => {
+    loadProductsByBrand();
 });
 
 onMounted(async () => {
     await nextTick();
     initCharts();
 
+    // Nếu có productId ban đầu, tìm brand của nó để set selectedBrand
     if (productId.value) {
         try {
-            const response = await axios.get(route('admin.reports.search-products'), {
+            const response = await axios.get('/admin/reports/search-products', {
                 params: { q: productId.value }
             });
             const found = response.data.find(p => p.id == productId.value);
-            if (found) {
-                searchKeyword.value = formatProductDisplay(found);
+            if (found && found.brand_id) {
+                selectedBrand.value = found.brand_id;
+                await loadProductsByBrand();
             }
         } catch (e) {
-            console.warn('Không lấy được tên sản phẩm từ ID:', e);
+            console.warn('Không lấy được thông tin sản phẩm:', e);
         }
         loadData();
     }
@@ -278,7 +295,6 @@ onUnmounted(() => {
         quantityChart.destroy();
         quantityChart = null;
     }
-    if (searchTimeout) clearTimeout(searchTimeout);
 });
 </script>
 
@@ -290,39 +306,52 @@ onUnmounted(() => {
             <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h1 class="text-base font-bold text-gray-800">Xu hướng doanh thu sản phẩm</h1>
                 <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Chọn kỳ -->
                     <select v-model="period" class="px-5 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 pr-8">
                         <option v-for="p in periods" :key="p" :value="p">
                             {{ p === 'day' ? 'Ngày' : p === 'week' ? 'Tuần' : p === 'month' ? 'Tháng' : 'Năm' }}
                         </option>
                     </select>
-                    <div class="relative">
-                        <input
-                            type="text"
-                            v-model="searchKeyword"
-                            placeholder="Nhập tên sản phẩm..."
-                            class="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-56"
-                            @focus="showSuggestions = searchResults.length > 0"
-                            @blur="closeSuggestions"
-                        />
-                        <div v-if="showSuggestions && searchResults.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-56 overflow-y-auto">
-                            <div
-                                v-for="product in searchResults"
-                                :key="product.id"
-                                @mousedown.prevent="selectProduct(product)"
-                                class="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm flex items-center justify-between"
-                            >
-                                <span>{{ product.name }}</span>
-                                <span v-if="product.brand" class="text-xs text-gray-400">{{ product.brand.name }}</span>
-                            </div>
-                            <div v-if="searchResults.length === 0" class="px-3 py-2 text-sm text-gray-400 text-center">
-                                Không tìm thấy
-                            </div>
-                        </div>
+
+                    <!-- Chọn thương hiệu -->
+                    <select 
+                        v-model="selectedBrand" 
+                        class="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[150px]"
+                    >
+                        <option value="">-- Chọn thương hiệu --</option>
+                        <option v-for="brand in brands" :key="brand.id" :value="brand.id">
+                            {{ brand.name }}
+                        </option>
+                    </select>
+
+                    <!-- Chọn sản phẩm -->
+                    <select 
+                        v-model="productId"
+                        class="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[200px]"
+                        :disabled="!selectedBrand || isLoadingProducts"
+                    >
+                        <option value="">-- Chọn sản phẩm --</option>
+                        <option 
+                            v-for="product in productsInBrand" 
+                            :key="product.id" 
+                            :value="product.id"
+                        >
+                            {{ product.name }} {{ product.brand ? `(${product.brand.name})` : '' }}
+                        </option>
+                    </select>
+
+                    <!-- Hiển thị loading khi đang tải sản phẩm -->
+                    <div v-if="isLoadingProducts" class="flex items-center gap-1 text-sm text-gray-500">
+                        <div class="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Đang tải...</span>
                     </div>
 
-                    <div v-if="productId && searchKeyword" class="flex items-center gap-1 text-sm bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
-                        <span class="text-orange-600 font-medium truncate max-w-[150px]">{{ searchKeyword }}</span>
-                        <button @click="productId = ''; searchKeyword = ''" class="text-gray-400 hover:text-red-500">
+                    <!-- Nút xóa chọn -->
+                    <div v-if="productId" class="flex items-center gap-1 text-sm bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
+                        <span class="text-orange-600 font-medium truncate max-w-[150px]">
+                            {{ productsInBrand.find(p => p.id == productId)?.name || 'Đã chọn' }}
+                        </span>
+                        <button @click="productId = ''" class="text-gray-400 hover:text-red-500">
                             <span class="material-symbols-outlined text-base">close</span>
                         </button>
                     </div>
@@ -333,7 +362,13 @@ onUnmounted(() => {
             <div class="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
                 <div v-if="!productId" class="text-center py-6 text-gray-400 text-base">
                     <span class="material-symbols-outlined text-4xl">bar_chart</span>
-                    <p class="mt-2">Nhập và chọn sản phẩm</p>
+                    <p class="mt-2">Chọn thương hiệu và sản phẩm để xem xu hướng</p>
+                    <p v-if="errorMessage" class="text-sm text-orange-500 mt-1">
+                        {{ errorMessage }}
+                    </p>
+                    <p v-else-if="selectedBrand && productsInBrand.length === 0 && !isLoadingProducts" class="text-sm text-orange-500 mt-1">
+                        Thương hiệu này chưa có sản phẩm nào
+                    </p>
                 </div>
 
                 <!-- Biểu đồ doanh thu -->

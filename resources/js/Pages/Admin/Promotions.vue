@@ -462,266 +462,254 @@
 
         <!-- ==================== CAMPAIGN MODAL ==================== -->
         <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeModal">
-            <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">
-                        {{ editingCampaign ? 'Sửa chiến dịch' : 'Thêm chiến dịch mới' }}
-                    </h3>
-                    <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">✕</button>
-                </div>
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">
+                {{ editingCampaign ? 'Sửa chiến dịch' : 'Thêm chiến dịch mới' }}
+            </h3>
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">✕</button>
+        </div>
 
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Tên chiến dịch *</label>
-                        <input 
-                            v-model="campaignForm.name" 
-                            type="text" 
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            placeholder="VD: Sale Tết 2025"
-                        >
-                    </div>
+        <div class="space-y-4">
+            <div>
+                <label class="text-sm block mb-1 text-gray-700 font-medium">Tên chiến dịch *</label>
+                <input 
+                    v-model="campaignForm.name" 
+                    type="text" 
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="VD: Sale Tết 2025"
+                >
+            </div>
 
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Loại chiến dịch</label>
-                        <select 
-                            v-model="campaignForm.type" 
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                        >
-                            <option value="seasonal">Theo mùa</option>
-                            <option value="anniversary">Kỷ niệm</option>
-                            <option value="holiday">Ngày lễ</option>
-                            <option value="product_launch">Ra mắt sản phẩm</option>
-                            <option value="other">Khác</option>
-                        </select>
-                    </div>
+            <!-- ĐÃ BỎ PHẦN CHỌN LOẠI CHIẾN DỊCH -->
 
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
-                        <textarea 
-                            v-model="campaignForm.description" 
-                            rows="3" 
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
-                            placeholder="Mô tả chiến dịch..."
-                        ></textarea>
-                    </div>
+            <div>
+                <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
+                <textarea 
+                    v-model="campaignForm.description" 
+                    rows="3" 
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
+                    placeholder="Mô tả chiến dịch..."
+                ></textarea>
+            </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Ngày bắt đầu *</label>
-                            <input 
-                                v-model="campaignForm.startDate" 
-                                type="date" 
-                                :min="today"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                required
-                            >
-                        </div>
-                        <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Ngày kết thúc *</label>
-                            <input 
-                                v-model="campaignForm.endDate" 
-                                type="date" 
-                                :min="minEndDate"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                required
-                            >
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Trạng thái (Tự động)</label>
-                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                            <span class="px-3 py-1 rounded-full text-xs font-medium" :class="getStatusClass(campaignForm.status)">
-                                {{ getStatusLabel(campaignForm.status) }}
-                            </span>
-                            <span class="text-xs text-gray-500">Dựa trên ngày bắt đầu và kết thúc</span>
-                        </div>
-                        <input type="hidden" v-model="campaignForm.status">
-                    </div>
-
-                    <!-- ===== PHẦN NHẬP % GIẢM GIÁ CÓ HIỂN THỊ LỖI REAL-TIME ===== -->
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Phần trăm giảm giá (%) *</label>
-                        <input 
-                            v-model.number="campaignForm.discountPercent" 
-                            type="number" 
-                            min="1" 
-                            max="100"
-                            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            placeholder="Nhập % giảm giá (1-100%)"
-                            @input="validateCampaignSalePriceOnInput"
-                        >
-                        
-                        <!-- HIỂN THỊ CẢNH BÁO LỖI NGAY LẬP TỨC -->
-                        <div v-if="campaignSalePriceErrors.length > 0" class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p class="text-sm font-medium text-red-700 mb-1">⚠️ KHÔNG THỂ ÁP DỤNG MỨC GIẢM NÀY VÌ:</p>
-                            <ul class="text-xs text-red-600 space-y-0.5 list-disc pl-4 max-h-32 overflow-y-auto">
-                                <li v-for="(error, index) in campaignSalePriceErrors" :key="index">{{ error }}</li>
-                            </ul>
-                            <p class="text-xs text-red-500 mt-1 font-medium">👉 Vui lòng giảm % giảm giá xuống hoặc bỏ chọn sản phẩm vi phạm.</p>
-                        </div>
-                        <div v-else-if="campaignForm.discountPercent > 0 && campaignForm.products.length > 0" class="mt-1 text-xs text-green-600">
-                            ✅ Mức giảm này hợp lệ với tất cả {{ campaignForm.products.length }} sản phẩm đã chọn
-                        </div>
-                        <p class="text-xs text-orange-600 mt-1">⚠️ Mức giảm tối đa không được làm giá sale thấp hơn 120% giá nhập</p>
-                    </div>
-
-                    <!-- Sản phẩm áp dụng -->
-                    <div>
-                        <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng *</label>
-                        <p class="text-xs text-blue-600 mb-2">⚠️ Chỉ chọn sản phẩm RETAIL (không phải Pre-order)</p>
-                        
-                        <div class="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="flex-1 min-w-[120px]">
-                                <select 
-                                    v-model="filterBrand" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                >
-                                    <option value="">Tất cả thương hiệu</option>
-                                    <option v-for="brand in brands" :key="brand.id" :value="brand.id">
-                                        {{ brand.name }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="flex-1 min-w-[120px]">
-                                <select 
-                                    v-model="filterCategory" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                >
-                                    <option value="">Tất cả danh mục</option>
-                                    <option v-for="category in categories" :key="category.id" :value="category.id">
-                                        {{ category.name }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="flex-1 min-w-[150px]">
-                                <input 
-                                    v-model="filterSearchProduct" 
-                                    type="text" 
-                                    placeholder="Tìm sản phẩm..." 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                >
-                            </div>
-                            <div class="flex gap-1">
-                                <button 
-                                    @click="selectAllFilteredProducts" 
-                                    class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs hover:bg-blue-200 transition-colors"
-                                >
-                                    Chọn tất cả
-                                </button>
-                                <button 
-                                    @click="deselectAllFilteredProducts" 
-                                    class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200 transition-colors"
-                                >
-                                    Bỏ chọn
-                                </button>
-                                <button 
-                                    @click="resetProductFilters" 
-                                    class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-300 transition-colors"
-                                >
-                                    Reset
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="text-xs text-gray-500 mb-1">
-                            Hiển thị: <span class="font-semibold">{{ filteredProductVariants.length }}</span> sản phẩm 
-                            <span v-if="filterBrand || filterCategory || filterSearchProduct" class="text-blue-500">
-                                (đã lọc)
-                            </span>
-                            | Đã chọn: <span class="font-semibold text-blue-600">{{ campaignForm.products.length }}</span>
-                            <span v-if="campaignSalePriceErrors.length > 0" class="text-red-500 ml-2">⚠️ Có lỗi ràng buộc giá</span>
-                        </div>
-
-                        <div class="border border-gray-300 rounded-lg p-1.5 max-h-40 overflow-y-auto">
-                            <div v-for="variant in filteredProductVariants" :key="variant.id" 
-                                 class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs group">
-                                <input 
-                                    type="checkbox" 
-                                    :id="'variant-' + variant.id"
-                                    :checked="isProductSelected(variant.id)"
-                                    @change="toggleProduct(variant.id)"
-                                    :disabled="variant.product?.is_preorder || isProductInOtherActiveCampaign(variant.id)"
-                                    class="w-3 h-3 text-blue-600 rounded focus:ring-blue-500"
-                                >
-                                <label :for="'variant-' + variant.id" class="text-xs cursor-pointer flex-1 flex items-center gap-1 truncate" 
-                                       :class="(variant.product?.is_preorder || isProductInOtherActiveCampaign(variant.id)) ? 'opacity-50' : ''">
-                                    <span class="font-medium truncate max-w-[120px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
-                                    <span class="text-gray-400 text-[10px]">({{ variant.color?.name || 'Không màu' }})</span>
-                                    <span v-if="variant.product?.brand_name" class="text-blue-500 text-[10px] bg-blue-50 px-1 rounded">{{ variant.product.brand_name }}</span>
-                                    <span v-if="variant.product?.category_name" class="text-green-500 text-[10px] bg-green-50 px-1 rounded">{{ variant.product.category_name }}</span>
-                                    <span class="text-blue-600 text-[10px] font-medium">{{ formatPrice(variant.price) }}</span>
-                                    <span v-if="variant.import_price > 0" class="text-gray-400 text-[10px]">(Nhập: {{ formatPrice(variant.import_price) }})</span>
-                                    <span v-if="variant.product?.is_preorder" class="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">Pre-order</span>
-                                    <span v-if="isProductInOtherActiveCampaign(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Đang có campaign</span>
-                                    <!-- Hiển thị warning nếu sản phẩm này vi phạm ràng buộc giá -->
-                                    <span v-if="isProductViolatingPrice(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded animate-pulse">⚠️ Vi phạm giá</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div v-if="filteredProductVariants.length === 0" class="border border-gray-300 rounded-lg p-4 text-center text-gray-400 text-sm">
-                            <span class="material-symbols-outlined text-3xl block mb-1">inventory_2</span>
-                            <p class="text-xs">Không tìm thấy sản phẩm nào</p>
-                            <p class="text-[10px] mt-0.5">Vui lòng thay đổi bộ lọc hoặc thêm sản phẩm</p>
-                        </div>
-                        
-                        <div class="text-xs text-gray-500 mt-1">Tổng: <span class="font-semibold">{{ campaignForm.products.length }}</span> sản phẩm được giảm giá</div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-sm block mb-1 text-gray-700 font-medium">Độ ưu tiên</label>
-                            <input 
-                                v-model.number="campaignForm.priority" 
-                                type="number" 
-                                min="0"
-                                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                placeholder="0"
-                            >
-                            <p class="text-xs text-gray-500 mt-1">Số càng nhỏ càng ưu tiên</p>
-                        </div>
-                        <div class="flex items-center pt-6">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    v-model="campaignForm.featured" 
-                                    class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                                >
-                                <span class="text-sm text-gray-700">⭐ Nổi bật</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p class="text-sm text-red-600">{{ errorMessage }}</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-                    <button 
-                        @click="closeModal" 
-                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-                        :disabled="isSubmitting"
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm block mb-1 text-gray-700 font-medium">Ngày bắt đầu *</label>
+                    <input 
+                        v-model="campaignForm.startDate" 
+                        type="date" 
+                        :min="today"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        required
                     >
-                        Hủy
-                    </button>
-                    <button 
-                        @click="saveCampaign" 
-                        class="px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors"
-                        :class="campaignSalePriceErrors.length > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'"
-                        :disabled="isSubmitting || campaignSalePriceErrors.length > 0"
-                    >
-                        <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        <span v-if="campaignSalePriceErrors.length > 0" class="text-sm">🔒 Vui lòng sửa lỗi</span>
-                        <span v-else>{{ isSubmitting ? 'Đang lưu...' : 'Lưu chiến dịch' }}</span>
-                    </button>
                 </div>
-                <div v-if="campaignSalePriceErrors.length > 0" class="text-xs text-red-500 text-center mt-2">
-                    ⚠️ Không thể lưu do vi phạm ràng buộc giá. Vui lòng sửa lỗi trước khi lưu.
+                <div>
+                    <label class="text-sm block mb-1 text-gray-700 font-medium">Ngày kết thúc *</label>
+                    <input 
+                        v-model="campaignForm.endDate" 
+                        type="date" 
+                        :min="minEndDate"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        required
+                    >
                 </div>
             </div>
+
+            <div>
+                <label class="text-sm block mb-1 text-gray-700 font-medium">Trạng thái (Tự động)</label>
+                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <span class="px-3 py-1 rounded-full text-xs font-medium" :class="getStatusClass(campaignForm.status)">
+                        {{ getStatusLabel(campaignForm.status) }}
+                    </span>
+                    <span class="text-xs text-gray-500">Dựa trên ngày bắt đầu và kết thúc</span>
+                </div>
+                <input type="hidden" v-model="campaignForm.status">
+            </div>
+
+            <!-- ===== PHẦN NHẬP % GIẢM GIÁ CÓ HIỂN THỊ LỖI REAL-TIME ===== -->
+            <div>
+                <label class="text-sm block mb-1 text-gray-700 font-medium">Phần trăm giảm giá (%) *</label>
+                <input 
+                    v-model.number="campaignForm.discountPercent" 
+                    type="number" 
+                    min="1" 
+                    max="100"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="Nhập % giảm giá (1-100%)"
+                    @input="validateCampaignSalePriceOnInput"
+                >
+                
+                <!-- HIỂN THỊ CẢNH BÁO LỖI NGAY LẬP TỨC -->
+                <div v-if="campaignSalePriceErrors.length > 0" class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm font-medium text-red-700 mb-1">⚠️ KHÔNG THỂ ÁP DỤNG MỨC GIẢM NÀY VÌ:</p>
+                    <ul class="text-xs text-red-600 space-y-0.5 list-disc pl-4 max-h-32 overflow-y-auto">
+                        <li v-for="(error, index) in campaignSalePriceErrors" :key="index">{{ error }}</li>
+                    </ul>
+                    <p class="text-xs text-red-500 mt-1 font-medium">👉 Vui lòng giảm % giảm giá xuống hoặc bỏ chọn sản phẩm vi phạm.</p>
+                </div>
+                <div v-else-if="campaignForm.discountPercent > 0 && campaignForm.products.length > 0" class="mt-1 text-xs text-green-600">
+                    ✅ Mức giảm này hợp lệ với tất cả {{ campaignForm.products.length }} sản phẩm đã chọn
+                </div>
+                <p class="text-xs text-orange-600 mt-1">⚠️ Mức giảm tối đa không được làm giá sale thấp hơn 120% giá nhập</p>
+            </div>
+
+            <!-- Sản phẩm áp dụng -->
+            <div>
+                <label class="text-sm block mb-1 text-gray-700 font-medium">Sản phẩm áp dụng *</label>
+                <p class="text-xs text-blue-600 mb-2">⚠️ Chỉ chọn sản phẩm RETAIL (không phải Pre-order)</p>
+                
+                <div class="flex flex-wrap gap-2 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex-1 min-w-[120px]">
+                        <select 
+                            v-model="filterBrand" 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        >
+                            <option value="">Tất cả thương hiệu</option>
+                            <option v-for="brand in brands" :key="brand.id" :value="brand.id">
+                                {{ brand.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[120px]">
+                        <select 
+                            v-model="filterCategory" 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        >
+                            <option value="">Tất cả danh mục</option>
+                            <option v-for="category in categories" :key="category.id" :value="category.id">
+                                {{ category.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <input 
+                            v-model="filterSearchProduct" 
+                            type="text" 
+                            placeholder="Tìm sản phẩm..." 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        >
+                    </div>
+                    <div class="flex gap-1">
+                        <button 
+                            @click="selectAllFilteredProducts" 
+                            class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs hover:bg-blue-200 transition-colors"
+                        >
+                            Chọn tất cả
+                        </button>
+                        <button 
+                            @click="deselectAllFilteredProducts" 
+                            class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200 transition-colors"
+                        >
+                            Bỏ chọn
+                        </button>
+                        <button 
+                            @click="resetProductFilters" 
+                            class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-300 transition-colors"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div class="text-xs text-gray-500 mb-1">
+                    Hiển thị: <span class="font-semibold">{{ filteredProductVariants.length }}</span> sản phẩm 
+                    <span v-if="filterBrand || filterCategory || filterSearchProduct" class="text-blue-500">
+                        (đã lọc)
+                    </span>
+                    | Đã chọn: <span class="font-semibold text-blue-600">{{ campaignForm.products.length }}</span>
+                    <span v-if="campaignSalePriceErrors.length > 0" class="text-red-500 ml-2">⚠️ Có lỗi ràng buộc giá</span>
+                </div>
+
+                <div class="border border-gray-300 rounded-lg p-1.5 max-h-40 overflow-y-auto">
+                    <div v-for="variant in filteredProductVariants" :key="variant.id" 
+                         class="flex items-center gap-1.5 py-0.5 hover:bg-gray-50 px-1.5 rounded text-xs group">
+                        <input 
+                            type="checkbox" 
+                            :id="'variant-' + variant.id"
+                            :checked="isProductSelected(variant.id)"
+                            @change="toggleProduct(variant.id)"
+                            :disabled="variant.product?.is_preorder || isProductInOtherActiveCampaign(variant.id)"
+                            class="w-3 h-3 text-blue-600 rounded focus:ring-blue-500"
+                        >
+                        <label :for="'variant-' + variant.id" class="text-xs cursor-pointer flex-1 flex items-center gap-1 truncate" 
+                               :class="(variant.product?.is_preorder || isProductInOtherActiveCampaign(variant.id)) ? 'opacity-50' : ''">
+                            <span class="font-medium truncate max-w-[120px]">{{ variant.product?.name || 'Sản phẩm' }}</span>
+                            <span class="text-gray-400 text-[10px]">({{ variant.color?.name || 'Không màu' }})</span>
+                            <span v-if="variant.product?.brand_name" class="text-blue-500 text-[10px] bg-blue-50 px-1 rounded">{{ variant.product.brand_name }}</span>
+                            <span v-if="variant.product?.category_name" class="text-green-500 text-[10px] bg-green-50 px-1 rounded">{{ variant.product.category_name }}</span>
+                            <span class="text-blue-600 text-[10px] font-medium">{{ formatPrice(variant.price) }}</span>
+                            <span v-if="variant.import_price > 0" class="text-gray-400 text-[10px]">(Nhập: {{ formatPrice(variant.import_price) }})</span>
+                            <span v-if="variant.product?.is_preorder" class="text-[10px] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">Pre-order</span>
+                            <span v-if="isProductInOtherActiveCampaign(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Đang có campaign</span>
+                            <!-- Hiển thị warning nếu sản phẩm này vi phạm ràng buộc giá -->
+                            <span v-if="isProductViolatingPrice(variant.id)" class="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded animate-pulse">⚠️ Vi phạm giá</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div v-if="filteredProductVariants.length === 0" class="border border-gray-300 rounded-lg p-4 text-center text-gray-400 text-sm">
+                    <span class="material-symbols-outlined text-3xl block mb-1">inventory_2</span>
+                    <p class="text-xs">Không tìm thấy sản phẩm nào</p>
+                    <p class="text-[10px] mt-0.5">Vui lòng thay đổi bộ lọc hoặc thêm sản phẩm</p>
+                </div>
+                
+                <div class="text-xs text-gray-500 mt-1">Tổng: <span class="font-semibold">{{ campaignForm.products.length }}</span> sản phẩm được giảm giá</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm block mb-1 text-gray-700 font-medium">Độ ưu tiên</label>
+                    <input 
+                        v-model.number="campaignForm.priority" 
+                        type="number" 
+                        min="0"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        placeholder="0"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">Số càng nhỏ càng ưu tiên</p>
+                </div>
+                <div class="flex items-center pt-6">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            v-model="campaignForm.featured" 
+                            class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                        >
+                        <span class="text-sm text-gray-700">⭐ Nổi bật</span>
+                    </label>
+                </div>
+            </div>
+
+            <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-600">{{ errorMessage }}</p>
+            </div>
         </div>
+
+        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <button 
+                @click="closeModal" 
+                class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                :disabled="isSubmitting"
+            >
+                Hủy
+            </button>
+            <button 
+                @click="saveCampaign" 
+                class="px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors"
+                :class="campaignSalePriceErrors.length > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                :disabled="isSubmitting || campaignSalePriceErrors.length > 0"
+            >
+                <span v-if="isSubmitting" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span v-if="campaignSalePriceErrors.length > 0" class="text-sm">🔒 Vui lòng sửa lỗi</span>
+                <span v-else>{{ isSubmitting ? 'Đang lưu...' : 'Lưu chiến dịch' }}</span>
+            </button>
+        </div>
+        <div v-if="campaignSalePriceErrors.length > 0" class="text-xs text-red-500 text-center mt-2">
+            ⚠️ Không thể lưu do vi phạm ràng buộc giá. Vui lòng sửa lỗi trước khi lưu.
+        </div>
+    </div>
+</div>
 
         <!-- ==================== VOUCHER MODAL (KHÔNG ÁP DỤNG RÀNG BUỘC GIÁ) ==================== -->
         <div v-if="showVoucherModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeVoucherModal">

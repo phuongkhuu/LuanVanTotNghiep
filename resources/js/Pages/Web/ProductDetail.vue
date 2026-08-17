@@ -135,7 +135,7 @@
             
             <p class="text-gray-600 text-sm leading-relaxed">{{ product.description || 'Thiết kế tối giản, chất liệu cao cấp, bền bỉ.' }}</p>
             
-            <!-- ===== HIỂN THỊ TỒN KHO CHÍNH XÁC ===== -->
+            <!-- Hiển thị tồn kho -->
             <p v-if="!product.is_preorder && selectedVariant" class="text-sm text-gray-500">
               Tồn kho: <span class="font-semibold" :class="selectedVariant.stock > 0 ? 'text-green-600' : 'text-red-600'">
                 {{ selectedVariant.stock > 0 ? selectedVariant.stock + ' sản phẩm' : 'Hết hàng' }}
@@ -195,20 +195,28 @@
             </div>
           </div>
 
-          <div v-if="product.sizes && product.sizes.length" class="py-4 border-t border-gray-200">
-            <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">Kích thước (Size):</span>
+          <!-- ===== KÍCH THƯỚC (SIZE) - HIỂN THỊ THEO MÀU ĐÃ CHỌN ===== -->
+          <div v-if="availableSizes.length > 0" class="py-4 border-t border-gray-200">
+            <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">
+              Kích thước (Size):
+            </span>
             <div class="flex gap-3 flex-wrap">
               <button 
-                v-for="size in product.sizes" 
+                v-for="size in availableSizes" 
                 :key="size" 
                 class="px-6 py-2 border-2 rounded-xl text-sm transition-all"
                 :class="selectedSize === size ? 'border-primary text-primary bg-amber-50' : 'border-gray-200 text-gray-600 hover:border-primary'"
                 @click="selectSize(size)"
-              >{{ size }}</button>
+              >
+                {{ size }}
+              </button>
             </div>
+            <p v-if="availableSizes.length === 0 && selectedColor" class="text-sm text-gray-400 mt-2">
+              Màu này hiện không có size nào
+            </p>
           </div>
 
-          <!-- ===== HIỂN THỊ MÀU SẮC ===== -->
+          <!-- ===== MÀU SẮC ===== -->
           <div v-if="product.colors && product.colors.length" class="py-4 border-t border-gray-200">
             <span class="block font-semibold text-gray-800 mb-3 uppercase text-sm">
               Màu sắc: <span class="font-bold text-primary">{{ selectedColorName || 'Chọn màu' }}</span>
@@ -476,6 +484,23 @@ const thumbnails = computed(() => {
   return props.product.thumbnails?.length ? props.product.thumbnails : (props.product.image_url || [])
 })
 
+// ===== LẤY SIZE THEO MÀU ĐÃ CHỌN =====
+const availableSizes = computed(() => {
+  if (!selectedColor.value || !props.product.sizeByColor) {
+    return props.product.allSizes || []
+  }
+  
+  // Lấy size theo màu đã chọn
+  const sizes = props.product.sizeByColor[selectedColor.value] || []
+  
+  // Nếu không có size nào cho màu này, trả về tất cả size
+  if (sizes.length === 0) {
+    return props.product.allSizes || []
+  }
+  
+  return sizes
+})
+
 // ============ VARIANT PRICE ============
 const variantPrice = computed(() => {
   if (selectedVariant.value) {
@@ -529,6 +554,19 @@ const selectSize = (size) => {
 const selectColor = (color, label) => {
   selectedColor.value = color
   selectedColorName.value = label
+  
+  // Khi đổi màu, tự động chọn size đầu tiên của màu đó
+  const sizes = props.product.sizeByColor?.[color] || []
+  if (sizes.length > 0) {
+    // Nếu size hiện tại có trong danh sách size của màu mới, giữ nguyên
+    if (!sizes.includes(selectedSize.value)) {
+      selectedSize.value = sizes[0]
+    }
+  } else {
+    // Nếu màu không có size nào, reset size
+    selectedSize.value = ''
+  }
+  
   findVariant()
 }
 
@@ -907,8 +945,16 @@ onMounted(() => {
     selectedColorName.value = firstColor.label
   }
 
-  if (props.product.sizes && props.product.sizes.length > 0) {
-    selectedSize.value = props.product.sizes[0]
+  // Lấy size đầu tiên theo màu đã chọn
+  if (selectedColor.value && props.product.sizeByColor) {
+    const sizes = props.product.sizeByColor[selectedColor.value] || []
+    if (sizes.length > 0) {
+      selectedSize.value = sizes[0]
+    } else if (props.product.allSizes && props.product.allSizes.length > 0) {
+      selectedSize.value = props.product.allSizes[0]
+    }
+  } else if (props.product.allSizes && props.product.allSizes.length > 0) {
+    selectedSize.value = props.product.allSizes[0]
   }
 
   findVariant()
