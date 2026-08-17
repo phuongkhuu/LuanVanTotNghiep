@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Category;
+use App\Models\Brand;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -53,11 +55,38 @@ class ReportController extends Controller
     {
         $productId = $request->input('product_id');
         $period = $request->input('period', 'week');
+        
+        // Lấy danh sách thương hiệu
+        $brands = Brand::orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Admin/ProductTrend', [
             'selectedProduct' => $productId,
             'currentPeriod' => $period,
+            'brands' => $brands,
         ]);
+    }
+
+    /**
+     * API lấy sản phẩm theo thương hiệu
+     */
+    public function getProductsByBrand(Request $request)
+    {
+        $brandId = $request->input('brand_id');
+        
+        Log::info('getProductsByBrand called with brand_id: ' . $brandId);
+        
+        if (!$brandId) {
+            return response()->json([]);
+        }
+
+        $products = Product::with('brand')
+            ->where('brand_id', $brandId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'brand_id']);
+
+        Log::info('Found ' . $products->count() . ' products for brand ' . $brandId);
+
+        return response()->json($products);
     }
 
     /**

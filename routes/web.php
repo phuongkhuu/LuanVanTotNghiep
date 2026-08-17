@@ -309,6 +309,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::get('/data', [ReportController::class, 'getData'])->name('reports.data');
         Route::get('/export', [ReportController::class, 'export'])->name('reports.export');
         Route::get('/product-trend', [ReportController::class, 'productTrend'])->name('reports.product-trend');
+        Route::get('/products-by-brand', [ReportController::class, 'getProductsByBrand'])->name('reports.products-by-brand');
         Route::get('/product-trend-data', [ReportController::class, 'productTrendData'])->name('reports.product-trend-data');
         Route::get('/search-products', [ReportController::class, 'searchProducts'])->name('reports.search-products');
     });
