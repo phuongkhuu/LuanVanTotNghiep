@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LogoPrintRequest;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\LogoRequestStatusUpdated;
 use App\Mail\QuoteSent;
+use App\Mail\CustomizeApproved;
+use App\Mail\CustomizeRejected;
+use App\Http\Controllers\Payment\PayOSController;
 use Illuminate\Support\Facades\Log;
 
 class CustomizeController extends Controller
@@ -20,12 +24,10 @@ class CustomizeController extends Controller
     {
         $query = LogoPrintRequest::with(['orderDetail.order', 'orderDetail.productVariant.product']);
 
-        // Lọc theo trạng thái
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        // Tìm kiếm theo tên khách hàng hoặc tên sản phẩm
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -40,7 +42,6 @@ class CustomizeController extends Controller
 
         $requests = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        // Format dữ liệu cho frontend
         $formatted = $requests->map(function ($item) {
             $order = $item->orderDetail->order ?? null;
             $product = $item->orderDetail->productVariant->product ?? null;
@@ -58,6 +59,9 @@ class CustomizeController extends Controller
                 'status' => $item->status,
                 'note' => $item->note,
                 'designFile' => $item->logo_image,
+                'order_id' => $order ? $order->id : null,
+                'order_number' => $order ? $order->order_number : null,
+                'total_amount' => $order ? $order->final_amount : 0,
             ];
         });
 
@@ -85,12 +89,53 @@ class CustomizeController extends Controller
 
         $logoRequest = LogoPrintRequest::findOrFail($id);
         $oldStatus = $logoRequest->status;
+        $order = $logoRequest->orderDetail->order ?? null;
+
+        // Cập nhật logo request
         $logoRequest->status = $validated['status'];
         $logoRequest->save();
 
-        // Gửi email thông báo nếu trạng thái thay đổi
-        if ($oldStatus !== $validated['status']) {
-            $order = $logoRequest->orderDetail->order ?? null;
+        // Nếu là approved, tạo link PayOS và gửi email
+        if ($validated['status'] === 'approved' && $order) {
+            // Cập nhật order_status = 1 (chờ thanh toán)
+            $order->order_status = 1;
+            $order->save();
+
+            // Tạo link PayOS
+            $payos = app(PayOSController::class);
+            $response = $payos->getPaymentLink($order->id, $order->final_amount);
+
+            $paymentLink = null;
+            if ($response->getStatusCode() === 200) {
+                $data = $response->getData();
+                if ($data->success) {
+                    $paymentLink = $data->checkout_url;
+                }
+            }
+
+            // Gửi email với link thanh toán
+            if ($order->customer_email) {
+                try {
+                    Mail::to($order->customer_email)->send(new CustomizeApproved($order, $logoRequest, $paymentLink));
+                    Log::info('Email duyệt customize đã gửi với link PayOS', [
+                        'order_id' => $order->id,
+                        'email' => $order->customer_email,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Gửi email duyệt customize thất bại: ' . $e->getMessage());
+                }
+            }
+        } elseif ($validated['status'] === 'rejected' && $order) {
+            // Từ chối: gửi email với lý do
+            if ($order->customer_email) {
+                try {
+                    Mail::to($order->customer_email)->send(new CustomizeRejected($order, $logoRequest, $validated['feedback'] ?? 'Không có lý do cụ thể.'));
+                } catch (\Exception $e) {
+                    Log::error('Gửi email từ chối customize thất bại: ' . $e->getMessage());
+                }
+            }
+        } else {
+            // Các trạng thái khác: gửi email thông báo thông thường
             if ($order && $order->customer_email) {
                 try {
                     Mail::to($order->customer_email)->send(new LogoRequestStatusUpdated($logoRequest, $validated['feedback'] ?? null));
@@ -109,20 +154,46 @@ class CustomizeController extends Controller
     public function approve($id)
     {
         $logoRequest = LogoPrintRequest::findOrFail($id);
+        $order = $logoRequest->orderDetail->order ?? null;
+
+        if (!$order) {
+            return back()->with('error', 'Không tìm thấy đơn hàng.');
+        }
+
+        // Cập nhật logo request
         $logoRequest->status = 'approved';
         $logoRequest->save();
 
-        // Gửi email thông báo
-        $order = $logoRequest->orderDetail->order ?? null;
-        if ($order && $order->customer_email) {
-            try {
-                Mail::to($order->customer_email)->send(new LogoRequestStatusUpdated($logoRequest));
-            } catch (\Exception $e) {
-                Log::error('Gửi email thông báo thất bại: ' . $e->getMessage());
+        // Cập nhật order_status
+        $order->order_status = 1; // Chờ thanh toán
+        $order->save();
+
+        // Tạo link PayOS
+        $payos = app(PayOSController::class);
+        $response = $payos->getPaymentLink($order->id, $order->final_amount);
+
+        $paymentLink = null;
+        if ($response->getStatusCode() === 200) {
+            $data = $response->getData();
+            if ($data->success) {
+                $paymentLink = $data->checkout_url;
             }
         }
 
-        return redirect()->back()->with('success', 'Đã duyệt yêu cầu thành công.');
+        // Gửi email với link thanh toán
+        if ($order->customer_email) {
+            try {
+                Mail::to($order->customer_email)->send(new CustomizeApproved($order, $logoRequest, $paymentLink));
+                Log::info('Email duyệt customize đã gửi với link PayOS', [
+                    'order_id' => $order->id,
+                    'email' => $order->customer_email,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Gửi email duyệt customize thất bại: ' . $e->getMessage());
+            }
+        }
+
+        return back()->with('success', 'Đã duyệt yêu cầu và gửi link thanh toán thành công.');
     }
 
     /**

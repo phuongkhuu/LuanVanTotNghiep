@@ -47,10 +47,13 @@ class PayOSController extends Controller
             'returnUrl'   => env('PAYOS_RETURN_URL'),
         ];
 
+        \Log::info('PayOS createPayment - paymentData', [
+            'order_id' => $order->id,
+            'paymentData' => $paymentData,
+        ]);
+
         try {
             $response = $this->payOS->paymentRequests->create($paymentData);
-
-            // Sửa: $response là object, dùng -> thay vì []
             $orderCode = $response->orderCode;
             $checkoutUrl = $response->checkoutUrl;
 
@@ -65,8 +68,9 @@ class PayOSController extends Controller
 
     /**
      * Tạo link thanh toán PayOS và trả về JSON (dùng cho bank_transfer)
+     * Hỗ trợ amount tùy chỉnh (vd: tiền cọc)
      */
-    public function getPaymentLink($orderId)
+    public function getPaymentLink($orderId, $amount = null)
     {
         $order = Order::with('details')->find($orderId);
 
@@ -79,15 +83,58 @@ class PayOSController extends Controller
         }
 
         $items = $this->buildItems($order);
+        
+        \Log::info('PayOS getPaymentLink - input', [
+            'order_id' => $order->id,
+            'amount_param' => $amount,
+            'final_amount' => $order->final_amount,
+            'deposit_amount' => $order->deposit_amount,
+            'order_code' => $order->order_code,
+        ]);
+
+        if ($amount !== null && $amount > 0) {
+            $paymentAmount = (int) $amount;
+        } else {
+            $paymentAmount = (int) $order->final_amount;
+        }
+
+        if ($paymentAmount <= 0) {
+            \Log::warning('PayOS amount <= 0, fallback to final_amount', [
+                'order_id' => $order->id,
+                'paymentAmount' => $paymentAmount,
+                'final_amount' => $order->final_amount,
+            ]);
+            $paymentAmount = (int) $order->final_amount;
+        }
+
+        if ($paymentAmount > 10000000000) {
+            \Log::warning('⚠️ PayOS amount exceeds 10 billion limit!', [
+                'order_id' => $order->id,
+                'paymentAmount' => $paymentAmount,
+                'deposit_amount' => $order->deposit_amount,
+                'final_amount' => $order->final_amount,
+                'amount_param' => $amount,
+            ]);
+        }
+
+        \Log::info('PayOS getPaymentLink - final amount', [
+            'order_id' => $order->id,
+            'paymentAmount' => $paymentAmount,
+        ]);
 
         $paymentData = [
             'orderCode'   => $order->id,
-            'amount'      => (int) $order->final_amount,
+            'amount'      => $paymentAmount,
             'description' => $order->order_code,
             'items'       => $items,
             'cancelUrl'   => env('PAYOS_CANCEL_URL'),
             'returnUrl'   => env('PAYOS_RETURN_URL'),
         ];
+
+        \Log::info('PayOS getPaymentLink - paymentData', [
+            'order_id' => $order->id,
+            'paymentData' => $paymentData,
+        ]);
 
         try {
             $response = $this->payOS->paymentRequests->create($paymentData);
@@ -103,7 +150,11 @@ class PayOSController extends Controller
                 'order_code'   => $orderCode,
             ]);
         } catch (\Exception $e) {
-            \Log::error('PayOS getPaymentLink error: ' . $e->getMessage());
+            \Log::error('PayOS getPaymentLink error: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'paymentAmount' => $paymentAmount,
+                'paymentData' => $paymentData,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Không thể tạo link thanh toán: ' . $e->getMessage()
@@ -132,7 +183,7 @@ class PayOSController extends Controller
             if ($status === 'PAID' && $orderCode) {
                 $order = Order::find($orderCode);
 
-                if ($order && $order->order_status == 0) {
+                if ($order && $order->order_status == 1) {
                     $payment = Payment::where('order_id', $order->id)->first();
                     if ($payment) {
                         $payment->status = 'success';
@@ -140,8 +191,26 @@ class PayOSController extends Controller
                         $payment->save();
                     }
 
-                    $order->order_status = 2;
+                    // ===== THÊM CUSTOMIZE VÀO ĐÂY =====
+                    if ($order->order_code === 'wholesale' || $order->order_code === 'customize') {
+                        $order->order_status = 2; // Đang sản xuất
+                        $order->payment_status = 'deposit_paid';
+                    } else {
+                        $order->order_status = 2; // Đang giao
+                        $order->payment_status = 'paid';
+                    }
                     $order->save();
+
+                    \Log::info('PayOS webhook: Order updated', [
+                        'order_id' => $order->id,
+                        'order_code' => $order->order_code,
+                        'new_status' => $order->order_status,
+                    ]);
+                } else {
+                    \Log::info('PayOS webhook: Order not in confirmed status', [
+                        'order_id' => $orderCode,
+                        'current_status' => $order->order_status ?? 'null',
+                    ]);
                 }
             }
 

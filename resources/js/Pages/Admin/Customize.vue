@@ -28,7 +28,10 @@ const statusFilter = ref(props.filters.status || 'all');
 const currentPage = ref(1);
 const perPage = ref(5);
 
-// Filter options
+// Tất cả các trạng thái (dùng để tạo option)
+const allStatuses = ['pending', 'approved', 'rejected', 'processing', 'completed'];
+
+// Filter options (hiển thị trên tab filter)
 const filters = [
     { val: 'all', label: 'Tất cả' },
     { val: 'pending', label: 'Chờ duyệt' },
@@ -44,6 +47,20 @@ const showQuoteModal = ref(false);
 const selectedRequest = ref(null);
 const isUpdating = ref(false);
 const feedback = ref('');
+
+// ===== REJECT REASON MODAL =====
+const showRejectModal = ref(false);
+const rejectRequest = ref(null);
+const rejectReason = ref('');
+
+// ===== LUỒNG TRẠNG THÁI CHO PHÉP =====
+const allowedTransitions = {
+    pending: ['approved', 'rejected'],
+    approved: ['processing'],
+    processing: ['completed'],
+    rejected: [],
+    completed: []
+};
 
 // Quote form
 const quoteForm = ref({
@@ -144,35 +161,123 @@ const getStatusLabel = (status) => {
     return labels[status] || status;
 };
 
-// Update status
+// ===== KIỂM TRA TRẠNG THÁI CHUYỂN ĐỔI HỢP LỆ =====
+const isTransitionAllowed = (currentStatus, newStatus) => {
+    if (currentStatus === newStatus) return true;
+    const allowed = allowedTransitions[currentStatus] || [];
+    return allowed.includes(newStatus);
+};
+
+// ===== CẬP NHẬT TRẠNG THÁI =====
 const updateStatus = async (request) => {
-    if (!confirm(`Bạn có chắc muốn thay đổi trạng thái thành "${getStatusLabel(request.status)}"?`)) {
+    const oldStatus = request._oldStatus || request.status;
+    const newStatus = request.status;
+
+    // Nếu không thay đổi
+    if (oldStatus === newStatus) return;
+
+    // Kiểm tra luồng (vẫn giữ để an toàn)
+    if (!isTransitionAllowed(oldStatus, newStatus)) {
+        // Reset về cũ
+        request.status = oldStatus;
         return;
     }
-    
+
+    // Nếu chọn "Từ chối" -> hiện modal
+    if (newStatus === 'rejected') {
+        rejectRequest.value = request;
+        rejectReason.value = '';
+        showRejectModal.value = true;
+        request.status = oldStatus; // reset lại
+        return;
+    }
+
+    // Xác nhận các trạng thái khác
+    if (!confirm(`Bạn có chắc muốn thay đổi trạng thái thành "${getStatusLabel(newStatus)}"?`)) {
+        request.status = oldStatus;
+        return;
+    }
+
     isUpdating.value = true;
     try {
         await router.put(`/admin/customize/${request.id}/status`, {
-            status: request.status,
+            status: newStatus,
             feedback: feedback.value
         }, {
             preserveScroll: true,
             onSuccess: () => {
                 alert('Cập nhật trạng thái thành công!');
                 feedback.value = '';
+                request._oldStatus = newStatus;
                 fetchRequests();
             },
             onError: (errors) => {
                 console.error('Lỗi cập nhật:', errors);
                 alert('Có lỗi xảy ra khi cập nhật trạng thái');
+                request.status = oldStatus;
                 fetchRequests();
             }
         });
     } catch (error) {
         console.error('Cập nhật thất bại:', error);
         alert('Có lỗi xảy ra khi cập nhật trạng thái');
+        request.status = oldStatus;
     } finally {
         isUpdating.value = false;
+    }
+};
+
+// ===== XÁC NHẬN TỪ CHỐI VỚI LÝ DO =====
+const confirmReject = async () => {
+    if (!rejectRequest.value) return;
+    
+    if (!rejectReason.value.trim()) {
+        alert('Vui lòng nhập lý do từ chối');
+        return;
+    }
+    
+    const request = rejectRequest.value;
+    const oldStatus = request._oldStatus || request.status;
+    const newStatus = 'rejected';
+    
+    isUpdating.value = true;
+    try {
+        await router.put(`/admin/customize/${request.id}/status`, {
+            status: newStatus,
+            feedback: rejectReason.value.trim()
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                alert('Đã từ chối yêu cầu thành công!');
+                showRejectModal.value = false;
+                rejectReason.value = '';
+                request._oldStatus = newStatus;
+                rejectRequest.value = null;
+                fetchRequests();
+            },
+            onError: (errors) => {
+                console.error('Lỗi từ chối:', errors);
+                alert('Có lỗi xảy ra khi từ chối yêu cầu');
+                request.status = oldStatus;
+                fetchRequests();
+            }
+        });
+    } catch (error) {
+        console.error('Từ chối thất bại:', error);
+        alert('Có lỗi xảy ra khi từ chối yêu cầu');
+        request.status = oldStatus;
+    } finally {
+        isUpdating.value = false;
+    }
+};
+
+// ===== HỦY TỪ CHỐI =====
+const cancelReject = () => {
+    showRejectModal.value = false;
+    rejectReason.value = '';
+    if (rejectRequest.value) {
+        rejectRequest.value.status = rejectRequest.value._oldStatus || rejectRequest.value.status;
+        rejectRequest.value = null;
     }
 };
 
@@ -183,16 +288,26 @@ const viewDetail = (request) => {
     showDetailModal.value = true;
 };
 
-// Approve request
+// Approve request (chỉ gọi từ modal, đã kiểm tra luồng trong confirm)
 const approveRequest = async () => {
     if (!selectedRequest.value) return;
     
+    const request = selectedRequest.value;
+    const oldStatus = request.status;
+    const newStatus = 'approved';
+    
+    if (!isTransitionAllowed(oldStatus, newStatus)) {
+        alert(`Không thể duyệt từ trạng thái "${getStatusLabel(oldStatus)}".`);
+        return;
+    }
+    
     isUpdating.value = true;
     try {
-        await router.put(`/admin/customize/${selectedRequest.value.id}/approve`, {}, {
+        await router.put(`/admin/customize/${request.id}/approve`, {}, {
             preserveScroll: true,
             onSuccess: () => {
-                selectedRequest.value.status = 'approved';
+                request.status = newStatus;
+                request._oldStatus = newStatus;
                 showDetailModal.value = false;
                 alert('Đã duyệt yêu cầu thành công!');
                 fetchRequests();
@@ -287,9 +402,6 @@ const formatPrice = (value) => {
 };
 
 // ====== HÀM HỖ TRỢ PREVIEW ẢNH ======
-/**
- * Kiểm tra tên file có phải định dạng ảnh hay không
- */
 const isImageFile = (fileName) => {
     if (!fileName) return false;
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff'];
@@ -297,14 +409,21 @@ const isImageFile = (fileName) => {
     return imageExtensions.includes(ext);
 };
 
-/**
- * Tạo đường dẫn tuyệt đối để xem trước file
- */
 const getDesignFileUrl = (fileName) => {
     if (!fileName) return '';
     return '/storage/' + fileName;
 };
-// ====== KẾT THÚC HÀM HỖ TRỢ ======
+
+// ====== GÁN _oldStatus KHI NHẬN DỮ LIỆU ======
+watch(requests, (newVal) => {
+    if (Array.isArray(newVal)) {
+        newVal.forEach(req => {
+            if (!req._oldStatus) {
+                req._oldStatus = req.status;
+            }
+        });
+    }
+}, { immediate: true, deep: true });
 
 // Initial fetch
 if (requests.value.length === 0) {
@@ -320,12 +439,6 @@ if (requests.value.length === 0) {
             <!-- Header -->
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Yêu cầu tùy chỉnh</h1>
-                <button 
-                    @click="openQuoteModal()" 
-                    class="bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-green-800 transition-colors"
-                >
-                    Tạo báo giá
-                </button>
             </div>
 
             <!-- Filter Buttons -->
@@ -397,6 +510,7 @@ if (requests.value.length === 0) {
                                 </td>
                                 <td class="py-3 px-4 text-gray-600 whitespace-nowrap">{{ request.date }}</td>
                                 <td class="py-3 px-4">
+                                    <!-- ===== DROPDOWN VỚI OPTION DISABLED ===== -->
                                     <select 
                                         v-model="request.status" 
                                         @change="updateStatus(request)"
@@ -404,11 +518,14 @@ if (requests.value.length === 0) {
                                         :class="getStatusClass(request.status)"
                                         :disabled="isUpdating"
                                     >
-                                        <option value="pending">Chờ duyệt</option>
-                                        <option value="approved">Đã duyệt</option>
-                                        <option value="rejected">Từ chối</option>
-                                        <option value="processing">Đang SX</option>
-                                        <option value="completed">Hoàn thành</option>
+                                        <option 
+                                            v-for="status in allStatuses" 
+                                            :key="status"
+                                            :value="status"
+                                            :disabled="!isTransitionAllowed(request._oldStatus || request.status, status)"
+                                        >
+                                            {{ getStatusLabel(status) }}
+                                        </option>
                                     </select>
                                 </td>
                                 <td class="py-3 px-4 text-center whitespace-nowrap">
@@ -717,6 +834,59 @@ if (requests.value.length === 0) {
                         :disabled="isUpdating"
                     >
                         {{ isUpdating ? 'Đang gửi...' : 'Gửi báo giá' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MODAL NHẬP LÝ DO TỪ CHỐI ===== -->
+        <div 
+            v-if="showRejectModal" 
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" 
+            @click.self="cancelReject"
+        >
+            <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">Từ chối yêu cầu</h3>
+                    <button 
+                        @click="cancelReject" 
+                        class="text-gray-400 hover:text-gray-600 transition-colors text-xl"
+                    >
+                        ✕
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm block mb-1 text-gray-700 font-medium">Lý do từ chối <span class="text-red-500">*</span></label>
+                        <textarea 
+                            v-model="rejectReason" 
+                            rows="4" 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                            placeholder="Nhập lý do từ chối yêu cầu này..."
+                        ></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Lý do sẽ được gửi đến email của khách hàng.</p>
+                    </div>
+                    
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                        <span class="material-symbols-outlined align-middle text-red-500">warning</span>
+                        Hành động này sẽ gửi email thông báo từ chối đến khách hàng.
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button 
+                        @click="cancelReject" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                        Hủy
+                    </button>
+                    <button 
+                        @click="confirmReject" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        :disabled="!rejectReason.trim() || isUpdating"
+                    >
+                        {{ isUpdating ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
                     </button>
                 </div>
             </div>

@@ -85,7 +85,8 @@ class OrderController extends Controller
                 'items.*.quantity'=> 'required|integer|min:1',
                 'items.*.price'   => 'required|numeric|min:0',
                 'total_amount'    => 'required|numeric|min:0',
-                'order_type'      => 'required|in:retail,preorder,wholesale',
+                // ===== THÊM 'customize' VÀO DANH SÁCH CHO PHÉP =====
+                'order_type'      => 'required|in:retail,preorder,wholesale,customize',
                 'promo_code'      => 'nullable|string',
                 'discount_amount' => 'nullable|numeric|min:0',
                 'deposit_amount'  => 'nullable|numeric|min:0',
@@ -102,6 +103,7 @@ class OrderController extends Controller
             $finalAmount = $totalAmount;
 
             $campaignId = null;
+            // Chỉ tìm campaign nếu là preorder
             if ($orderType === 'preorder') {
                 foreach ($validated['items'] as $item) {
                     $variant = ProductVariant::with('product')->find($item['id']);
@@ -178,6 +180,7 @@ class OrderController extends Controller
                     $productIds[] = $variant->product->id;
                 }
 
+                // ===== BỎ QUA KIỂM TRA TỒN KHO VÀ GIẢM STOCK CHO CUSTOMIZE =====
                 if ($orderType === 'retail') {
                     if ($variant->stock < $quantity) {
                         throw new \Exception("Sản phẩm không đủ hàng. Còn {$variant->stock}, yêu cầu {$quantity}");
@@ -185,8 +188,10 @@ class OrderController extends Controller
                     $variant->stock -= $quantity;
                     $variant->save();
                 }
+                // Các loại khác (wholesale, customize) không giảm stock
             }
 
+            // ===== BỎ QUA XỬ LÝ PREORDER CHO CUSTOMIZE =====
             if ($orderType === 'preorder') {
                 $productIds = array_unique($productIds);
                 foreach ($productIds as $productId) {
@@ -245,6 +250,7 @@ class OrderController extends Controller
             'retail'    => 'L',
             'wholesale' => 'S',
             'preorder'  => 'P',
+            'customize' => 'C', // Thêm prefix cho customize
             default     => 'DH',
         };
         $date = now()->format('dmY');
@@ -260,6 +266,9 @@ class OrderController extends Controller
         return $code;
     }
 
+    /**
+     * Danh sách đơn hàng theo loại (hiển thị Admin)
+     */
     public function index($type = 'retail')
     {
         $validTypes = ['retail', 'wholesale', 'preorder'];
@@ -328,7 +337,8 @@ class OrderController extends Controller
                     'products'        => $products,
                 ];
             });
-         $counts = [
+
+        $counts = [
             'retail'    => Order::where('order_code', 'retail')->count(),
             'wholesale' => Order::where('order_code', 'wholesale')->count(),
             'preorder'  => Order::where('order_code', 'preorder')->count(),
@@ -397,7 +407,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Cập nhật trạng thái đơn hàng theo quy trình luồng và tự động thêm ghi chú yêu cầu hoàn tiền
+     * Cập nhật trạng thái đơn hàng
      */
     public function updateStatus($id, Request $request)
     {
@@ -414,17 +424,15 @@ class OrderController extends Controller
             $currentStatusValue = (int) $order->order_status;
             $orderCode = $order->order_code ?? 'retail';
 
-            // Định nghĩa luồng chuyển đổi trạng thái được phép dựa trên loại đơn hàng (Số nguyên)
+            // Định nghĩa luồng chuyển đổi trạng thái được phép
             if ($orderCode === 'retail') {
-                // 0 -> [1, 4], 1 -> 2, 2 -> 3, 3 -> 4
                 $allowedTransitions = [
                     0 => [1, 4],
                     1 => [2],
                     2 => [3],
                     3 => [4],
                 ];
-            } else { // wholesale hoặc preorder
-                // 0 -> [1, 5], 1 -> 2, 2 -> 3, 3 -> 4, 4 -> 5
+            } else {
                 $allowedTransitions = [
                     0 => [1, 5],
                     1 => [2],
@@ -434,34 +442,26 @@ class OrderController extends Controller
                 ];
             }
 
-            // Kiểm tra xem trạng thái hiện tại có được phép chuyển sang mới không
             if (!isset($allowedTransitions[$currentStatusValue]) || 
                 !in_array($newStatusValue, $allowedTransitions[$currentStatusValue])) {
                 return back()->with('error', 'Không thể chuyển từ trạng thái hiện tại sang trạng thái mới theo quy trình');
             }
 
-            // Xác định trường hợp cần thêm ghi chú yêu cầu hoàn tiền
             $shouldRefund = false;
             if ($orderCode === 'retail' && $currentStatusValue === 3 && $newStatusValue === 4) {
-                $shouldRefund = true; // Retail hủy từ Completed (3) -> Cancelled (4)
+                $shouldRefund = true;
             } elseif ($orderCode !== 'retail' && $currentStatusValue === 4 && $newStatusValue === 5) {
-                $shouldRefund = true; // Wholesale/Preorder hủy từ Completed (4) -> Cancelled (5)
+                $shouldRefund = true;
             }
 
-            // Tiến hành cập nhật
             $order->order_status = $newStatusValue;
 
-            // Nếu yêu cầu hoàn tiền, tự động thêm ghi chú vào trường note
             if ($shouldRefund) {
                 $refundNote = "[Hệ thống] Yêu cầu hoàn tiền do hủy đơn từ trạng thái hoàn thành.";
-                
-                // Nếu có lý do từ admin gửi lên Frontend, gộp vào ghi chú
                 $adminNote = $request->input('note');
                 if (!empty($adminNote)) {
                     $refundNote .= " (Lý do: " . $adminNote . ")";
                 }
-
-                // Append vào ghi chú đơn hàng hiện tại
                 $order->note = trim(($order->note ?? '') . "\n" . $refundNote);
             }
 
@@ -483,7 +483,6 @@ class OrderController extends Controller
                 return 'DH' . now()->format('dmY') . '00001';
             }
         }
-
         return $order->order_number ?? $this->fallbackOrderCode($order);
     }
 
@@ -493,20 +492,16 @@ class OrderController extends Controller
             'retail'    => 'L',
             'wholesale' => 'S',
             'preorder'  => 'P',
+            'customize' => 'C',
             default     => 'DH',
         };
         return $prefix . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * ==========================================
-     * CHỨC NĂNG IN ĐƠN HÀNG
-     * ==========================================
-     */
+    // ========== CHỨC NĂNG IN ĐƠN HÀNG ==========
     public function printOrderHtml($id)
     {
         try {
-            // Xóa tất cả output buffer
             if (ob_get_length()) {
                 ob_clean();
             }
@@ -520,7 +515,6 @@ class OrderController extends Controller
 
             $html = $this->generatePrintHtml($order);
 
-            // Trả về response với content-type là text/html
             return response()->json([
                 'success' => true,
                 'html' => $html
@@ -540,11 +534,9 @@ class OrderController extends Controller
 
     private function generatePrintHtml($order)
     {
-        // Bắt đầu output buffer
         ob_start();
         
         $displayCode = $this->generateOrderDisplayCode($order);
-        
         $email = $order->customer_email;
         if (empty($email) || $email === 'N/A') {
             $email = $order->user?->email ?? 'N/A';
@@ -598,7 +590,6 @@ class OrderController extends Controller
             };
         }
 
-        // Tạo HTML hoàn chỉnh, KHÔNG có khoảng trắng trước DOCTYPE
         $html = '<!DOCTYPE html>
 <html>
 <head>
@@ -702,15 +693,11 @@ td{padding:8px 12px;border:1px solid #ddd}
 </body>
 </html>';
 
-        // Xóa output buffer và trả về HTML
         ob_end_clean();
-        
         return $html;
     }
 
-
-    /* -------------------- EXPORT -------------------- */
-
+    // ========== EXPORT ==========
     public function export(Request $request)
     {
         try {

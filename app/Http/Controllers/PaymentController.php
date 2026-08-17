@@ -177,7 +177,7 @@ class PaymentController extends Controller
 
         $products = [];
         $subtotal = 0;
-        $orderType = 'retail';
+        $orderType = $request->query('order_type', 'retail'); // Lấy từ query, mặc định retail
         $isPreOrder = false;
 
         // Xử lý sản phẩm thường (retail)
@@ -279,8 +279,6 @@ class PaymentController extends Controller
 
                 $products[] = $productData;
             }
-            $orderType = 'retail';
-            $isPreOrder = false;
         }
 
         // Xử lý pre-order (nếu giỏ hàng rỗng và có session pre-order)
@@ -393,6 +391,7 @@ class PaymentController extends Controller
             'discount'        => $discount,
             'final_total'     => $finalTotal,
             'order_type'      => $orderType,
+            'is_customize'    => $orderType === 'customize', // Thêm flag customize
             'is_pre_order'    => $isPreOrder,
             'voucher_code'    => $voucherCode,
             'voucher_discount'=> $voucherDiscount,
@@ -421,7 +420,7 @@ class PaymentController extends Controller
             'items.*.price'   => 'required|numeric|min:0',
             'items.*.meta'    => 'nullable|array',
             'total_amount'    => 'required|numeric|min:0',
-            'order_type'      => 'required|in:retail,preorder,wholesale',
+            'order_type'      => 'required|in:retail,preorder,wholesale,customize', // Thêm customize
             'promo_code'      => 'nullable|string',
             'discount_amount' => 'nullable|numeric|min:0',
         ]);
@@ -483,7 +482,7 @@ class PaymentController extends Controller
 
             if ($responseData->success) {
                 // Xóa session giỏ hàng / pre-order / voucher
-                if ($orderType === 'retail') {
+                if ($orderType === 'retail' || $orderType === 'customize') {
                     $request->session()->forget('cart');
                 } else {
                     $request->session()->forget(['pre_order_checkout', 'pre_order_variant_id', 'pre_order_quantity']);
@@ -528,26 +527,45 @@ class PaymentController extends Controller
                 Log::info('=== BẮT ĐẦU GỬI EMAIL SAU KHI TẠO ĐƠN HÀNG ===');
                 Log::info('Email sẽ gửi đến: ' . $validated['customer_email']);
                 
-                // Gửi email xác nhận đơn hàng thông thường (có kèm logo nếu có)
-                $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email'], $logoRequests);
-                
-                // ===== NẾU CÓ YÊU CẦU IN LOGO, GỬI EMAIL TÙY CHỈNH =====
-                if ($logoRequests->isNotEmpty()) {
+                // Nếu là customize, chỉ gửi email tùy chỉnh (không gửi OrderConfirmationMail thông thường)
+                if ($orderType === 'customize') {
                     // Lấy order với relationships đầy đủ
                     $orderWithRelations = Order::with([
                         'details.productVariant.product',
                         'details.productVariant.color'
                     ])->find($orderData->id);
                     
-                    if ($orderWithRelations) {
-                        // Gửi email cho khách hàng
+                    if ($orderWithRelations && $logoRequests->isNotEmpty()) {
+                        // Gửi email cho khách hàng (CustomOrderConfirmation)
                         Mail::to($validated['customer_email'])->send(new CustomOrderConfirmation($orderWithRelations, $logoRequests));
                         
-                        // Gửi email cho admin (có thể thay email admin bằng config)
-                        $adminEmail = config('mail.admin_email', 'admin@bigbag.vn');
+                        // Gửi email cho admin
+                        $adminEmail = config('mail.admin_email', 'thanhphuongkhuu@gmail.com');
                         Mail::to($adminEmail)->send(new NewCustomOrderAdmin($orderWithRelations, $logoRequests));
                         
                         Log::info('Custom order emails sent for order ID: ' . $orderData->id);
+                    } else {
+                        Log::warning('Custom order: no logo requests found, but sending confirmation anyway.');
+                        // Vẫn gửi email cơ bản nếu không có logo
+                        $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email'], $logoRequests);
+                    }
+                } else {
+                    // Đơn hàng thông thường: gửi email xác nhận
+                    $this->sendOrderConfirmationEmail($responseData->order, $validated['customer_email'], $logoRequests);
+                    
+                    // Nếu có yêu cầu in logo, gửi thêm email tùy chỉnh
+                    if ($logoRequests->isNotEmpty()) {
+                        $orderWithRelations = Order::with([
+                            'details.productVariant.product',
+                            'details.productVariant.color'
+                        ])->find($orderData->id);
+                        
+                        if ($orderWithRelations) {
+                            Mail::to($validated['customer_email'])->send(new CustomOrderConfirmation($orderWithRelations, $logoRequests));
+                            $adminEmail = config('mail.admin_email', 'thanhphuongkhuu@gmail.com');
+                            Mail::to($adminEmail)->send(new NewCustomOrderAdmin($orderWithRelations, $logoRequests));
+                            Log::info('Custom order emails sent for order ID: ' . $orderData->id);
+                        }
                     }
                 }
                 
@@ -555,9 +573,15 @@ class PaymentController extends Controller
 
                 // Xác định redirect URL
                 $orderId = $responseData->order->id;
-                $redirectUrl = $validated['payment_method'] === 'payos'
-                    ? route('payment.create', ['order_id' => $orderId])
-                    : route('checkout.success');
+                
+                // Nếu là customize, luôn redirect thẳng đến success (không qua PayOS)
+                if ($orderType === 'customize') {
+                    $redirectUrl = route('checkout.success');
+                } else {
+                    $redirectUrl = $validated['payment_method'] === 'payos'
+                        ? route('payment.create', ['order_id' => $orderId])
+                        : route('checkout.success');
+                }
 
                 $isApiRequest = $request->expectsJson() && !$request->header('X-Inertia');
 
@@ -693,6 +717,7 @@ class PaymentController extends Controller
             'retail'    => 'L',
             'wholesale' => 'S',
             'preorder'  => 'P',
+            'customize' => 'C', // Thêm prefix cho đơn customize
             default     => 'DH'
         };
 

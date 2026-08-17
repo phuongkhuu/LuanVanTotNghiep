@@ -8,12 +8,23 @@
         <h1 class="font-headline-lg text-2xl md:text-3xl border-l-4 pl-4 border-primary text-gray-900">Thanh toán</h1>
         <p class="text-gray-500 text-sm mt-2 ml-5">Vui lòng kiểm tra lại thông tin đặt hàng và nhận hàng.</p>
         <div class="mt-2 ml-5">
-          <span v-if="is_pre_order" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full font-bold">
+          <!-- Nếu là customize, hiển thị badge khác -->
+          <span v-if="is_customize" class="inline-block px-3 py-1 bg-purple-500 text-white text-xs rounded-full font-bold">
+            Yêu cầu tùy chỉnh
+          </span>
+          <span v-else-if="is_pre_order" class="inline-block px-3 py-1 bg-orange-500 text-white text-xs rounded-full font-bold">
             Đơn hàng Pre-order
           </span>
           <span v-else class="inline-block px-3 py-1 bg-primary text-white text-xs rounded-full font-bold">
             Đơn hàng bán lẻ
           </span>
+        </div>
+        <!-- Hiển thị thông báo customize -->
+        <div v-if="is_customize" class="mt-3 ml-5 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+          <p class="text-sm text-purple-700 flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-500">info</span>
+            Đây là yêu cầu tùy chỉnh sản phẩm. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
+          </p>
         </div>
       </div>
 
@@ -165,50 +176,68 @@
               <h2 class="font-semibold text-lg uppercase tracking-wider text-gray-800">Phương thức thanh toán</h2>
             </div>
             <div class="space-y-4">
-              <label 
-                class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
-                :class="paymentMethod === 'cod' 
-                  ? 'border-2 border-primary bg-amber-50 shadow-sm' 
-                  : 'border border-gray-200 bg-white hover:border-primary/50 hover:bg-amber-50/30'"
-              >
-                <div class="flex items-center gap-4 w-full">
-                  <input 
-                    v-model="paymentMethod" 
-                    value="cod" 
-                    type="radio" 
-                    class="w-5 h-5 text-primary border-gray-300 focus:ring-0 accent-primary"
-                  >
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-2xl" :class="paymentMethod === 'cod' ? 'text-primary' : 'text-gray-500'">local_atm</span>
-                    <div>
-                      <span class="font-semibold text-gray-800 block">Thanh toán khi nhận hàng (COD)</span>
-                      <span class="text-xs text-gray-500">Trả tiền mặt khi nhận hàng</span>
-                    </div>
-                  </div>
-                </div>
-              </label>
-              <label 
-                class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
-                :class="paymentMethod === 'bank_transfer' 
-                  ? 'border-2 border-primary bg-amber-50 shadow-sm' 
-                  : 'border border-gray-200 bg-white hover:border-primary/50 hover:bg-amber-50/30'"
-              >
-                <div class="flex items-center gap-4 w-full">
-                  <input 
-                    v-model="paymentMethod" 
-                    value="bank_transfer" 
-                    type="radio" 
-                    class="w-5 h-5 text-primary border-gray-300 focus:ring-0 accent-primary"
-                  >
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-2xl" :class="paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-500'">account_balance</span>
+              <!-- Nếu là customize, chỉ hiển thị bank_transfer (không có COD) -->
+              <template v-if="is_customize">
+                <div class="p-4 rounded-lg border-2 border-primary bg-amber-50 shadow-sm">
+                  <div class="flex items-center gap-4">
+                    <span class="material-symbols-outlined text-2xl text-primary">account_balance</span>
                     <div>
                       <span class="font-semibold text-gray-800 block">Chuyển khoản ngân hàng</span>
                       <span class="text-xs text-gray-500">Thanh toán qua chuyển khoản</span>
                     </div>
                   </div>
                 </div>
-              </label>
+                <!-- Ẩn radio, tự động chọn bank_transfer -->
+                <input type="hidden" v-model="paymentMethod" value="bank_transfer">
+              </template>
+
+              <!-- Nếu không phải customize, hiển thị cả COD và bank_transfer -->
+              <template v-else>
+                <label 
+                  class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
+                  :class="paymentMethod === 'cod' 
+                    ? 'border-2 border-primary bg-amber-50 shadow-sm' 
+                    : 'border border-gray-200 bg-white hover:border-primary/50 hover:bg-amber-50/30'"
+                >
+                  <div class="flex items-center gap-4 w-full">
+                    <input 
+                      v-model="paymentMethod" 
+                      value="cod" 
+                      type="radio" 
+                      class="w-5 h-5 text-primary border-gray-300 focus:ring-0 accent-primary"
+                    >
+                    <div class="flex items-center gap-3">
+                      <span class="material-symbols-outlined text-2xl" :class="paymentMethod === 'cod' ? 'text-primary' : 'text-gray-500'">local_atm</span>
+                      <div>
+                        <span class="font-semibold text-gray-800 block">Thanh toán khi nhận hàng (COD)</span>
+                        <span class="text-xs text-gray-500">Trả tiền mặt khi nhận hàng</span>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+                <label 
+                  class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
+                  :class="paymentMethod === 'bank_transfer' 
+                    ? 'border-2 border-primary bg-amber-50 shadow-sm' 
+                    : 'border border-gray-200 bg-white hover:border-primary/50 hover:bg-amber-50/30'"
+                >
+                  <div class="flex items-center gap-4 w-full">
+                    <input 
+                      v-model="paymentMethod" 
+                      value="bank_transfer" 
+                      type="radio" 
+                      class="w-5 h-5 text-primary border-gray-300 focus:ring-0 accent-primary"
+                    >
+                    <div class="flex items-center gap-3">
+                      <span class="material-symbols-outlined text-2xl" :class="paymentMethod === 'bank_transfer' ? 'text-primary' : 'text-gray-500'">account_balance</span>
+                      <div>
+                        <span class="font-semibold text-gray-800 block">Chuyển khoản ngân hàng</span>
+                        <span class="text-xs text-gray-500">Thanh toán qua chuyển khoản</span>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </template>
             </div>
           </div>
         </section>
@@ -219,7 +248,7 @@
             <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               <h2 class="font-semibold text-xl mb-6 border-b border-gray-200 pb-4 text-gray-800">Đơn hàng của bạn</h2>
               
-              <div v-if="is_pre_order" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div v-if="is_pre_order && !is_customize" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <p class="text-sm text-orange-700 font-semibold flex items-center gap-2">
                   <span class="material-symbols-outlined text-orange-500">info</span>
                   Đây là đơn hàng Pre-order. Thời gian giao hàng dự kiến: 7-14 ngày
@@ -262,8 +291,8 @@
                 </div>
               </div>
 
-              <!-- Mã khuyến mãi -->
-              <div class="mb-4 border-t border-gray-200 pt-4">
+              <!-- Mã khuyến mãi - Ẩn khi customize -->
+              <div v-if="!is_customize" class="mb-4 border-t border-gray-200 pt-4">
                 <div class="flex items-center gap-2 mb-2">
                   <span class="material-symbols-outlined text-primary text-sm">local_offer</span>
                   <span class="text-sm font-medium text-gray-700">Mã khuyến mãi</span>
@@ -298,7 +327,7 @@
                   <span>Phí vận chuyển</span>
                   <span class="text-green-600 font-semibold">Miễn phí</span>
                 </div>
-                <div v-if="discountAmount > 0" class="flex justify-between text-sm text-green-600">
+                <div v-if="discountAmount > 0 && !is_customize" class="flex justify-between text-sm text-green-600">
                   <span>Giảm giá ({{ promoCode }})</span>
                   <span class="font-semibold">-{{ formatPrice(discountAmount) }}</span>
                 </div>
@@ -310,7 +339,9 @@
               </div>
 
               <button @click="placeOrder" :disabled="loading" class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
-                <span v-if="!loading">{{ is_pre_order ? 'Đặt trước ngay' : 'Đặt hàng ngay' }}</span>
+                <span v-if="!loading">
+                  {{ is_customize ? 'Gửi yêu cầu tùy chỉnh' : (is_pre_order ? 'Đặt trước ngay' : 'Đặt hàng ngay') }}
+                </span>
                 <span v-else>Đang xử lý...</span>
               </button>
               <p class="text-center text-xs text-gray-500 mt-4">
@@ -355,6 +386,7 @@ const props = defineProps({
   final_total: { type: Number, default: 0 },
   order_type: { type: String, default: 'retail' },
   is_pre_order: { type: Boolean, default: false },
+  is_customize: { type: Boolean, default: false }, // <-- Thêm prop
   voucher_code: { type: String, default: null },
   voucher_discount: { type: Number, default: 0 }
 })
@@ -388,7 +420,7 @@ const receiverInfo = ref({
 })
 
 const sameAsCustomer = ref(false)
-const paymentMethod = ref('cod')
+const paymentMethod = ref(props.is_customize ? 'bank_transfer' : 'cod') // Mặc định bank_transfer nếu customize
 
 // ============ VOUCHER STATE ============
 const promoCode = ref(props.voucher_code || '')
@@ -528,9 +560,9 @@ const placeOrder = () => {
       meta: item.meta || null
     })),
     total_amount: finalTotal.value,
-    order_type: props.order_type || 'retail',
-    promo_code: promoApplied.value ? promoCode.value : null,
-    discount_amount: discountAmount.value,
+    order_type: props.is_customize ? 'customize' : (props.order_type || 'retail'),
+    promo_code: (promoApplied.value && !props.is_customize) ? promoCode.value : null,
+    discount_amount: (props.is_customize ? 0 : discountAmount.value),
   }
 
   loading.value = true
@@ -549,7 +581,7 @@ const placeOrder = () => {
 }
 
 const checkVoucherOnLoad = async () => {
-    if (props.voucher_code) {
+    if (props.voucher_code && !props.is_customize) {
         try {
             const response = await axios.post('/checkout/apply-voucher', {
                 code: props.voucher_code,
@@ -585,7 +617,7 @@ onMounted(() => {
     if (phone) customerInfo.value.phone = phone
     
     // 2. Xử lý voucher nếu có
-    if (props.voucher_code && props.voucher_discount > 0) {
+    if (props.voucher_code && props.voucher_discount > 0 && !props.is_customize) {
         discountAmount.value = props.voucher_discount;
         promoApplied.value = true;
         promoMessage.value = `Đã áp dụng mã: ${props.voucher_code} (giảm ${formatPrice(props.voucher_discount)})`;

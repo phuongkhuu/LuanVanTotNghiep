@@ -252,20 +252,25 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Head, Link, usePage, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppHeader from '@/Components/AppHeader.vue'
 import AppFooter from '@/Components/AppFooter.vue'
 import Chatbot from '@/Components/Chatbot.vue'
 
+// ===== Lấy thông tin từ page (giống Checkout.vue) =====
 const page = usePage()
+
 const props = defineProps({
   selectedProduct: {
     type: Object,
     default: null
   }
 })
+
+// Lấy thông tin user từ page.props (giống Checkout.vue)
+const loggedInUser = computed(() => page.props.user || null)
 
 const product = computed(() => {
   return props.selectedProduct || page.props.selectedProduct || null
@@ -439,7 +444,8 @@ const submitRequest = async () => {
       cart: JSON.stringify(cartData),
       name: form.value.fullName,
       email: form.value.email,
-      phone: form.value.phone
+      phone: form.value.phone,
+      order_type: 'customize'
     })
 
     // Chuyển thẳng đến checkout
@@ -454,6 +460,16 @@ const submitRequest = async () => {
     isSubmitting.value = false
   }
 }
+
+// ===== KHỞI TẠO: ĐIỀN THÔNG TIN USER =====
+onMounted(() => {
+  const user = loggedInUser.value
+  if (user) {
+    form.value.fullName = user.name || ''
+    form.value.email = user.email || ''
+    form.value.phone = user.phone || ''
+  }
+})
 </script>
 
 <style scoped>

@@ -176,32 +176,6 @@
         </div>
       </section>
 
-      <!-- DANH MỤC ĐANG SALE Section - Giữ nguyên giao diện -->
-      <section class="max-w-[1440px] mx-auto px-4 md:px-8 mb-12 relative group">
-        <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-primary mb-6 uppercase">DANH MỤC ĐANG SALE</h2>
-        <div class="relative overflow-hidden">
-          <div class="flex space-x-6 no-scrollbar scroll-smooth snap-x snap-mandatory py-4 animate-carousel" style="width: max-content;">
-            <div v-for="(cat, idx) in saleCategories" :key="idx" class="min-w-[calc(50%-12px)] h-[400px] relative rounded-lg overflow-hidden snap-start flex-shrink-0 group/item">
-              <img :src="cat.image" class="w-full h-full object-cover transition-transform duration-700 group-hover/item:scale-105" :alt="cat.title">
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              <div class="absolute inset-0 p-6 flex flex-col justify-end text-white">
-                <span class="absolute top-6 left-6 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold">{{ cat.badge }}</span>
-                <h3 class="font-headline-lg text-xl md:text-2xl font-bold mb-2">{{ cat.title }}</h3>
-                <p class="text-sm mb-4 opacity-90">{{ cat.desc }}</p>
-                <Link :href="route('category', { slug: cat.slug })" class="bg-primary text-white font-bold py-2 px-6 w-fit rounded-full hover:bg-primary-dark transition-transform hover:scale-105 text-sm">
-                  Xem ngay
-                </Link>
-              </div>
-            </div>
-          </div>
-          <button class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/50 transition-colors z-20 hidden md:block">
-            <span class="material-symbols-outlined">chevron_left</span>
-          </button>
-          <button class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/50 transition-colors z-20 hidden md:block">
-            <span class="material-symbols-outlined">chevron_right</span>
-          </button>
-        </div>
-      </section>
     </main>
 
     <Chatbot />
@@ -293,7 +267,7 @@ const getCampaignLink = (campaign) => {
   // 3. Fallback: link đến trang chi tiết campaign
   if (campaign.id) {
     // Có thể tạo route riêng cho campaign
-    return route('campaign.detail', { id: campaign.id })
+    //return route('campaign.detail', { id: campaign.id })
   }
   
   return null

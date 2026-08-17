@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use App\Mail\QuoteRequestSubmitted;
 use App\Mail\NewQuoteRequestAdmin;
 
@@ -540,6 +541,10 @@ class WholesaleController extends Controller
         }
         $orderNote .= "-------------------------";
 
+        // ===== TÍNH TIỀN CỌC 50% =====
+        $depositAmount = round($finalAmount * 0.5);
+        $remainingAmount = $finalAmount - $depositAmount;
+
         try {
             DB::beginTransaction();
 
@@ -577,15 +582,22 @@ class WholesaleController extends Controller
                 'discount_id'      => $discount ? $discount->id : null,
                 'discount_amount'  => $discountAmount,
                 'final_amount'     => $finalAmount,
-                'deposit_amount'   => 0,
-                'remaining_amount' => $finalAmount,
+                // ===== SỬA: GÁN DEPOSIT VÀ REMAINING =====
+                'deposit_amount'   => $depositAmount,
+                'remaining_amount' => $remainingAmount,
                 'payment_status'   => 'pending',
                 'order_status'     => 0,
                 'shipping_fee'     => 0,
             ]);
 
+            // Tạo mã đơn hàng (order_number)
             $order->order_number = 'S' . now()->format('dmY') . str_pad($order->id, 5, '0', STR_PAD_LEFT);
-            $order->save();
+
+            // ============ THÊM TOKEN XÁC NHẬN ============
+            $order->confirmation_token = Str::random(64);
+            $order->token_expires_at = now()->addDays(7);
+            $order->is_confirmed = false;
+            $order->save(); // Lưu lần cuối với token
 
             OrderDetail::create([
                 'order_id'           => $order->id,
@@ -638,8 +650,8 @@ class WholesaleController extends Controller
             // Gửi cho khách hàng
             Mail::to($quoteRequest->email)->send(new QuoteRequestSubmitted($quoteRequest, $order));
             
-            // Gửi cho admin (lấy từ config, mặc định admin@bigbag.vn)
-            $adminEmail = config('mail.admin_email', 'admin@bigbag.vn');
+            // Gửi cho admin
+            $adminEmail = config('mail.admin_email', 'thanhphuongkhuu@gmail.com');
             Mail::to($adminEmail)->send(new NewQuoteRequestAdmin($quoteRequest, $order));
         } catch (\Exception $e) {
             Log::error('Không thể gửi email yêu cầu báo giá: ' . $e->getMessage());

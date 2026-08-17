@@ -9,17 +9,33 @@
         <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
           <span class="material-symbols-outlined text-green-600 text-4xl">check_circle</span>
         </div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Đặt hàng thành công!</h1>
-        <p class="text-gray-500 text-lg">Cảm ơn bạn đã mua hàng tại BigBag</p>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+          {{ isCustomize ? 'Yêu cầu tùy chỉnh đã được gửi!' : 'Đặt hàng thành công!' }}
+        </h1>
+        <p class="text-gray-500 text-lg">
+          {{ isCustomize ? 'Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.' : 'Cảm ơn bạn đã mua hàng tại BigBag' }}
+        </p>
 
         <!-- Order Code -->
         <div class="mt-4 inline-block bg-gray-50 px-6 py-3 rounded-xl border border-gray-200">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Mã đơn hàng</p>
           <p class="text-2xl font-bold text-primary">{{ orderDisplayCode }}</p>
         </div>
+
+        <!-- Customize message -->
+        <div v-if="isCustomize" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-left">
+          <p class="text-sm text-purple-700 flex items-start gap-2">
+            <span class="material-symbols-outlined text-purple-500">info</span>
+            <span>
+              <strong>Yêu cầu tùy chỉnh của bạn đã được ghi nhận.</strong><br>
+              Nhân viên của chúng tôi sẽ liên hệ với bạn qua email hoặc số điện thoại đã cung cấp để xác nhận thông tin thiết kế và báo giá chi tiết.
+            </span>
+          </p>
+        </div>
       </div>
 
       <!-- ====== THANH TOÁN PAYOS (không QR) ====== -->
+      <!-- Ẩn nếu là customize -->
       <div 
         v-if="shouldShowPaymentButton"
         class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8"
@@ -114,6 +130,12 @@
               >
                 Pre-order
               </span>
+              <span 
+                v-if="isCustomize"
+                class="inline-block px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full"
+              >
+                Tùy chỉnh
+              </span>
             </div>
           </div>
         </div>
@@ -189,6 +211,14 @@
                             {{ item.color && item.size ? ' | ' : '' }}
                             {{ item.size ? `Size: ${item.size}` : '' }}
                           </p>
+                          <!-- Hiển thị thông tin logo nếu có -->
+                          <div v-if="item.meta && item.meta.logo" class="text-xs text-gray-500 mt-1">
+                            <span class="material-symbols-outlined text-[14px] align-middle">print</span>
+                            In logo: {{ item.meta.logo.position }} - {{ item.meta.logo.size }}
+                            <span v-if="item.meta.logo.note" class="block text-gray-400 italic text-[10px]">
+                              "{{ item.meta.logo.note }}"
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -267,6 +297,7 @@
           Tiếp tục mua sắm
         </a>
         <a 
+          v-if="!isCustomize"
           :href="route('orders.history')" 
           class="inline-flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-8 py-3 rounded-xl hover:bg-gray-50 transition-all font-semibold"
         >
@@ -318,6 +349,11 @@ const props = defineProps({
 // ============ CART ============
 const { clearCart } = useCart()
 
+// ============ CHECK CUSTOMIZE ============
+const isCustomize = computed(() => {
+  return props.order?.order_code === 'customize'
+})
+
 // ============ PAYMENT STATE ============
 const paymentUrl = ref(null)
 const loading = ref(false)
@@ -329,9 +365,9 @@ const redirectTimer = ref(null)
 // ============ COMPUTED ============
 const shouldShowPaymentButton = computed(() => {
   if (!props.order) return false
+  if (isCustomize.value) return false // Ẩn với customize
   const method = props.order.payment_method
   const status = props.order.payment_status
-  // Chỉ hiển thị khi phương thức là bank_transfer hoặc payos và chưa thanh toán
   return (method === 'bank_transfer' || method === 'payos') && status === 'pending'
 })
 
@@ -360,16 +396,21 @@ const customerEmail = computed(() => {
   return 'N/A'
 })
 
-// Chi tiết sản phẩm
+// Chi tiết sản phẩm (bao gồm meta để hiển thị logo)
 const orderDetails = computed(() => {
   if (props.order?.details) {
-    return props.order.details.map(detail => ({
-      ...detail,
-      name: detail.productVariant?.product?.name || detail.name || 'Sản phẩm không xác định',
-      image: detail.image || detail.productVariant?.product?.image_url?.[0] || '/images/default-product.jpg',
-      color: detail.color || detail.productVariant?.color?.name || '',
-      size: detail.size || detail.productVariant?.size_name || '',
-    }))
+    return props.order.details.map(detail => {
+      // Lấy meta từ order nếu có (có thể được lưu trong detail)
+      const meta = detail.meta || null
+      return {
+        ...detail,
+        name: detail.productVariant?.product?.name || detail.name || 'Sản phẩm không xác định',
+        image: detail.image || detail.productVariant?.product?.image_url?.[0] || '/images/default-product.jpg',
+        color: detail.color || detail.productVariant?.color?.name || '',
+        size: detail.size || detail.productVariant?.size_name || '',
+        meta: meta // Thêm meta để hiển thị thông tin logo nếu có
+      }
+    })
   }
   return []
 })

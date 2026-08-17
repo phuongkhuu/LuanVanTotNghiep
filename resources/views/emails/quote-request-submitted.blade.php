@@ -10,6 +10,9 @@
         .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
         .highlight { color: #f97316; font-weight: bold; }
         .info-box { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f97316; }
+        .confirm-box { background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e; }
+        .btn-confirm { display: inline-block; background: #f97316; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; }
+        .btn-cancel { display: inline-block; background: #e11d48; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; }
         .footer { text-align: center; font-size: 12px; color: #999; margin-top: 20px; }
     </style>
 </head>
@@ -22,7 +25,7 @@
         <p>Cảm ơn bạn đã gửi yêu cầu báo giá tại BigBag. Chúng tôi đã nhận được yêu cầu của bạn và sẽ phản hồi trong thời gian sớm nhất.</p>
 
         <div class="info-box">
-            <h3 style="margin-top: 0;">📋 Thông tin yêu cầu</h3>
+            <h3 style="margin-top: 0;">Thông tin yêu cầu</h3>
             <p><strong>Mã yêu cầu:</strong> #{{ $quoteRequest->id }}</p>
             @php
                 $firstDetail = $order->details->first();
@@ -38,6 +41,25 @@
                 <p><strong>Thành tiền:</strong> {{ number_format($order->final_amount, 0, ',', '.') }}₫</p>
             @endif
         </div>
+
+        <!-- ============ PHẦN XÁC NHẬN ĐƠN HÀNG ============ -->
+        @if(!empty($order->confirmation_token) && !$order->is_confirmed)
+            <div class="confirm-box">
+                <p style="font-weight: bold; margin-bottom: 10px;">Xác nhận đơn hàng</p>
+                <p>Vui lòng nhấn vào một trong các nút bên dưới để xác nhận hoặc hủy đơn hàng:</p>
+                <p style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px;">
+                    <a href="{{ route('order.confirm', ['token' => $order->confirmation_token]) }}" 
+                       class="btn-confirm">
+                        Xác nhận đơn hàng
+                    </a>
+                    <a href="{{ route('order.cancel', ['token' => $order->confirmation_token]) }}" 
+                       class="btn-cancel">
+                        Hủy đơn hàng
+                    </a>
+                </p>
+                <p style="font-size: 13px; color: #555; margin-top: 12px;">Link có hiệu lực trong 7 ngày. Nếu bạn không thực hiện, đơn hàng sẽ tự động hết hạn.</p>
+            </div>
+        @endif
 
         <p>Chúng tôi sẽ liên hệ lại với bạn qua email hoặc số điện thoại <strong>{{ $quoteRequest->phone }}</strong>.</p>
         <p>Trân trọng,<br>Đội ngũ BigBag</p>

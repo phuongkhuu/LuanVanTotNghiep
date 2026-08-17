@@ -28,6 +28,14 @@ class LogoPrintRequestController extends Controller
                 ->find($productId);
         }
 
+        // Lấy thông tin người dùng hiện tại (nếu đã đăng nhập)
+        $user = auth()->user();
+        $userData = $user ? [
+            'name'  => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone ?? '',
+        ] : null;
+
         return Inertia::render('Web/Customize', [
             'selectedProduct' => $product ? [
                 'id' => $product->id,
@@ -53,6 +61,7 @@ class LogoPrintRequestController extends Controller
                     ];
                 })->toArray(),
             ] : null,
+            'user' => $userData, // Truyền thông tin user vào props
         ]);
     }
 

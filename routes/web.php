@@ -30,6 +30,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\WholesaleController;
 use App\Http\Controllers\QuoteRequestController;
 use App\Http\Controllers\LogoPrintRequestController;
+use App\Http\Controllers\OrderConfirmationController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -337,5 +338,8 @@ Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 Route::post('/reviews', [ReviewController::class, 'store'])->middleware('auth');
 
 Route::post('/chat', [ChatbotMessageController::class, 'chat'])->name('chat');
+
+Route::get('/confirm-order/{token}', [OrderConfirmationController::class, 'confirm'])->name('order.confirm');
+Route::get('/cancel-order/{token}', [OrderConfirmationController::class, 'cancel'])->name('order.cancel');
 
 require __DIR__.'/auth.php';

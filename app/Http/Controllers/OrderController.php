@@ -90,7 +90,8 @@ class OrderController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
-            'order_type' => 'nullable|in:retail,wholesale,preorder',
+            // ===== THÊM 'customize' VÀO DANH SÁCH CHO PHÉP =====
+            'order_type' => 'nullable|in:retail,wholesale,preorder,customize',
         ]);
 
         $user = Auth::user();
@@ -105,17 +106,22 @@ class OrderController extends Controller
 
             // 1. Kiểm tra tồn kho và lấy campaign_id cho preorder
             $productIds = [];
-            $campaignIdForOrder = null; // Sẽ lưu campaign_id của sản phẩm preorder
+            $campaignIdForOrder = null;
 
             foreach ($validated['items'] as $item) {
                 $variant = ProductVariant::with('product')->find($item['id']);
                 if (!$variant) {
                     throw new \Exception('Sản phẩm không tồn tại');
                 }
-                if ($variant->stock < $item['quantity'] && $orderType !== 'preorder') {
-                    $productName = $variant->product->name ?? 'Sản phẩm';
-                    throw new \Exception("Sản phẩm {$productName} không đủ hàng. Còn {$variant->stock} sản phẩm");
+
+                // ===== BỎ QUA KIỂM TRA TỒN KHO CHO CUSTOMIZE =====
+                if ($orderType !== 'preorder' && $orderType !== 'customize') {
+                    if ($variant->stock < $item['quantity']) {
+                        $productName = $variant->product->name ?? 'Sản phẩm';
+                        throw new \Exception("Sản phẩm {$productName} không đủ hàng. Còn {$variant->stock} sản phẩm");
+                    }
                 }
+
                 if ($variant->product) {
                     $productIds[] = $variant->product->id;
                 }
@@ -133,11 +139,9 @@ class OrderController extends Controller
                         ->first();
 
                     if ($preorder) {
-                        // Lưu campaign_id (nếu có nhiều sản phẩm, ta lưu sản phẩm đầu tiên hoặc có thể xử lý riêng)
                         if (!$campaignIdForOrder) {
                             $campaignIdForOrder = $preorder->id;
                         }
-                        // Log để debug
                         Log::info('Found preorder campaign for product', [
                             'product_id' => $productId,
                             'campaign_id' => $preorder->id,
@@ -153,7 +157,7 @@ class OrderController extends Controller
             $order = Order::create([
                 'user_id' => $user ? $user->id : null,
                 'discount_id' => null,
-                'campaign_id' => $campaignIdForOrder, // Gán campaign_id tìm được
+                'campaign_id' => $campaignIdForOrder,
                 'order_code' => $orderType,
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
@@ -187,16 +191,16 @@ class OrderController extends Controller
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                // Chỉ cập nhật stock cho retail
-                if ($orderType !== 'preorder') {
+                // ===== CẬP NHẬT STOCK CHO RETAIL, BỎ QUA CHO CUSTOMIZE =====
+                if ($orderType === 'retail') {
                     $variant->decrement('stock', $item['quantity']);
                 }
+                // Các loại khác (preorder, wholesale, customize) không giảm stock
             }
 
             // ============ CẬP NHẬT SỐ LƯỢT MUA PRE-ORDER ============
             if ($orderType === 'preorder') {
                 $productIds = array_unique($productIds);
-                $productCampaignIds = []; // để log
 
                 foreach ($productIds as $productId) {
                     $preorder = Campaign::where('type', 'preorder')
@@ -306,10 +310,11 @@ class OrderController extends Controller
         }
 
         $prefix = match($order->order_code) {
-            'retail' => 'L',
+            'retail'    => 'L',
             'wholesale' => 'S',
-            'preorder' => 'P',
-            default => 'DH'
+            'preorder'  => 'P',
+            'customize' => 'C', // Thêm prefix cho customize
+            default     => 'DH'
         };
 
         $date = now()->format('dmY');

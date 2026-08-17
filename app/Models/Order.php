@@ -18,6 +18,7 @@ class Order extends Model
         'order_code',          
         'customer_name',
         'customer_phone',
+        'customer_email', // Thêm nếu có
         'receiver_name',
         'receiver_phone',
         'shipping_address',
@@ -27,20 +28,31 @@ class Order extends Model
         'discount_amount',
         'promo_code', 
         'final_amount',
-        'order_status',        
+        'deposit_amount',
+        'remaining_amount',
+        'payment_status',
+        'order_status',    
+        'confirmation_token',
+        'token_expires_at',
+        'is_confirmed',
+        'order_number', // Thêm nếu chưa có
     ];
 
     protected $casts = [
-        'shipping_fee'   => 'integer',
-        'total_amount'   => 'integer',
-        'discount_amount'=> 'integer',
-        'final_amount'   => 'integer',
-        'order_status'   => 'integer',
-        'created_at'     => 'datetime',
-        'updated_at'     => 'datetime',
+        'shipping_fee'      => 'integer',
+        'total_amount'      => 'integer',
+        'discount_amount'   => 'integer',
+        'final_amount'      => 'integer',
+        'deposit_amount'    => 'integer',
+        'remaining_amount'  => 'integer',
+        'order_status'      => 'integer',
+        'is_confirmed'      => 'boolean',
+        'token_expires_at'  => 'datetime',
+        'created_at'        => 'datetime',
+        'updated_at'        => 'datetime',
     ];
 
-
+    // ========== RELATIONSHIPS ==========
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -56,22 +68,17 @@ class Order extends Model
         return $this->belongsTo(Campaign::class);
     }
 
-    /**
-     * Chi tiết đơn hàng (sản phẩm)
-     */
     public function details()
     {
         return $this->hasMany(OrderDetail::class);
     }
 
-    /**
-     * Thanh toán (nếu bảng payments có khóa ngoại order_id)
-     */
     public function payment()
     {
         return $this->hasOne(Payment::class);
     }
 
+    // ========== STATUS HELPERS ==========
     public function getStatusTextAttribute()
     {
         return $this->getStatusText();
@@ -81,7 +88,6 @@ class Order extends Model
     {
         return $this->getStatusLabel();
     }
-
 
     /**
      * Lấy mã trạng thái (dạng text) dựa trên order_code và order_status
@@ -114,6 +120,14 @@ class Order extends Model
                 3 => 'shipping',
                 4 => 'completed',
                 5 => 'cancelled',
+            ],
+            // ===== THÊM CUSTOMIZE =====
+            'customize' => [
+                0 => 'pending',
+                1 => 'approved',
+                2 => 'rejected',
+                3 => 'production',
+                4 => 'completed',
             ],
         ];
 
@@ -152,6 +166,14 @@ class Order extends Model
                 4 => 'Hoàn thành',
                 5 => 'Đã hủy',
             ],
+            // ===== THÊM CUSTOMIZE (theo hình) =====
+            'customize' => [
+                0 => 'Chờ duyệt',
+                1 => 'Đã duyệt',
+                2 => 'Từ chối',
+                3 => 'Đang SX',
+                4 => 'Hoàn thành',
+            ],
         ];
 
         return $maps[$orderCode][$status] ?? 'Chờ xử lý';
@@ -188,11 +210,44 @@ class Order extends Model
                 'completed'  => 4,
                 'cancelled'  => 5,
             ],
+            // ===== THÊM CUSTOMIZE =====
+            'customize' => [
+                'pending'    => 0,
+                'approved'   => 1,
+                'rejected'   => 2,
+                'production' => 3,
+                'completed'  => 4,
+            ],
         ];
 
         return $maps[$orderCode] ?? [];
     }
 
+    // ========== TOKEN HELPERS ==========
+    public function hasValidToken(): bool
+    {
+        if (empty($this->confirmation_token)) return false;
+        if ($this->is_confirmed) return false;
+        if ($this->token_expires_at && $this->token_expires_at->isPast()) return false;
+        return true;
+    }
+
+    public function invalidateToken(): self
+    {
+        $this->confirmation_token = null;
+        $this->token_expires_at = null;
+        return $this;
+    }
+
+    public function generateToken(int $expireDays = 7): self
+    {
+        $this->confirmation_token = \Illuminate\Support\Str::random(64);
+        $this->token_expires_at = now()->addDays($expireDays);
+        $this->is_confirmed = false;
+        return $this;
+    }
+
+    // ========== BOOT ==========
     protected static function booted()
     {
         static::creating(function ($order) {
@@ -201,6 +256,7 @@ class Order extends Model
                     'retail'    => 'L',
                     'wholesale' => 'S',
                     'preorder'  => 'P',
+                    'customize' => 'C', // Thêm prefix cho customize
                     default     => 'DH',
                 };
                 $date = now()->format('dmy');
@@ -213,6 +269,11 @@ class Order extends Model
 
                 $seq = $lastOrder ? str_pad((int) substr($lastOrder->order_number, -5) + 1, 5, '0', STR_PAD_LEFT) : '00001';
                 $order->order_number = $prefix . $date . $seq;
+            }
+
+            // Tự động tạo token nếu chưa có và đơn hàng chưa được xác nhận
+            if (empty($order->confirmation_token) && !$order->is_confirmed) {
+                $order->generateToken();
             }
         });
     }
