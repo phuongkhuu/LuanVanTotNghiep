@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
@@ -279,7 +280,6 @@ class ProductController extends Controller
                             'sale_price' => $info['sale_price'] ?? null,
                             'is_on_sale' => $info['is_on_sale'] ?? false,
                             'stock' => $v->stock,
-                            // Các trường nhập hàng
                             'import_quantity' => $v->import_quantity ?? 0,
                             'import_price' => $v->import_price ?? null,
                             'last_import_date' => $v->last_import_date ? $v->last_import_date->format('Y-m-d H:i:s') : null,
@@ -324,7 +324,7 @@ class ProductController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255|unique:products,name',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
@@ -340,10 +340,49 @@ class ProductController extends Controller
             'variants.*.size_name' => 'nullable|string|max:100',
             'variants.*.price' => 'required|integer|min:0',
             'variants.*.stock' => 'required|integer|min:0',
-            // Thêm validation cho import
             'variants.*.import_quantity' => 'sometimes|integer|min:0',
             'variants.*.import_price' => 'sometimes|integer|min:0',
-        ]);
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        // Thêm các ràng buộc tùy chỉnh
+        $validator->after(function ($validator) use ($request) {
+            $variants = $request->input('variants', []);
+            foreach ($variants as $index => $variant) {
+                $importQty = $variant['import_quantity'] ?? 0;
+                $stock = $variant['stock'] ?? 0;
+                $importPrice = $variant['import_price'] ?? null;
+                $price = $variant['price'] ?? 0;
+
+                // 1. Số lượng tồn kho không được lớn hơn số lượng nhập
+                if ($importQty > 0 && $stock > $importQty) {
+                    $validator->errors()->add(
+                        "variants.{$index}.stock",
+                        "Số lượng tồn kho ({$stock}) không được lớn hơn số lượng nhập ({$importQty})."
+                    );
+                }
+
+                // 2. Giá bán phải cao hơn giá nhập ít nhất 30%
+                if ($importPrice !== null && $importPrice > 0) {
+                    $minPrice = $importPrice * 1.3;
+                    if ($price < $minPrice) {
+                        $validator->errors()->add(
+                            "variants.{$index}.price",
+                            "Giá bán ({$price}đ) phải cao hơn giá nhập ({$importPrice}đ) ít nhất 30% (tối thiểu " . round($minPrice) . "đ)."
+                        );
+                    }
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
 
         $media = $validated['image_url'] ?? [];
 
@@ -401,7 +440,7 @@ class ProductController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
@@ -421,10 +460,49 @@ class ProductController extends Controller
             'variants.*.size_name' => 'nullable|string|max:100',
             'variants.*.price' => 'required|integer|min:0',
             'variants.*.stock' => 'required|integer|min:0',
-            // Thêm validation cho import
             'variants.*.import_quantity' => 'sometimes|integer|min:0',
             'variants.*.import_price' => 'sometimes|integer|min:0',
-        ]);
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        // Thêm các ràng buộc tùy chỉnh
+        $validator->after(function ($validator) use ($request) {
+            $variants = $request->input('variants', []);
+            foreach ($variants as $index => $variant) {
+                $importQty = $variant['import_quantity'] ?? 0;
+                $stock = $variant['stock'] ?? 0;
+                $importPrice = $variant['import_price'] ?? null;
+                $price = $variant['price'] ?? 0;
+
+                // 1. Số lượng tồn kho không được lớn hơn số lượng nhập
+                if ($importQty > 0 && $stock > $importQty) {
+                    $validator->errors()->add(
+                        "variants.{$index}.stock",
+                        "Số lượng tồn kho ({$stock}) không được lớn hơn số lượng nhập ({$importQty})."
+                    );
+                }
+
+                // 2. Giá bán phải cao hơn giá nhập ít nhất 30%
+                if ($importPrice !== null && $importPrice > 0) {
+                    $minPrice = $importPrice * 1.3;
+                    if ($price < $minPrice) {
+                        $validator->errors()->add(
+                            "variants.{$index}.price",
+                            "Giá bán ({$price}đ) phải cao hơn giá nhập ({$importPrice}đ) ít nhất 30% (tối thiểu " . round($minPrice) . "đ)."
+                        );
+                    }
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
 
         $oldMedia = $product->image_url ?? [];
         $media = $validated['image_url'] ?? [];
@@ -467,11 +545,10 @@ class ProductController extends Controller
                     $newQty = $variantData['import_quantity'] ?? 0;
                     $importPrice = $variantData['import_price'] ?? null;
 
-                    // Nếu số lượng nhập thay đổi và >0 thì cập nhật ngày nhập mới
                     if ($newQty > 0 && $newQty != $oldQty) {
                         $lastImport = now();
                     } else {
-                        $lastImport = $variant->last_import_date; // giữ nguyên
+                        $lastImport = $variant->last_import_date;
                     }
 
                     $variant->update([
@@ -486,7 +563,6 @@ class ProductController extends Controller
                     $submittedVariantIds[] = $variant->id;
                 }
             } else {
-                // Tạo mới variant
                 $importQty = $variantData['import_quantity'] ?? 0;
                 $importPrice = $variantData['import_price'] ?? null;
                 $lastImport = ($importQty > 0) ? now() : null;

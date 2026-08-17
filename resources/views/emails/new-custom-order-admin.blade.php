@@ -3,53 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yêu cầu tùy chỉnh được duyệt</title>
+    <title>Yêu cầu tùy chỉnh mới</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #f97316; padding: 20px; text-align: center; color: #fff; border-radius: 8px 8px 0 0; }
+        .header { background: #1e3a8a; padding: 20px; text-align: center; color: #fff; border-radius: 8px 8px 0 0; }
         .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
-        .info-box { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f97316; }
-        .btn { display: inline-block; background: #f97316; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; }
+        .info-box { background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #1e3a8a; }
+        .logo-box { background: #f0fdf4; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #22c55e; margin: 10px 0; }
+        .logo-image { max-width: 120px; max-height: 80px; border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px; background: white; }
         .footer { text-align: center; font-size: 12px; color: #999; margin-top: 20px; }
+        .btn { display: inline-block; background: #1e3a8a; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 6px; }
         table { width: 100%; border-collapse: collapse; }
-        td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
-        .label { font-weight: bold; color: #4b5563; width: 40%; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f3f4f6; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>BigBag Premium Utility Carry Gear</h1>
+        <h1>BigBag Admin</h1>
     </div>
     <div class="content">
-        <p>Xin chào <strong>{{ $order->customer_name }}</strong>,</p>
-        <p>Yêu cầu tùy chỉnh <strong>#{{ $order->order_number ?? $order->id }}</strong> của bạn đã được duyệt.</p>
+        <p>Xin chào Admin,</p>
+        <p>Có một yêu cầu tùy chỉnh mới từ khách hàng.</p>
 
         <div class="info-box">
-            <h3 style="margin-top: 0;">📋 Thông tin đơn hàng</h3>
-            <table>
-                <tr><td class="label">Mã đơn hàng:</td><td>{{ $order->order_number ?? $order->id }}</td></tr>
-                <tr><td class="label">Sản phẩm:</td><td>{{ $order->details->first()->productVariant->product->name ?? 'N/A' }}</td></tr>
-                <tr><td class="label">Số lượng:</td><td>{{ $order->details->first()->quantity ?? 1 }}</td></tr>
-                <tr><td class="label">Tổng tiền:</td><td>{{ number_format($order->final_amount) }}₫</td></tr>
-                <tr><td class="label">Vị trí in:</td><td>{{ $logoRequest->print_position ?? '' }}</td></tr>
-                <tr><td class="label">Kích thước:</td><td>{{ $logoRequest->print_size ?? '' }}</td></tr>
-            </table>
+            <h3 style="margin-top: 0;">📋 Thông tin khách hàng</h3>
+            <p><strong>Họ tên:</strong> {{ $order->customer_name }}</p>
+            <p><strong>Email:</strong> {{ $order->customer_email }}</p>
+            <p><strong>SĐT:</strong> {{ $order->customer_phone }}</p>
+            <p><strong>Mã đơn:</strong> {{ $order->order_number ?? '#' . $order->id }}</p>
+            <p><strong>Ngày tạo:</strong> {{ $order->created_at->format('d/m/Y H:i') }}</p>
         </div>
 
-        @if($paymentLink)
-            <div style="text-align: center; margin: 25px 0;">
-                <p><strong>Vui lòng thanh toán để xác nhận đơn hàng:</strong></p>
-                <a href="{{ $paymentLink }}" class="btn">Thanh toán ngay</a>
-                <p style="font-size: 13px; color: #555; margin-top: 10px;">Hoặc truy cập link: <a href="{{ $paymentLink }}">{{ $paymentLink }}</a></p>
+        <h3>🖌️ Chi tiết yêu cầu tùy chỉnh</h3>
+        @foreach($logoRequests as $logo)
+            <div class="logo-box">
+                <p><strong>Vị trí in:</strong> {{ $logo->print_position }}</p>
+                <p><strong>Kích thước:</strong> {{ $logo->print_size }}</p>
+                <p><strong>Ghi chú:</strong> {{ $logo->note ?? 'Không có' }}</p>
+                @if($logo->logo_image)
+                    <p><strong>File logo:</strong></p>
+                    <img src="{{ asset('storage/' . $logo->logo_image) }}" alt="Logo thiết kế" class="logo-image">
+                    <p style="margin-top: 4px;"><a href="{{ asset('storage/' . $logo->logo_image) }}" target="_blank">Xem file</a></p>
+                @endif
             </div>
-        @else
-            <div style="background: #fef3c7; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 15px 0;">
-                <p style="margin: 0; color: #92400e;">⚠️ Không thể tạo link thanh toán. Vui lòng liên hệ hỗ trợ.</p>
-            </div>
-        @endif
+        @endforeach
 
-        <p>Chúng tôi sẽ bắt đầu sản xuất ngay sau khi nhận được thanh toán.</p>
-        <p>Trân trọng,<br>Đội ngũ BigBag</p>
+        <h3>📦 Sản phẩm</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sản phẩm</th>
+                    <th class="text-center">Số lượng</th>
+                    <th class="text-right">Đơn giá</th>
+                    <th class="text-right">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($order->details as $detail)
+                    <tr>
+                        <td>{{ optional($detail->productVariant->product)->name ?? 'N/A' }}</td>
+                        <td class="text-center">{{ $detail->quantity }}</td>
+                        <td class="text-right">{{ number_format($detail->unit_price, 0, ',', '.') }}₫</td>
+                        <td class="text-right">{{ number_format($detail->subtotal, 0, ',', '.') }}₫</td>
+                    </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-right"><strong>Tổng cộng</strong></td>
+                    <td class="text-right"><strong>{{ number_format($order->final_amount, 0, ',', '.') }}₫</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="{{ url('/admin/orders/' . $order->id) }}" class="btn">Xem đơn hàng</a>
+        </p>
     </div>
     <div class="footer">
         &copy; {{ date('Y') }} BigBag.vn. All rights reserved.

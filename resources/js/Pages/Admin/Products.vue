@@ -313,8 +313,8 @@
                         <div>
                             <label class="text-sm block mb-1 text-gray-700 font-medium">Loại sản phẩm</label>
                             <select v-model="form.type" class="w-full border rounded-lg px-3 py-2">
-                                <option value="normal">📦 Sản phẩm thường</option>
-                                <option value="preorder">⏳ Pre-order</option>
+                                <option value="normal">Sản phẩm thường</option>
+                                <option value="preorder">Pre-order</option>
                             </select>
                         </div>
                         <div>
@@ -386,92 +386,151 @@
                     </div>
 
                     <!-- Biến thể (variants) -->
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="text-sm font-medium text-gray-700">Biến thể (Màu sắc, Kích thước, Giá, Tồn kho, Nhập hàng)</label>
-                            <button type="button" @click="addVariant" class="text-sm text-blue-600 hover:text-blue-800">+ Thêm biến thể</button>
+                    <div class="space-y-3">
+                        <!-- Tiêu đề và Nút thêm -->
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-base font-semibold text-gray-800">Biến thể <span class="text-sm font-normal text-gray-500">(Màu sắc, Kích thước, Giá, Tồn kho...)</span></label>
+                            <button 
+                                type="button" 
+                                @click="addVariant" 
+                                class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
+                            >
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Thêm biến thể
+                            </button>
                         </div>
-                        <div class="overflow-x-auto border rounded-lg">
-                            <table class="w-full text-sm">
-                                <thead class="bg-gray-50">
+
+                        <!-- Bảng dữ liệu -->
+                        <div class="overflow-x-auto bg-white border border-gray-200 rounded-xl shadow-sm">
+                            <table class="w-full text-sm text-left whitespace-nowrap">
+                                <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
                                     <tr>
-                                        <th class="px-2 py-2 text-left">Màu</th>
-                                        <th class="px-2 py-2 text-left">Kích thước</th>
-                                        <th class="px-2 py-2 text-left">Giá (₫)</th>
-                                        <th class="px-2 py-2 text-left">Tồn kho</th>
-                                        <th class="px-2 py-2 text-left">SL nhập</th>
-                                        <th class="px-2 py-2 text-left">Giá nhập (₫)</th>
-                                        <th class="px-2 py-2 text-center">Xóa</th>
+                                        <th class="px-4 py-3 font-medium">Màu sắc</th>
+                                        <th class="px-4 py-3 font-medium">Kích thước</th>
+                                        <th class="px-4 py-3 font-medium">Giá bán (₫)</th>
+                                        <th class="px-4 py-3 font-medium">Tồn kho</th>
+                                        <th class="px-4 py-3 font-medium">SL nhập</th>
+                                        <th class="px-4 py-3 font-medium">Giá nhập (₫)</th>
+                                        <th class="px-4 py-3 font-medium text-center">Thao tác</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr v-for="(variant, idx) in form.variants" :key="idx">
-                                        <td class="px-2 py-1">
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="(variant, idx) in form.variants" :key="idx" class="hover:bg-gray-50 transition-colors">
+                                        <!-- Chọn màu -->
+                                        <td class="px-4 py-3 align-top min-w-[140px]">
                                             <ColorSelect
                                                 v-model="variant.color_id"
                                                 :colors="colors"
                                                 placeholder="-- Chọn màu --"
-                                                :error="!!formErrors[`variants.${idx}.color_id`]"
+                                                :class="{'border-red-500 ring-1 ring-red-500': formErrors[`variants.${idx}.color_id`]}"
+                                                @change="clearFieldError(`variants.${idx}.color_id`)"
                                             />
-                                            <p v-if="formErrors[`variants.${idx}.color_id`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.color_id`] }}</p>
+                                            <span v-if="formErrors[`variants.${idx}.color_id`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.color_id`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1">
-                                            <input type="text" v-model="variant.size_name" class="w-full border rounded px-2 py-1" placeholder="VD: S, M, L, XL, Free...">
-                                            <p v-if="formErrors[`variants.${idx}.size_name`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.size_name`] }}</p>
+
+                                        <!-- Kích thước -->
+                                        <td class="px-4 py-3 align-top min-w-[120px]">
+                                            <input 
+                                                type="text" 
+                                                v-model="variant.size_name" 
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                                                :class="{'border-red-500 focus:ring-red-500': formErrors[`variants.${idx}.size_name`]}"
+                                                placeholder="VD: S, M, L..."
+                                                @input="clearFieldError(`variants.${idx}.size_name`)"
+                                            >
+                                            <span v-if="formErrors[`variants.${idx}.size_name`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.size_name`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1">
+
+                                        <!-- Giá bán -->
+                                        <td class="px-4 py-3 align-top min-w-[120px]">
                                             <input 
                                                 type="number" 
                                                 :value="variant.price"
-                                                @input="updatePrice(variant, $event)"
-                                                class="w-28 border rounded px-2 py-1" 
-                                                placeholder="Giá"
+                                                @input="updatePrice(variant, $event); clearFieldError(`variants.${idx}.price`)"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                                                placeholder="0"
                                                 min="0"
-                                                :class="formErrors[`variants.${idx}.price`] ? 'border-red-500' : ''"
+                                                step="1000"
+                                                :class="{'border-red-500 focus:ring-red-500': formErrors[`variants.${idx}.price`]}"
                                             >
-                                            <p v-if="formErrors[`variants.${idx}.price`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.price`] }}</p>
+                                            <span v-if="formErrors[`variants.${idx}.price`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.price`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1">
+
+                                        <!-- Tồn kho -->
+                                        <td class="px-4 py-3 align-top min-w-[100px]">
                                             <input 
                                                 type="number" 
                                                 :value="variant.stock"
-                                                @input="updateStock(variant, $event)"
-                                                class="w-20 border rounded px-2 py-1" 
-                                                placeholder="Tồn"
+                                                @input="updateStock(variant, $event); clearFieldError(`variants.${idx}.stock`)"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                                                placeholder="0"
                                                 min="0"
-                                                :class="formErrors[`variants.${idx}.stock`] ? 'border-red-500' : ''"
+                                                :class="{'border-red-500 focus:ring-red-500': formErrors[`variants.${idx}.stock`]}"
                                             >
-                                            <p v-if="formErrors[`variants.${idx}.stock`]" class="text-xs text-red-500">{{ formErrors[`variants.${idx}.stock`] }}</p>
+                                            <span v-if="formErrors[`variants.${idx}.stock`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.stock`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1">
+
+                                        <!-- Số lượng nhập -->
+                                        <td class="px-4 py-3 align-top min-w-[100px]">
                                             <input 
                                                 type="number" 
                                                 v-model="variant.import_quantity"
-                                                class="w-20 border rounded px-2 py-1" 
+                                                @input="clearFieldError(`variants.${idx}.import_quantity`)"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
                                                 placeholder="0"
                                                 min="0"
+                                                :class="{'border-red-500 focus:ring-red-500': formErrors[`variants.${idx}.import_quantity`]}"
                                             >
+                                            <span v-if="formErrors[`variants.${idx}.import_quantity`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.import_quantity`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1">
+
+                                        <!-- Giá nhập -->
+                                        <td class="px-4 py-3 align-top min-w-[120px]">
                                             <input 
                                                 type="number" 
                                                 v-model="variant.import_price"
-                                                class="w-28 border rounded px-2 py-1" 
-                                                placeholder="Giá nhập"
+                                                @input="clearFieldError(`variants.${idx}.import_price`)"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                                                placeholder="0"
                                                 min="0"
                                                 step="1000"
+                                                :class="{'border-red-500 focus:ring-red-500': formErrors[`variants.${idx}.import_price`]}"
                                             >
+                                            <span v-if="formErrors[`variants.${idx}.import_price`]" class="block mt-1.5 text-xs text-red-500">{{ formErrors[`variants.${idx}.import_price`] }}</span>
                                         </td>
-                                        <td class="px-2 py-1 text-center">
-                                            <button @click="removeVariant(idx)" class="text-red-500 hover:text-red-700" title="Xóa">✕</button>
+
+                                        <!-- Nút Xóa -->
+                                        <td class="px-4 py-3 text-center align-top">
+                                            <button 
+                                                type="button"
+                                                @click="removeVariant(idx)" 
+                                                class="p-1.5 text-gray-400 bg-gray-50 rounded-md hover:text-red-600 hover:bg-red-50 transition-colors mt-0.5" 
+                                                title="Xóa biến thể này"
+                                            >X
+                                            </button>
                                         </td>
                                     </tr>
+
+                                    <!-- Trạng thái trống (Empty State) -->
                                     <tr v-if="form.variants.length === 0">
-                                        <td colspan="7" class="text-center py-4 text-gray-400">Chưa có biến thể nào. Hãy nhấn "Thêm biến thể".</td>
+                                        <td colspan="7" class="py-10 text-center">
+                                            <div class="flex flex-col items-center justify-center text-gray-500">
+                                                <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                                                <p class="text-base font-medium text-gray-600">Chưa có biến thể nào</p>
+                                                <p class="text-sm mt-1">Hãy nhấn <button type="button" @click="addVariant" class="text-blue-600 hover:underline">Thêm biến thể</button> để thiết lập chi tiết sản phẩm.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
-                            <p v-if="formErrors.variants" class="text-xs text-red-500 p-2">{{ formErrors.variants }}</p>
+                            
+                            <!-- Báo lỗi chung cho toàn bộ danh sách biến thể -->
+                            <div v-if="formErrors.variants" class="p-3 bg-red-50 border-t border-red-100">
+                                <p class="text-sm text-red-600 flex items-center">
+                                    <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                                    {{ formErrors.variants }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -563,10 +622,8 @@ const clearFieldError = (field) => {
 const setErrors = (errors) => {
     formErrors.value = {};
     if (errors) {
-        // Chuyển đổi từ định dạng của Laravel (có thể là mảng hoặc đối tượng)
         if (typeof errors === 'object') {
             Object.keys(errors).forEach(key => {
-                // Nếu là mảng, lấy phần tử đầu tiên
                 const msg = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
                 formErrors.value[key] = msg;
             });
@@ -574,7 +631,7 @@ const setErrors = (errors) => {
     }
 };
 
-// Hàm kiểm tra lỗi client-side (trả về true nếu có lỗi, false nếu không)
+// Hàm kiểm tra client-side
 const validateForm = () => {
     formErrors.value = {};
     let hasError = false;
@@ -607,24 +664,52 @@ const validateForm = () => {
         for (let i = 0; i < form.value.variants.length; i++) {
             const v = form.value.variants[i];
             if (!v.color_id) {
-                formErrors.value[`variants.${i}.color_id`] = `Vui lòng chọn màu cho biến thể thứ ${i + 1}`;
+                formErrors.value[`variants.${i}.color_id`] = `Vui lòng chọn màu`;
+                hasError = true;
+            }
+            if (!v.size_name || !v.size_name.trim()) {
+                formErrors.value[`variants.${i}.size_name`] = `Vui lòng nhập kích thước`;
                 hasError = true;
             }
             if (v.price <= 0) {
-                formErrors.value[`variants.${i}.price`] = `Giá của biến thể ${i + 1} phải lớn hơn 0`;
+                formErrors.value[`variants.${i}.price`] = `Giá phải lớn hơn 0`;
                 hasError = true;
             }
             if (v.stock < 0) {
-                formErrors.value[`variants.${i}.stock`] = `Tồn kho của biến thể ${i + 1} không hợp lệ`;
+                formErrors.value[`variants.${i}.stock`] = `Tồn kho không hợp lệ`;
                 hasError = true;
             }
-            if (v.import_quantity < 0) {
-                formErrors.value[`variants.${i}.import_quantity`] = `Số lượng nhập của biến thể ${i + 1} không hợp lệ`;
+            if (v.import_quantity <= 0) {
+                formErrors.value[`variants.${i}.import_quantity`] = `Số lượng nhập không hợp lệ`;
                 hasError = true;
             }
-            if (v.import_price !== null && v.import_price < 0) {
-                formErrors.value[`variants.${i}.import_price`] = `Giá nhập của biến thể ${i + 1} không hợp lệ`;
+            if (v.import_price === null || v.import_price < 0) {
+                formErrors.value[`variants.${i}.import_price`] = `Vui lòng nhập giá nhập`;
                 hasError = true;
+            }
+            // Ràng buộc: nếu có nhập hàng (import_quantity > 0) thì import_price phải > 0
+            if (v.import_quantity > 0 && (v.import_price === null || v.import_price <= 0)) {
+                formErrors.value[`variants.${i}.import_price`] = `Khi nhập hàng với số lượng >0, giá nhập phải lớn hơn 0`;
+                hasError = true;
+            }
+            // Ràng buộc: nếu có giá nhập >0 thì import_quantity phải > 0
+            if (v.import_price !== null && v.import_price > 0 && v.import_quantity <= 0) {
+                formErrors.value[`variants.${i}.import_quantity`] = `Khi có giá nhập, số lượng nhập phải lớn hơn 0`;
+                hasError = true;
+            }
+            // Ràng buộc stock <= import_quantity
+            const importQty = v.import_quantity || 0;
+            if (importQty > 0 && v.stock > importQty) {
+                formErrors.value[`variants.${i}.stock`] = `Tồn kho (${v.stock}) không được vượt quá số lượng nhập (${importQty})`;
+                hasError = true;
+            }
+            // Ràng buộc price >= import_price * 1.3
+            if (v.import_price !== null && v.import_price > 0) {
+                const minPrice = v.import_price * 1.3;
+                if (v.price < minPrice) {
+                    formErrors.value[`variants.${i}.price`] = `Giá bán phải cao hơn giá nhập ít nhất 30% (tối thiểu ${Math.round(minPrice)}đ)`;
+                    hasError = true;
+                }
             }
         }
     }
@@ -688,7 +773,6 @@ const updatePrice = (variant, event) => {
     const newVal = enforceNonNegative(raw);
     variant.price = newVal;
     event.target.value = newVal;
-    // Xóa lỗi nếu có
     const idx = form.value.variants.indexOf(variant);
     if (idx !== -1) clearFieldError(`variants.${idx}.price`);
 };
@@ -715,7 +799,6 @@ const addVariant = () => {
 
 const removeVariant = (index) => {
     form.value.variants.splice(index, 1);
-    // Xóa lỗi liên quan đến variant đó
     Object.keys(formErrors.value).forEach(key => {
         if (key.startsWith(`variants.${index}`)) {
             delete formErrors.value[key];
@@ -895,131 +978,66 @@ const openModal = (product = null) => {
 const editProduct = (product) => openModal(product);
 
 const saveProduct = async () => {
-    // Reset lỗi
     formErrors.value = {};
 
-    // Kiểm tra client-side
     if (!validateForm()) {
-        // Cuộn lên đầu modal để hiển thị lỗi
         const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
         if (modal) modal.scrollTop = 0;
         return;
     }
 
     isSubmitting.value = true;
-
     const url = editingId.value
         ? route('admin.products.update', editingId.value)
         : route('admin.products.store');
 
-    if (form.value.imageFiles.length > 0) {
-        const formData = new FormData();
+    const data = {
+        ...form.value,
+        image_url: form.value.imageUrls,
+        variants: form.value.variants.map(v => ({
+            ...v,
+            import_quantity: v.import_quantity ?? 0,
+            import_price: v.import_price ?? null
+        }))
+    };
+    delete data.imageFiles;
+    delete data.imageUrls;
+
+    try {
         if (editingId.value) {
-            formData.append('_method', 'PUT');
-        }
-
-        formData.append('name', form.value.name);
-        formData.append('category_id', form.value.category_id ?? '');
-        formData.append('brand_id', form.value.brand_id ?? '');
-        formData.append('type', form.value.type);
-        formData.append('material', form.value.material || '');
-        formData.append('description', form.value.description || '');
-        formData.append('image_url', JSON.stringify(form.value.imageUrls));
-
-        form.value.imageFiles.forEach(file => {
-            formData.append('image_files[]', file);
-        });
-
-        form.value.variants.forEach((variant, index) => {
-            if (variant.id) formData.append(`variants[${index}][id]`, variant.id);
-            formData.append(`variants[${index}][color_id]`, variant.color_id);
-            formData.append(`variants[${index}][size_name]`, variant.size_name || '');
-            formData.append(`variants[${index}][price]`, variant.price);
-            formData.append(`variants[${index}][stock]`, variant.stock);
-            formData.append(`variants[${index}][import_quantity]`, variant.import_quantity ?? 0);
-            formData.append(`variants[${index}][import_price]`, variant.import_price ?? '');
-        });
-
-        try {
-            await router.post(url, formData, {
+            await router.put(url, data, {
                 preserveScroll: true,
-                headers: { 'Content-Type': 'multipart/form-data' },
                 onSuccess: () => {
-                    alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
                     showModal.value = false;
-                    clearFiles();
                     router.reload({ only: ['initialProducts'] });
                 },
                 onError: (errors) => {
                     setErrors(errors);
-                    if (errors.image_files) {
-                        formErrors.value.image_url = errors.image_files[0] || 'Lỗi tải file';
-                    } else if (errors.image_url) {
-                        formErrors.value.image_url = errors.image_url[0];
-                    }
-                    // Cuộn lên đầu
                     const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
                     if (modal) modal.scrollTop = 0;
                 }
             });
-        } catch (error) {
-            console.error(error);
-            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
-            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-            if (modal) modal.scrollTop = 0;
-        } finally {
-            isSubmitting.value = false;
+        } else {
+            await router.post(url, data, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    showModal.value = false;
+                    router.reload({ only: ['initialProducts'] });
+                },
+                onError: (errors) => {
+                    setErrors(errors);
+                    const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                    if (modal) modal.scrollTop = 0;
+                }
+            });
         }
-    } else {
-        const data = {
-            ...form.value,
-            image_url: form.value.imageUrls,
-            variants: form.value.variants.map(v => ({
-                ...v,
-                import_quantity: v.import_quantity ?? 0,
-                import_price: v.import_price ?? null
-            }))
-        };
-        delete data.imageFiles;
-
-        try {
-            if (editingId.value) {
-                await router.put(url, data, {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        alert('Cập nhật thành công!');
-                        showModal.value = false;
-                        router.reload({ only: ['initialProducts'] });
-                    },
-                    onError: (errors) => {
-                        setErrors(errors);
-                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-                        if (modal) modal.scrollTop = 0;
-                    }
-                });
-            } else {
-                await router.post(url, data, {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        alert('Thêm sản phẩm thành công!');
-                        showModal.value = false;
-                        router.reload({ only: ['initialProducts'] });
-                    },
-                    onError: (errors) => {
-                        setErrors(errors);
-                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-                        if (modal) modal.scrollTop = 0;
-                    }
-                });
-            }
-        } catch (error) {
-            console.error(error);
-            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
-            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-            if (modal) modal.scrollTop = 0;
-        } finally {
-            isSubmitting.value = false;
-        }
+    } catch (error) {
+        console.error(error);
+        formErrors.value.general = error.response?.data?.message || 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
+        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+        if (modal) modal.scrollTop = 0;
+    } finally {
+        isSubmitting.value = false;
     }
 };
 
@@ -1046,17 +1064,15 @@ const deleteProduct = async (id) => {
             preserveScroll: true,
             onSuccess: () => {
                 products.value = products.value.filter(p => p.id !== id);
-                alert('Xóa sản phẩm thành công!');
             },
             onError: (errors) => {
                 console.error(errors);
-                // Hiển thị lỗi dạng thông báo (có thể dùng toast sau)
-                alert(errors.error || 'Có lỗi xảy ra khi xóa sản phẩm');
+                setErrors(errors);
             }
         });
     } catch (error) {
         console.error(error);
-        alert('Có lỗi xảy ra');
+        formErrors.value.general = 'Có lỗi xảy ra khi xóa sản phẩm. Vui lòng thử lại.';
     }
 };
 
@@ -1095,7 +1111,7 @@ watch(() => props.initialProducts, (val) => {
     currentPage.value = 1;
 }, { immediate: true });
 
-// Xóa lỗi khi người dùng thay đổi input (v-model)
+// Xóa lỗi khi người dùng thay đổi input
 watch(
     () => form.value.name,
     () => clearFieldError('name')

@@ -567,13 +567,18 @@ class WholesaleController extends Controller
                 'quantity'           => $validated['quantity'],
             ]);
 
+            // Lấy thông tin user đã đăng nhập
+            $user = Auth::user();
+
             // Tạo đơn hàng
             $order = Order::create([
                 'user_id'          => Auth::id(),
                 'order_code'       => 'wholesale',
-                'customer_name'    => $validated['company'],
-                'customer_phone'   => $validated['phone'],
-                'customer_email'   => $validated['email'],
+                // ===== LẤY THÔNG TIN NGƯỜI ĐẶT TỪ ACCOUNT =====
+                'customer_name'    => $user->name,
+                'customer_phone'   => $user->phone ?? '',
+                'customer_email'   => $user->email,
+                // ===== NGƯỜI NHẬN LẤY TỪ FORM =====
                 'receiver_name'    => $validated['company'],
                 'receiver_phone'   => $validated['phone'],
                 'shipping_address' => $validated['address'],
@@ -582,7 +587,6 @@ class WholesaleController extends Controller
                 'discount_id'      => $discount ? $discount->id : null,
                 'discount_amount'  => $discountAmount,
                 'final_amount'     => $finalAmount,
-                // ===== SỬA: GÁN DEPOSIT VÀ REMAINING =====
                 'deposit_amount'   => $depositAmount,
                 'remaining_amount' => $remainingAmount,
                 'payment_status'   => 'pending',

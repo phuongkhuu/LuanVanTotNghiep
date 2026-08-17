@@ -32,8 +32,6 @@ const settings = reactive({
     payments: {
         cod: props.settings.payment_cod === true || props.settings.payment_cod === 'true',
         bank: props.settings.payment_bank === true || props.settings.payment_bank === 'true',
-        momo: props.settings.payment_momo === true || props.settings.payment_momo === 'true',
-        vnpay: props.settings.payment_vnpay === true || props.settings.payment_vnpay === 'true'
     },
     seo: {
         title: props.settings.seo_title || '',
@@ -413,14 +411,6 @@ onMounted(() => {
                                 <input type="checkbox" v-model="settings.payments.bank" class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500">
                                 <span class="text-sm">Chuyển khoản</span>
                             </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" v-model="settings.payments.momo" class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500">
-                                <span class="text-sm">Momo</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" v-model="settings.payments.vnpay" class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500">
-                                <span class="text-sm">VNPay</span>
-                            </label>
                         </div>
                     </div>
                     <div class="bg-white rounded-lg border border-gray-200 p-5">
@@ -553,13 +543,6 @@ onMounted(() => {
                             {{ isProcessing ? 'Đang xử lý...' : 'Cập nhật' }}
                         </button>
                     </div>
-                </div>
-                <div class="bg-white rounded-lg border border-gray-200 p-5">
-                    <h3 class="text-base font-medium text-gray-800 mb-4">Xác thực 2 lớp</h3>
-                    <p class="text-sm text-gray-500 mb-4">Tăng cường bảo mật cho tài khoản admin</p>
-                    <button class="px-4 py-2 border border-orange-600 text-orange-600 rounded-lg text-sm hover:bg-orange-50 transition-colors">
-                        Kích hoạt 2FA
-                    </button>
                 </div>
             </div>
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 
 class CategoryController extends Controller
 {
@@ -56,7 +57,6 @@ class CategoryController extends Controller
 
     public function index()
     {
-        // Sắp xếp theo id giảm dần (mới nhất lên đầu)
         $categories = Category::orderBy('id', 'desc')->get();
         return Inertia::render('Admin/Categories', [
             'categories' => $categories
@@ -68,8 +68,8 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name'        => 'required|string|max:255|unique:categories',
             'description' => 'nullable|string',
-            'image'       => 'nullable|url|max:2048',      
-            'image_file'  => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' 
+            'image'       => 'nullable|url|max:2048',
+            'image_file'  => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
@@ -169,9 +169,18 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
-        $this->deleteImageIfExists($category->image);
-        $category->delete();
-        return redirect()->route('admin.categories.index')
-            ->with('success', 'Xóa danh mục thành công');
+        try {
+            $this->deleteImageIfExists($category->image);
+            $category->delete();
+            return redirect()->route('admin.categories.index')
+                ->with('success', 'Xóa danh mục thành công');
+        } catch (QueryException $e) {
+            if ($e->getCode() == 23000) {
+                return redirect()->back()->withErrors([
+                    'error' => 'Không thể xóa danh mục này vì đang có sản phẩm thuộc danh mục. Vui lòng di chuyển hoặc xóa các sản phẩm đó trước.'
+                ]);
+            }
+            throw $e;
+        }
     }
 }

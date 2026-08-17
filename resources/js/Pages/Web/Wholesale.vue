@@ -234,7 +234,7 @@
                   </div>
                 </div>
 
-                <!-- Trạng thái hoạt động - ĐÃ SỬA -->
+                <!-- Trạng thái hoạt động -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">
@@ -310,13 +310,17 @@
 
                 <!-- Nhóm 3: Ngày nhận -->
                 <div>
-                  <label class="block text-xs font-semibold text-slate-600 mb-1.5">Ngày dự kiến cần nhận hàng</label>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1.5">Ngày dự kiến cần nhận hàng <span class="text-rose-500">*</span></label>
                   <input 
-                    class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800" 
+                    class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-4 py-2.5 outline-none text-sm transition-all text-slate-800"
+                    :class="{ 'border-rose-500 focus:ring-rose-500/20': deliveryDateError }"
                     type="date" 
                     v-model="form.delivery_date" 
-                    :min="today"
+                    :min="minDeliveryDate"
+                    required
                   >
+                  <p v-if="deliveryDateError" class="text-xs text-rose-500 mt-1">{{ deliveryDateError }}</p>
+                  <p class="text-xs text-slate-400 mt-1">Ngày nhận phải cách ngày hiện tại ít nhất 2 tuần (14 ngày)</p>
                 </div>
 
                 <!-- Nhóm 4: Địa chỉ giao hàng -->
@@ -325,38 +329,31 @@
                   
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <select v-model="form.city" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
-                        <option value="">Chọn Tỉnh / Thành</option>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                        <option value="Đà Nẵng">Đà Nẵng</option>
-                        <option value="Hải Phòng">Hải Phòng</option>
-                        <option value="Cần Thơ">Cần Thơ</option>
-                        <option value="Bình Dương">Bình Dương</option>
-                        <option value="Đồng Nai">Đồng Nai</option>
-                        <option value="Khác">Khác</option>
-                      </select>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1.5">Tỉnh / Thành phố</label>
+                      <input 
+                        type="text"
+                        v-model="form.city"
+                        placeholder="VD: TP. Hồ Chí Minh"
+                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700"
+                      >
                     </div>
-
                     <div>
-                      <select v-model="form.district" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
-                        <option value="">Chọn Quận / Huyện</option>
-                        <option value="Quận 1">Quận 1</option>
-                        <option value="Quận 2">Quận 2</option>
-                        <option value="Quận 3">Quận 3</option>
-                        <option value="Quận 7">Quận 7</option>
-                        <option value="Bình Thạnh">Bình Thạnh</option>
-                        <option value="Khác">Khác</option>
-                      </select>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1.5">Quận / Huyện</label>
+                      <input 
+                        type="text"
+                        v-model="form.district"
+                        placeholder="VD: Quận 1"
+                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700"
+                      >
                     </div>
-
                     <div>
-                      <select v-model="form.ward" class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700">
-                        <option value="">Chọn Phường / Xã</option>
-                        <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                        <option value="Phường Bến Thành">Phường Bến Thành</option>
-                        <option value="Khác">Khác</option>
-                      </select>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1.5">Phường / Xã</label>
+                      <input 
+                        type="text"
+                        v-model="form.ward"
+                        placeholder="VD: Phường Bến Nghé"
+                        class="w-full rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-slate-50/30 px-3 py-2.5 outline-none text-sm text-slate-700"
+                      >
                     </div>
                   </div>
 
@@ -535,6 +532,7 @@ const showLoginModal = ref(false)
 // ==================== VALIDATION ERRORS ====================
 const emailError = ref('')
 const phoneError = ref('')
+const deliveryDateError = ref('')
 
 // ==================== NOTIFICATION ====================
 const notification = ref({
@@ -574,14 +572,18 @@ const sizeOptions = computed(() => {
   return selectedProduct.value.sizes || []
 })
 
+// Tính ngày tối thiểu: hôm nay + 14 ngày
+const minDeliveryDate = computed(() => {
+  const date = new Date()
+  date.setDate(date.getDate() + 14)
+  return date.toISOString().split('T')[0]
+})
+
 // Format tiền
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0₫'
   return new Intl.NumberFormat('vi-VN').format(price) + '₫'
 }
-
-// ==================== NGÀY HIỆN TẠI CHO INPUT DATE ====================
-const today = new Date().toISOString().split('T')[0]
 
 // ==================== VALIDATION FUNCTIONS ====================
 const validateEmail = () => {
@@ -617,6 +619,30 @@ const validatePhone = () => {
   }
   
   phoneError.value = ''
+  return true
+}
+
+const validateDeliveryDate = () => {
+  if (!form.value.delivery_date) {
+    deliveryDateError.value = 'Vui lòng chọn ngày nhận hàng'
+    return false
+  }
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const minDate = new Date(today)
+  minDate.setDate(minDate.getDate() + 14)
+  
+  const selectedDate = new Date(form.value.delivery_date)
+  selectedDate.setHours(0, 0, 0, 0)
+  
+  if (selectedDate < minDate) {
+    deliveryDateError.value = 'Ngày nhận phải cách ngày hiện tại ít nhất 2 tuần (14 ngày)'
+    return false
+  }
+  
+  deliveryDateError.value = ''
   return true
 }
 
@@ -837,22 +863,16 @@ const submitQuoteRequest = async () => {
     return
   }
   
+  // Validate delivery date
+  if (!validateDeliveryDate()) {
+    document.querySelector('input[type="date"]')?.focus()
+    return
+  }
+  
   // Kiểm tra địa chỉ
   if (!form.value.address) {
     showNotification('warning', 'Vui lòng nhập địa chỉ chi tiết.')
     return
-  }
-
-  // Kiểm tra ngày cần nhận
-  if (form.value.delivery_date) {
-    const todayDate = new Date()
-    todayDate.setHours(0,0,0,0)
-    const deliveryDate = new Date(form.value.delivery_date)
-    deliveryDate.setHours(0,0,0,0)
-    if (deliveryDate < todayDate) {
-      showNotification('warning', 'Ngày cần nhận không được là quá khứ.')
-      return
-    }
   }
 
   // Kiểm tra sản phẩm

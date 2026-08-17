@@ -14,11 +14,13 @@ class CustomizeApproved extends Mailable
 
     public $order;
     public $logoRequest;
+    public $paymentLink;
 
-    public function __construct(Order $order, LogoPrintRequest $logoRequest)
+    public function __construct(Order $order, LogoPrintRequest $logoRequest, $paymentLink = null)
     {
         $this->order = $order;
         $this->logoRequest = $logoRequest;
+        $this->paymentLink = $paymentLink;
     }
 
     public function build()
