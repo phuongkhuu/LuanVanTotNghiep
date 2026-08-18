@@ -118,18 +118,19 @@
           </div>
 
           <div class="flex flex-col gap-2">
+            <!-- ===== GIÁ HIỂN THỊ THEO VARIANT ĐÃ CHỌN ===== -->
             <div class="flex items-baseline gap-3 flex-wrap">
-              <span class="font-headline-md text-3xl font-bold" :class="product.hasSale ? 'text-red-600' : 'text-primary'">
-                {{ formatPrice(product.displayPrice || variantPrice) }}
+              <!-- Giá hiện tại (sale hoặc gốc) -->
+              <span class="font-headline-md text-3xl font-bold" :class="selectedVariant && selectedVariant.is_on_sale ? 'text-red-600' : 'text-primary'">
+                {{ formatPrice(currentVariantPrice) }}
               </span>
-              <span v-if="product.hasSale && product.originalPrice" class="text-gray-400 line-through text-sm">
-                {{ formatPrice(product.originalPrice) }}
+              <!-- Giá gốc (nếu đang sale) -->
+              <span v-if="selectedVariant && selectedVariant.is_on_sale && selectedVariant.price" class="text-gray-400 line-through text-sm">
+                {{ formatPrice(selectedVariant.price) }}
               </span>
-              <span v-if="product.hasSale && product.salePercent > 0" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">
-                -{{ product.salePercent }}%
-              </span>
-              <span v-else-if="product.oldPrice && !product.hasSale" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">
-                {{ product.discount }}
+              <!-- Phần trăm giảm (nếu đang sale) -->
+              <span v-if="selectedVariant && selectedVariant.is_on_sale && selectedVariant.sale_price && selectedVariant.price" class="text-red-500 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-full">
+                -{{ Math.round((1 - selectedVariant.sale_price / selectedVariant.price) * 100) }}%
               </span>
             </div>
             
@@ -320,8 +321,9 @@
                 </button>
               </div>
               
+              <!-- ===== NÚT MUA SỈ - CHỈ HIỂN THỊ KHI VARIANT KHÔNG SALE ===== -->
               <button 
-                v-if="!product.is_preorder && selectedVariant && selectedVariant.stock > 0"
+                v-if="!product.is_preorder && selectedVariant && selectedVariant.stock > 0 && !selectedVariant.is_on_sale"
                 @click="goToWholesale"
                 class="w-full h-14 border-2 border-orange-500 text-orange-600 font-semibold rounded-xl hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
               >
@@ -509,22 +511,14 @@ const availableSizes = computed(() => {
   return sizes
 })
 
-// ============ VARIANT PRICE ============
-const variantPrice = computed(() => {
-  if (selectedVariant.value) {
-    if (selectedVariant.value.is_on_sale && selectedVariant.value.sale_price) {
-      return selectedVariant.value.sale_price
-    }
-    return selectedVariant.value.price
+// ===== GIÁ HIỂN THỊ THEO VARIANT ĐÃ CHỌN =====
+const currentVariantPrice = computed(() => {
+  if (!selectedVariant.value) return 0
+  // Ưu tiên sale_price nếu đang sale
+  if (selectedVariant.value.is_on_sale && selectedVariant.value.sale_price) {
+    return selectedVariant.value.sale_price
   }
-  if (props.product.displayPrice) {
-    return props.product.displayPrice
-  }
-  if (props.product.price) {
-    const priceStr = props.product.price.replace(/[₫,.]/g, '').trim()
-    return parseInt(priceStr) || 0
-  }
-  return 0
+  return selectedVariant.value.price || 0
 })
 
 // ============ FORMAT PRICE ============

@@ -391,7 +391,7 @@ class PaymentController extends Controller
             'discount'        => $discount,
             'final_total'     => $finalTotal,
             'order_type'      => $orderType,
-            'is_customize'    => $orderType === 'customize', // Thêm flag customize
+            'is_customize'    => $orderType === 'customize', 
             'is_pre_order'    => $isPreOrder,
             'voucher_code'    => $voucherCode,
             'voucher_discount'=> $voucherDiscount,

@@ -32,7 +32,6 @@ class OrderConfirmationController extends Controller
 
         // Cập nhật trạng thái
         $order->is_confirmed = true;
-        $order->order_status = 1; // Đang xử lý
         $order->save();
 
         // Lấy email hợp lệ (ưu tiên customer_email, nếu không có thì user email)

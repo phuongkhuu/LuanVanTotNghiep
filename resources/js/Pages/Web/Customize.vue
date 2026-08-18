@@ -122,11 +122,12 @@
 
             <hr class="border-gray-100" />
 
-            <!-- Khối 3: Upload file -->
+            <!-- Khối 3: Upload file (BẮT BUỘC) -->
             <div class="space-y-2">
-              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">3. Tải lên tệp thiết kế</h2>
+              <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">3. Tải lên tệp thiết kế <span class="text-rose-500">*</span></h2>
               <div 
                 class="border-2 border-dashed border-gray-200 rounded-xl p-5 hover:border-primary/50 hover:bg-slate-50/50 transition-all cursor-pointer text-center group"
+                :class="{ 'border-rose-500 bg-rose-50/20': uploadError }"
                 @click="triggerFileUpload"
               >
                 <span class="material-symbols-outlined text-3xl text-gray-400 group-hover:text-primary transition-colors mb-1">cloud_upload</span>
@@ -139,6 +140,7 @@
                 <span class="font-medium truncate">{{ uploadedFileName }}</span>
               </div>
               <p v-if="uploadError" class="text-xs text-rose-500 mt-1">{{ uploadError }}</p>
+              <p v-if="!uploadedFileName" class="text-xs text-amber-500">⚠️ Vui lòng tải lên file thiết kế để tiếp tục.</p>
             </div>
 
             <!-- Nút hành động -->
@@ -222,25 +224,28 @@
                 <tbody class="divide-y divide-gray-50 text-gray-600">
                   <tr>
                     <td class="py-2.5 font-medium text-gray-800">Mặt trước</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.1) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.15) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.2) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'front', 'small')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'front', 'medium')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'front', 'large')) }}</td>
                   </tr>
                   <tr>
                     <td class="py-2.5 font-medium text-gray-800">Mặt sau</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.12) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.18) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.25) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'back', 'small')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'back', 'medium')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'back', 'large')) }}</td>
                   </tr>
                   <tr>
                     <td class="py-2.5 font-medium text-gray-800">Bên hông</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.08) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.12) }}</td>
-                    <td class="py-2.5">{{ formatPrice(product.price * 0.18) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'side', 'small')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'side', 'medium')) }}</td>
+                    <td class="py-2.5">{{ formatPrice(calculateLogoPrice(product.price, 'side', 'large')) }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <p class="text-[10px] text-gray-400 mt-2 italic">
+              * Bảng giá chỉ mang tính tham khảo. Phí in thực tế sẽ được tính theo công thức chung: (hệ số vị trí + hệ số kích thước) × giá sản phẩm.
+            </p>
           </div>
         </aside>
       </div>
@@ -297,6 +302,26 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN').format(Math.round(price)) + '₫'
 }
 
+// ===== CÔNG THỨC TÍNH PHÍ IN (KHỚP VỚI BACKEND) =====
+const positionFactors = {
+  front: 0.10,
+  back: 0.12,
+  side: 0.08,
+}
+
+const sizeFactors = {
+  small: 0.08,
+  medium: 0.12,
+  large: 0.18,
+}
+
+const calculateLogoPrice = (basePrice, position, size) => {
+  const positionFactor = positionFactors[position] || 0.10
+  const sizeFactor = sizeFactors[size] || 0.08
+  const factor = positionFactor + sizeFactor
+  return Math.round(basePrice * factor)
+}
+
 // State Form
 const form = ref({
   fullName: '',
@@ -315,19 +340,10 @@ const isSubmitting = ref(false)
 const message = ref('')
 const messageType = ref('success')
 
-// Tính toán chi phí in tạm tính (trên 1 sản phẩm)
+// Tính toán chi phí in tạm tính (trên 1 sản phẩm) - sử dụng đúng công thức
 const calculatedPrintFee = computed(() => {
   if (!product.value || !finalProductPrice.value || !form.value.position || !form.value.size) return 0
-  
-  const basePrice = finalProductPrice.value
-  const rateMap = {
-    front: { small: 0.1, medium: 0.15, large: 0.2 },
-    back: { small: 0.12, medium: 0.18, large: 0.25 },
-    side: { small: 0.08, medium: 0.12, large: 0.18 }
-  }
-
-  const rate = rateMap[form.value.position]?.[form.value.size] || 0
-  return basePrice * rate
+  return calculateLogoPrice(finalProductPrice.value, form.value.position, form.value.size)
 })
 
 const triggerFileUpload = () => {
@@ -353,6 +369,8 @@ const handleFileUpload = (event) => {
   }
 
   uploadedFileName.value = file.name
+  // Clear error if any
+  if (uploadError.value) uploadError.value = ''
 }
 
 const handleImageError = (e) => {
@@ -363,21 +381,37 @@ const submitRequest = async () => {
   message.value = ''
   messageType.value = 'success'
 
+  // Kiểm tra đầy đủ thông tin liên hệ
   if (!form.value.fullName || !form.value.email || !form.value.phone) {
     message.value = 'Vui lòng điền đầy đủ thông tin liên hệ.'
     messageType.value = 'error'
     return
   }
 
+  // Kiểm tra vị trí và kích thước
   if (!form.value.position || !form.value.size) {
     message.value = 'Vui lòng chọn vị trí và kích thước in.'
     messageType.value = 'error'
     return
   }
 
+  // Kiểm tra số lượng
   if (!form.value.quantity || form.value.quantity < 1) {
     message.value = 'Vui lòng nhập số lượng hợp lệ (tối thiểu 1).'
     messageType.value = 'error'
+    return
+  }
+
+  // ===== BẮT BUỘC PHẢI TẢI FILE LOGO =====
+  if (!uploadedFileName.value) {
+    message.value = 'Vui lòng tải lên file thiết kế logo (PNG, JPG, AI, PDF).'
+    messageType.value = 'error'
+    uploadError.value = 'Bạn cần tải lên file logo để tiếp tục.'
+    // Cuộn đến khu vực upload file
+    const uploadSection = document.querySelector('.border-2.border-dashed')
+    if (uploadSection) {
+      uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
 

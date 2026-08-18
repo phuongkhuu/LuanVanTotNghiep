@@ -238,7 +238,7 @@ class PayOSController extends Controller
                     $payment->payment_date = now();
                     $payment->save();
                 }
-                $order->order_status = 2;
+                $order->order_status = 1;
                 $order->save();
             }
 

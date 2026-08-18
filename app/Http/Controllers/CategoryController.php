@@ -86,7 +86,7 @@ class CategoryController extends Controller
     }
 
     /**
-     * Hiển thị sản phẩm mới (phân trang, sắp xếp mới nhất, giới hạn 2 trang)
+     * Hiển thị sản phẩm mới
      */
     private function showNewArrivals(Request $request)
     {
@@ -103,21 +103,7 @@ class CategoryController extends Controller
         // Phân trang 12 sản phẩm/trang, giữ query string
         $products = $query->paginate(12)->withQueryString();
 
-        // Giới hạn số trang tối đa là 2
-        if ($products->lastPage() > 2) {
-            // Nếu trang hiện tại > 2, redirect về trang 2
-            if ($products->currentPage() > 2) {
-                $queryParams = $request->query();
-                $queryParams['page'] = 2;
-                return redirect()->route('category', ['slug' => 'new-arrivals'] + $queryParams);
-            }
-
-            // Điều chỉnh last_page và total để chỉ hiển thị 2 trang
-            $products->setLastPage(2);
-            $products->setTotal($products->perPage() * 2);
-        }
-
-        // Transform dữ liệu
+        // Transform dữ liệu (chỉ biến đổi collection bên trong)
         $products->getCollection()->transform(fn($product) => $this->mapProduct($product));
 
         // Lấy dữ liệu cho bộ lọc (dựa trên tất cả sản phẩm mới)
