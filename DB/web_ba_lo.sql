@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1:3306
--- Thời gian đã tạo: Th8 18, 2026 lúc 12:51 PM
+-- Thời gian đã tạo: Th8 18, 2026 lúc 02:59 PM
 -- Phiên bản máy phục vụ: 9.1.0
 -- Phiên bản PHP: 8.3.14
 
@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS `banners` (
 --
 
 INSERT INTO `banners` (`id`, `campaign_id`, `title`, `image`, `link`, `status`, `order`, `created_at`, `updated_at`) VALUES
-(1, NULL, 'Banner mùa hè 2024', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', 'http://127.0.0.1:8000/san-pham/tui-deo-cheo-thoi-trang-unisex-hier-everyday-messenger', 1, 0, '2026-07-26 01:32:30', '2026-08-18 11:56:40'),
-(2, NULL, 'Banner khuyến mãi lớn', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img4.jpg?1785821424556', 'https://example.com/big-sale', 0, 1, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
-(3, NULL, 'Banner sắp ra mắt', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img8.jpg?1785821424556', 'https://example.com/coming-soon', 0, 2, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
-(4, NULL, 'Banner cũ đã khóa', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img10.jpg?1785821424556', 'https://example.com/old-campaign', 0, 3, '2026-07-26 01:32:30', '2026-08-16 10:45:34');
+(1, 7, 'Banner mùa hè', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', 'http://127.0.0.1:8000/san-pham/test2', 1, 2, '2026-07-26 01:32:30', '2026-08-18 14:55:58'),
+(2, 12, 'Targus', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img4.jpg?1785821424556', 'http://127.0.0.1:8000/san-pham/balo-laptop-targus-groove-x-max-15', 0, 1, '2026-07-26 01:32:30', '2026-08-18 14:55:58'),
+(3, 13, 'Solo', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img8.jpg?1785821424556', 'http://127.0.0.1:8000/san-pham/minimalist-v2-ultralight-backpack', 1, 0, '2026-07-26 01:32:30', '2026-08-18 14:55:58'),
+(4, NULL, 'Banner cũ đã khóa', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img10.jpg?1785821424556', 'https://example.com/old-campaign', 0, 3, '2026-07-26 01:32:30', '2026-08-18 14:55:19');
 
 -- --------------------------------------------------------
 
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
   UNIQUE KEY `campaigns_code_unique` (`code`),
   KEY `campaigns_banner_id_foreign` (`banner_id`),
   KEY `campaigns_product_id_foreign` (`product_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `campaigns`
@@ -173,8 +173,14 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
 
 INSERT INTO `campaigns` (`id`, `name`, `type`, `code`, `target_type`, `discount_type`, `discount_value`, `min_order`, `limit`, `used`, `expiry`, `description`, `start_time`, `end_time`, `status`, `banner`, `banner_id`, `priority`, `featured`, `created_at`, `updated_at`, `product_id`, `tiers`, `current_buyers`) VALUES
 (2, 'Chiến dịch 01/07/2025 - 31/07/2025', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, NULL, '2025-06-30 17:00:00', '2025-07-30 17:00:00', 'ended', NULL, NULL, 0, 0, '2026-07-26 01:32:30', '2026-08-18 09:17:22', NULL, NULL, 0),
-(4, 'abc', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-05 17:00:00', '2026-09-04 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-05 08:48:38', '2026-08-18 09:30:19', 3, '[{\"to\": 10, \"from\": 1, \"discount\": 20}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 5}]', 1),
-(7, 'test2', 'anniversary', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-23 17:00:00', '2026-08-26 17:00:00', 'scheduled', NULL, NULL, 0, 0, '2026-08-16 10:53:37', '2026-08-16 10:53:44', NULL, NULL, 0);
+(4, 'KingBag Crossbody Mini', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-05 17:00:00', '2026-09-04 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-05 08:48:38', '2026-08-18 14:44:29', 3, '[{\"to\": 10, \"from\": 1, \"discount\": 5}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 15}]', 1),
+(7, 'BigBag', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-17 17:00:00', '2026-08-26 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-16 10:53:37', '2026-08-18 14:50:48', NULL, NULL, 0),
+(8, 'Voucher Muahe', 'voucher', 'MUAHE', 'all', 'fixed', 30000, 0, 50, 2, '2026-08-31', 'Giảm 30,000₫', NULL, NULL, 'active', NULL, NULL, 0, 0, '2026-08-18 13:29:50', '2026-08-18 13:35:01', NULL, NULL, 0),
+(9, 'test2', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-17 17:00:00', '2026-08-30 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-18 14:30:14', '2026-08-18 14:44:12', 35, '[{\"to\": 10, \"from\": 1, \"discount\": 5}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 15}]', 2),
+(10, 'KingBag Backpack Pro', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-17 17:00:00', '2026-08-30 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-18 14:42:26', '2026-08-18 14:42:26', 8, '[{\"to\": 10, \"from\": 1, \"discount\": 5}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 15}]', 0),
+(11, 'Balo du lịch lớn Samsonite 50L', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-17 17:00:00', '2026-08-30 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-18 14:43:09', '2026-08-18 14:43:09', 11, '[{\"to\": 10, \"from\": 1, \"discount\": 5}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 15}]', 0),
+(12, 'Targus', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-19 17:00:00', '2026-08-30 17:00:00', 'scheduled', NULL, NULL, 0, 0, '2026-08-18 14:51:30', '2026-08-18 14:51:30', NULL, NULL, 0),
+(13, 'Solo', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-17 17:00:00', '2026-08-30 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-18 14:54:18', '2026-08-18 14:54:18', NULL, NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -192,7 +198,7 @@ CREATE TABLE IF NOT EXISTS `campaign_configs` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `campaign_configs_campaign_id_foreign` (`campaign_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `campaign_configs`
@@ -202,7 +208,9 @@ INSERT INTO `campaign_configs` (`id`, `campaign_id`, `quantity`, `discount_perce
 (4, 2, 0, 10.00, '2026-07-26 01:32:30', '2026-08-18 09:17:22'),
 (5, 2, 50, 5.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
 (6, 2, 100, 10.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(9, 7, 0, 1.00, '2026-08-16 10:53:37', '2026-08-16 10:53:37');
+(9, 7, 0, 10.00, '2026-08-16 10:53:37', '2026-08-18 14:50:48'),
+(10, 12, 0, 10.00, '2026-08-18 14:51:30', '2026-08-18 14:51:43'),
+(11, 13, 0, 5.00, '2026-08-18 14:54:18', '2026-08-18 14:54:18');
 
 -- --------------------------------------------------------
 
@@ -220,7 +228,7 @@ CREATE TABLE IF NOT EXISTS `campaign_products` (
   PRIMARY KEY (`id`),
   KEY `campaign_products_campaign_id_foreign` (`campaign_id`),
   KEY `campaign_products_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `campaign_products`
@@ -229,7 +237,12 @@ CREATE TABLE IF NOT EXISTS `campaign_products` (
 INSERT INTO `campaign_products` (`id`, `campaign_id`, `product_variant_id`, `created_at`, `updated_at`) VALUES
 (3, 2, 1, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
 (4, 2, 2, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(10, 7, 30, NULL, NULL);
+(13, 7, 2, NULL, NULL),
+(14, 7, 1, NULL, NULL),
+(15, 12, 14, NULL, NULL),
+(16, 12, 15, NULL, NULL),
+(17, 13, 24, NULL, NULL),
+(18, 13, 23, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -280,7 +293,7 @@ CREATE TABLE IF NOT EXISTS `chatbot_messages` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `chatbot_messages_user_id_foreign` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `chatbot_messages`
@@ -314,7 +327,15 @@ INSERT INTO `chatbot_messages` (`id`, `user_id`, `message`, `sender`, `created_a
 (25, NULL, 'Hãy liệt kê các chương trình khuyến mãi đang hiện hành', 'user', '2026-08-08 12:43:59', '2026-08-08 12:43:59'),
 (26, NULL, 'Dưới đây là thông tin chi tiết về các chương trình khuyến mãi đang diễn ra mà bạn có thể tham khảo:\n\n1.  **Chiến dịch 01/06/2025 - 30/06/2025**:\n    *   **Mức ưu đãi:** Giảm giá cực sâu lên đến **50.00%**.\n    *   **Thời gian áp dụng:** Chương trình bắt đầu từ ngày 01/06/2025 và kết thúc vào ngày 30/06/2025.\n    *   **Điều kiện:** Ưu đãi này được áp dụng cho các đơn hàng phát sinh trong suốt tháng 6 năm 2025. Đây là cơ hội lớn để mua sắm với mức giá chỉ bằng một nửa so với thông thường.\n\n2.  **Campaign Summer 2024**:\n    *   **Mức ưu đãi:** Hiện tại hệ thống ghi nhận mức giảm giá là **0 VND**.\n    *   **Đặc điểm:** Đây là chương trình dành riêng cho mùa hè năm 2024. \n    *   **Lưu ý:** Với mức giảm 0 VND, chương trình này có thể đang tập trung vào các hình thức ưu đãi khác không phải giảm giá trực tiếp bằng tiền (ví dụ: tặng quà kèm theo, tích điểm thành viên, hoặc miễn phí vận chuyển). Bạn nên kiểm tra thêm chi tiết về quà tặng đi kèm nếu có.\n\nNếu bạn cần biết thêm điều kiện cụ thể cho từng nhóm sản phẩm, hãy cho tôi biết nhé!', 'bot', '2026-08-08 12:43:59', '2026-08-08 12:43:59'),
 (27, NULL, 'Hãy liệt kê các chương trình khuyến mãi đang hiện hành', 'user', '2026-08-08 12:49:51', '2026-08-08 12:49:51'),
-(28, NULL, 'Chào bạn, hiện tại cửa hàng BigBag đang triển khai hai chương trình khuyến mãi đặc biệt để tri ân khách hàng. Chương trình đầu tiên là Chiến dịch diễn ra từ ngày 01/06/2025 đến ngày 30/06/2025 mang đến ưu đãi giảm giá cực khủng lên tới 50.00% cho các sản phẩm tại cửa hàng. Ngoài ra chúng mình còn có chương trình Campaign Summer 2024 đang được áp dụng với mức giảm giá là 0 VND dành cho các khách hàng tham gia. Bạn hãy tranh thủ thời gian này để ghé thăm BigBag và lựa chọn cho mình những mẫu balo chất lượng với mức giá ưu đãi nhất nhé.', 'bot', '2026-08-08 12:49:51', '2026-08-08 12:49:51');
+(28, NULL, 'Chào bạn, hiện tại cửa hàng BigBag đang triển khai hai chương trình khuyến mãi đặc biệt để tri ân khách hàng. Chương trình đầu tiên là Chiến dịch diễn ra từ ngày 01/06/2025 đến ngày 30/06/2025 mang đến ưu đãi giảm giá cực khủng lên tới 50.00% cho các sản phẩm tại cửa hàng. Ngoài ra chúng mình còn có chương trình Campaign Summer 2024 đang được áp dụng với mức giảm giá là 0 VND dành cho các khách hàng tham gia. Bạn hãy tranh thủ thời gian này để ghé thăm BigBag và lựa chọn cho mình những mẫu balo chất lượng với mức giá ưu đãi nhất nhé.', 'bot', '2026-08-08 12:49:51', '2026-08-08 12:49:51'),
+(29, 6, 'cho tôi 1 số mẫu balo đẹp', 'user', '2026-08-18 14:46:00', '2026-08-18 14:46:00'),
+(30, 6, 'Đã có lỗi xảy ra khi tổng hợp kết quả.', 'bot', '2026-08-18 14:46:00', '2026-08-18 14:46:00'),
+(31, 6, 'gợi ý một vài mẫu sản phẩm', 'user', '2026-08-18 14:46:39', '2026-08-18 14:46:39'),
+(32, 6, 'Chào bạn, BigBag rất vui được giới thiệu đến bạn một số mẫu balo nổi bật đang có sẵn tại hệ thống. <img src=\"https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880\" alt=\"Balo Laptop BigBag Pro 15.6 inch\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Đầu tiên là chiếc Balo Laptop BigBag Pro 15.6 inch thuộc thương hiệu BigBag có giá bán 14.500.000 VND được làm từ chất liệu Ballistic Nylon 1680D cao cấp giúp bảo vệ máy tính của bạn một cách tuyệt đối. <img src=\"https://markryden.vn/wp-content/uploads/2024/07/1.png\" alt=\"Balo Laptop Thời Trang MARK RYDEN ROCKY\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Tiếp đến là mẫu Balo Laptop Thời Trang MARK RYDEN ROCKY từ thương hiệu MARK RYDEN với mức giá 2.100.000 VND sử dụng chất liệu Oxford phối da mang lại vẻ ngoài lịch lãm và hiện đại. <img src=\"https://bizweb.dktcdn.net/100/044/266/files/tomtoc_usa_t77s1d1_20__c73a830c-65b0-4fae-bec6-3f0731b9a58b.png?v=1780333232839\" alt=\"Balo Chống Sốc Laptop 13-15″ TOMTOC (USA)\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Nếu bạn ưu tiên khả năng chống va đập thì chiếc Balo Chống Sốc Laptop 13-15 inch TOMTOC USA của thương hiệu Everki giá 2.350.000 VND với vải Cordura 840D Nylon sẽ là người bạn đồng hành tin cậy. <img src=\"https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg\" alt=\"Targus CitySmart 15.6 inch\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Ngoài ra mẫu Targus CitySmart 15.6 inch đến từ thương hiệu Targus có giá 1.250.000 VND sở hữu thiết kế thông minh từ vải 2-Tone Polyester rất phù hợp cho dân văn phòng. <img src=\"/media/image/6a756cede8000.jpg\" alt=\"Balo Laptop MIKKOR BRYANT PREMIER\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Cuối cùng là chiếc Balo Laptop MIKKOR BRYANT PREMIER của thương hiệu Samsonite với mức giá cực kỳ ưu đãi chỉ 649.000 VND được hoàn thiện từ vải 900D Kodura Supertex bền bỉ và thời trang. Hy vọng những gợi ý này sẽ giúp bạn tìm được sản phẩm ưng ý tại BigBag.', 'bot', '2026-08-18 14:46:39', '2026-08-18 14:46:39'),
+(33, 6, 'đề xuất cho tôi các sản phẩm màu nâu', 'user', '2026-08-18 14:47:33', '2026-08-18 14:47:33'),
+(34, 6, 'Chào bạn, hiện tại BigBag rất tiếc vì chưa tìm thấy sản phẩm nào có màu nâu trong danh mục hiện tại để đề xuất cho bạn. Các mẫu balo hoặc túi xách màu nâu thường mang phong cách cổ điển và rất được yêu thích nên có thể đã tạm hết hàng. Bạn có thể tham khảo các tông màu trung tính khác như đen, xám hoặc xanh navy cũng rất tinh tế và dễ dàng phối hợp với nhiều trang phục khác nhau. Ngoài ra, BigBag đang có nhiều chương trình ưu đãi và voucher giảm giá hấp dẫn dành cho các dòng sản phẩm khác. Nếu bạn quan tâm đến một thương hiệu cụ thể như Mikkor, Simplecarry hay Arctic Hunter, hoặc cần tìm balo theo kích thước máy tính, hãy cho mình biết để mình hỗ trợ bạn tìm', 'bot', '2026-08-18 14:47:33', '2026-08-18 14:47:33'),
+(35, 6, 'những sản phẩm bên shop bạn bán có những thương hiệu nào', 'user', '2026-08-18 14:59:13', '2026-08-18 14:59:13'),
+(36, 6, 'Chào bạn, hiện tại cửa hàng BigBag đang cung cấp sản phẩm từ nhiều thương hiệu uy tín như BigBag, Mark Ryden, Everki, Targus và Samsonite. <img src=\"https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880\" alt=\"Balo Laptop BigBag Pro 15.6 inch\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Đầu tiên là mẫu Balo Laptop BigBag Pro 15.6 inch thuộc thương hiệu BigBag có giá khuyến mãi là 13.050.000 VND với chất liệu Ballistic Nylon 1680D cực kỳ chắc chắn. <img src=\"https://markryden.vn/wp-content/uploads/2024/07/1.png\" alt=\"Balo Laptop Thời Trang MARK RYDEN ROCKY\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Tiếp theo là Balo Laptop Thời Trang MARK RYDEN ROCKY đến từ thương hiệu MARK RYDEN có giá niêm yết 2.100.000 VND được làm từ vải Oxford và da bền bỉ. <img src=\"https://bizweb.dktcdn.net/100/044/266/files/tomtoc_usa_t77s1d1_20__c73a830c-65b0-4fae-bec6-3f0731b9a58b.png?v=1780333232839\" alt=\"Balo Chống Sốc Laptop 13-15″ TOMTOC (USA)\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Bên mình còn có mẫu Balo Chống Sốc Laptop 13-15 inch TOMTOC USA của thương hiệu Everki với mức giá 2.350.000 VND sử dụng chất liệu vải Cordura chống mài mòn tốt. <img src=\"https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg\" alt=\"Targus CitySmart 15.6 inch\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Ngoài ra bạn có thể tham khảo thêm Targus CitySmart 15.6 inch từ thương hiệu Targus có giá 1.250.000 VND mang phong cách hiện đại. <img src=\"/media/image/6a756cede8000.jpg\" alt=\"Balo Laptop MIKKOR BRYANT PREMIER\" style=\"max-width:120px;height:auto;border-radius:8px;\"> Cuối cùng là sản phẩm Balo Laptop MIKKOR BRYANT PREMIER thuộc thương hiệu Samsonite với giá chỉ 649.000 VND được hoàn thiện từ vải Kodura Supertex chất lượng cao. Nếu bạn cần thêm thông tin chi tiết về sản phẩm nào thì hãy nhắn cho mình nhé.', 'bot', '2026-08-18 14:59:13', '2026-08-18 14:59:13');
 
 -- --------------------------------------------------------
 
@@ -453,7 +474,7 @@ CREATE TABLE IF NOT EXISTS `logo_print_requests` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `logo_print_requests_order_detail_id_foreign` (`order_detail_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `logo_print_requests`
@@ -473,7 +494,9 @@ INSERT INTO `logo_print_requests` (`id`, `order_detail_id`, `logo_image`, `print
 (11, 252, 'logos/3cac51d6-430a-4ad3-b1a0-42d0b97b9aa9.png', 'back', 'medium', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'approved', '2026-08-17 08:48:43', '2026-08-17 10:24:40'),
 (12, 253, 'logos/3cac51d6-430a-4ad3-b1a0-42d0b97b9aa9.png', 'back', 'medium', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'rejected', '2026-08-17 08:51:37', '2026-08-17 08:52:05'),
 (13, 254, 'logos/dd57bfa0-9c66-4f45-9389-c46104dcc2f4.png', 'front', 'large', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'approved', '2026-08-17 08:52:50', '2026-08-17 08:53:03'),
-(14, 261, 'logos/47366785-f767-49db-8561-fc33b3a9a029.png', 'front', 'medium', '\n\n---\nKhách hàng: Py\nEmail: trucmy10042004@gmail.com\nSĐT: 0907868956', 'approved', '2026-08-18 09:53:15', '2026-08-18 09:54:14');
+(14, 261, 'logos/47366785-f767-49db-8561-fc33b3a9a029.png', 'front', 'medium', '\n\n---\nKhách hàng: Py\nEmail: trucmy10042004@gmail.com\nSĐT: 0907868956', 'approved', '2026-08-18 09:53:15', '2026-08-18 09:54:14'),
+(15, 264, 'logos/958a9729-4508-4276-a35f-d336cb569815.png', 'front', 'small', '\n\n---\nKhách hàng: Py\nEmail: trucmy10042004@gmail.com\nSĐT: 0907868956', 'approved', '2026-08-18 13:20:24', '2026-08-18 13:22:08'),
+(16, 265, 'logos/5f5f5691-462b-40b2-b5a7-f69584fd2c56.png', 'back', 'small', '\n\n---\nKhách hàng: Py\nEmail: trucmy10042004@gmail.com\nSĐT: 0907868956', 'rejected', '2026-08-18 13:25:00', '2026-08-18 13:25:49');
 
 -- --------------------------------------------------------
 
@@ -615,7 +638,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `orders_user_id_foreign` (`user_id`),
   KEY `orders_discount_id_foreign` (`discount_id`),
   KEY `orders_campaign_id_foreign` (`campaign_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `orders`
@@ -722,7 +745,17 @@ INSERT INTO `orders` (`id`, `order_number`, `confirmation_token`, `token_expires
 (99, 'P1808202600099', 'fusbTDUBNSeN5gxvg0Xu5mNEEzmuTevbbIY0uNkLlPLJJaAywr4kccm4gvb41m5F', '2026-08-25 09:30:19', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, 4, 'preorder', 'Py', '0907868956', 0, 360000, 0, NULL, 360000, 360000, 0, 'pending', 0, '89, TP. Hồ Chí Minh', NULL, '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
 (100, 'S1808202600100', 'YzxGMbXYzvJhk7f8bl8w7j8LoEQTmGjK96fZLGuQr8DgmlfAoFxDlZmpxyJLLHn3', '2026-08-25 09:36:34', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0906758927', 0, 32450000, 1622500, NULL, 30827500, 15413750, 15413750, 'pending', 0, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: a@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-03\nĐịa chỉ giao hàng: 1, 1, 1, HCM\n-------------------------', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
 (101, 'S1808202600101', NULL, '2026-08-25 09:47:03', 1, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0907864587', 0, 130000000, 6500000, NULL, 123500000, 61750000, 61750000, 'pending', 1, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: trucmy10042004@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-10\nĐịa chỉ giao hàng: 1, 1, 1, 1\n-------------------------', '2026-08-18 09:47:03', '2026-08-18 09:47:49'),
-(102, 'C1808202600102', 'APNRBEXLGdk15yEv99HEGgZYip3X4t7Sa4qhNHrSrBesX4LUIdWQpGwQkXIWjwsy', '2026-08-25 09:53:15', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'customize', 'Py', '0907868956', 0, 3172000, 0, NULL, 3172000, 3172000, 0, 'pending', 1, '1, TP. Hồ Chí Minh', NULL, '2026-08-18 09:53:15', '2026-08-18 09:54:14');
+(102, 'C1808202600102', 'APNRBEXLGdk15yEv99HEGgZYip3X4t7Sa4qhNHrSrBesX4LUIdWQpGwQkXIWjwsy', '2026-08-25 09:53:15', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'customize', 'Py', '0907868956', 0, 3172000, 0, NULL, 3172000, 3172000, 0, 'pending', 1, '1, TP. Hồ Chí Minh', NULL, '2026-08-18 09:53:15', '2026-08-18 09:54:14'),
+(103, 'S1808202600103', NULL, '2026-08-25 13:12:06', 1, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0123456789', 0, 32450000, 1622500, NULL, 30827500, 15413750, 15413750, 'pending', 0, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: trucmy10042004@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-01\nĐịa chỉ giao hàng: 1, 1, 11, a\n-------------------------', '2026-08-18 13:12:06', '2026-08-18 13:13:16'),
+(104, 'S1808202600104', NULL, '2026-08-25 13:15:28', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0123456789', 0, 32450000, 1622500, NULL, 30827500, 15413750, 15413750, 'pending', 5, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: trucmy10042004@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-01\nĐịa chỉ giao hàng: 1, 1, 1, 1\n-------------------------', '2026-08-18 13:15:28', '2026-08-18 13:16:20'),
+(105, 'C1808202600105', 'iW2cS0IPxIHgqP6TJc6XwHbkA8kN56s246K2Eb70i3jZ6JCuv0hsdFKV2nzwvqMO', '2026-08-25 13:20:24', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'customize', 'Py', '0907868956', 0, 765820, 0, NULL, 765820, 765820, 0, 'pending', 1, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 13:20:24', '2026-08-18 13:22:08'),
+(106, 'C1808202600106', 'Ij8s7yJOVaMthXcqeF1lQlvbQA7Q5JtUADAveRClyYVFbovdeC3EwDm8kutNakcq', '2026-08-25 13:25:00', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'customize', 'Py', '0907868956', 0, 778800, 0, NULL, 778800, 778800, 0, 'pending', 0, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 13:25:00', '2026-08-18 13:25:00'),
+(107, 'L1808202600107', 'tjx6zk0LfDrJGd1aIg9l31D8QRcCH9fGHYSUEycdRFHU2qcnCv8OzCSlm26GnqcV', '2026-08-25 13:33:55', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'retail', 'Py', '0907868956', 0, 619000, 30000, 'MUAHE', 619000, 619000, 0, 'pending', 0, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 13:33:55', '2026-08-18 13:33:55'),
+(108, 'L1808202600108', 'BosEt06esoFkIuhVtLIbEJJCbt9E4xyueyeeMYowwqq6uBv6htuOA2EhUAG5ZrXp', '2026-08-25 13:35:01', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'retail', 'Py', '0907868956', 0, 0, 10000, 'MUAHE', 0, 0, 0, 'pending', 0, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 13:35:01', '2026-08-18 13:35:01'),
+(109, 'L1808202600109', 'lq7KXO7mV4aZhbDYtuWWjkDGt7XGDm7B4qNOiNEEcwiCmSLVk1FSWODONhLiTkZF', '2026-08-25 13:50:27', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'retail', 'Py', '0907868956', 0, 10000, 0, NULL, 10000, 10000, 0, 'pending', 1, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 13:50:27', '2026-08-18 13:51:28'),
+(110, 'P1808202600110', '4zEZk2WGA83asnHNkAHEfgH2p7eNWJGwXqygQ23kYhiJYpCe65cpauxpLxofdfj5', '2026-08-25 14:31:54', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, 9, 'preorder', 'Py', '0907868956', 0, 9500, 0, NULL, 9500, 9500, 0, 'pending', 0, '628 bui vien, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 14:31:54', '2026-08-18 14:31:54'),
+(111, 'P1808202600111', 'yS0LeZazoKTzlcjIBoMw5qwuu18BuLmvsAFknk00YUjC70x9cXsx5MDRlM8lTaWQ', '2026-08-25 14:38:16', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, 9, 'preorder', 'Py', '0907868956', 0, 14250, 0, NULL, 14250, 14250, 0, 'pending', 1, '1, 1, 1, TP. Hồ Chí Minh', NULL, '2026-08-18 14:38:16', '2026-08-18 14:38:59'),
+(112, 'L1808202600112', 'gwXz5OYqrYRV8RN2rWEgophNKoQdLIqBZH2kGhawATfYf9Tk5L0zLtYVob7FDFP0', '2026-08-25 14:40:35', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'retail', 'Py', '0907868956', 0, 10000, 0, NULL, 10000, 10000, 0, 'pending', 1, '1, 1, 1, Đà Nẵng', NULL, '2026-08-18 14:40:35', '2026-08-18 14:41:23');
 
 -- --------------------------------------------------------
 
@@ -743,7 +776,7 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   PRIMARY KEY (`id`),
   KEY `order_details_order_id_foreign` (`order_id`),
   KEY `order_details_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=262 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=272 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `order_details`
@@ -1009,7 +1042,17 @@ INSERT INTO `order_details` (`id`, `order_id`, `product_variant_id`, `quantity`,
 (258, 99, 4, 1, 360000, 360000, '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
 (259, 100, 8, 50, 649000, 32450000, '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
 (260, 101, 46, 50, 2600000, 130000000, '2026-08-18 09:47:03', '2026-08-18 09:47:03'),
-(261, 102, 46, 1, 3172000, 3172000, '2026-08-18 09:53:15', '2026-08-18 09:53:15');
+(261, 102, 46, 1, 3172000, 3172000, '2026-08-18 09:53:15', '2026-08-18 09:53:15'),
+(262, 103, 8, 50, 649000, 32450000, '2026-08-18 13:12:06', '2026-08-18 13:12:06'),
+(263, 104, 8, 50, 649000, 32450000, '2026-08-18 13:15:28', '2026-08-18 13:15:28'),
+(264, 105, 8, 1, 765820, 765820, '2026-08-18 13:20:24', '2026-08-18 13:20:24'),
+(265, 106, 8, 1, 778800, 778800, '2026-08-18 13:25:00', '2026-08-18 13:25:00'),
+(266, 107, 8, 1, 649000, 649000, '2026-08-18 13:33:55', '2026-08-18 13:33:55'),
+(267, 108, 50, 1, 10000, 10000, '2026-08-18 13:35:01', '2026-08-18 13:35:01'),
+(268, 109, 50, 1, 10000, 10000, '2026-08-18 13:50:27', '2026-08-18 13:50:27'),
+(269, 110, 51, 1, 9500, 9500, '2026-08-18 14:31:54', '2026-08-18 14:31:54'),
+(270, 111, 51, 1, 14250, 14250, '2026-08-18 14:38:16', '2026-08-18 14:38:16'),
+(271, 112, 50, 1, 10000, 10000, '2026-08-18 14:40:36', '2026-08-18 14:40:36');
 
 -- --------------------------------------------------------
 
@@ -1045,7 +1088,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `payments_transaction_code_unique` (`transaction_code`),
   KEY `payments_order_id_foreign` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `payments`
@@ -1129,7 +1172,17 @@ INSERT INTO `payments` (`id`, `order_id`, `transaction_code`, `payment_method`, 
 (76, 99, 'PAY-99-1787045419', 'cod', 360000, '2026-08-18 16:30:19', 'pending', '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
 (77, 100, 'PAY-WS-100-1787045794', 'bank_transfer', 0, '2026-08-18 16:36:34', 'pending', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
 (78, 101, '101', 'bank_transfer', 0, '2026-08-18 16:47:03', 'pending', '2026-08-18 09:47:03', '2026-08-18 09:47:45'),
-(79, 102, '102', 'bank_transfer', 3172000, '2026-08-18 16:53:15', 'pending', '2026-08-18 09:53:15', '2026-08-18 09:54:15');
+(79, 102, '102', 'bank_transfer', 3172000, '2026-08-18 16:53:15', 'pending', '2026-08-18 09:53:15', '2026-08-18 09:54:15'),
+(80, 103, '103', 'bank_transfer', 0, '2026-08-18 20:12:06', 'pending', '2026-08-18 13:12:06', '2026-08-18 13:13:11'),
+(81, 104, 'PAY-WS-104-1787058928', 'bank_transfer', 0, '2026-08-18 20:15:28', 'pending', '2026-08-18 13:15:28', '2026-08-18 13:15:28'),
+(82, 105, '105', 'bank_transfer', 765820, '2026-08-18 20:20:24', 'pending', '2026-08-18 13:20:24', '2026-08-18 13:22:09'),
+(83, 106, 'PAY-106-1787059500', 'bank_transfer', 778800, '2026-08-18 20:25:00', 'pending', '2026-08-18 13:25:00', '2026-08-18 13:25:00'),
+(84, 107, 'PAY-107-1787060035', 'cod', 619000, '2026-08-18 20:33:55', 'pending', '2026-08-18 13:33:55', '2026-08-18 13:33:55'),
+(85, 108, 'PAY-108-1787060101', 'bank_transfer', 0, '2026-08-18 20:35:01', 'pending', '2026-08-18 13:35:01', '2026-08-18 13:35:01'),
+(86, 109, '109', 'bank_transfer', 10000, '2026-08-18 20:51:28', 'success', '2026-08-18 13:50:27', '2026-08-18 13:51:28'),
+(87, 110, 'PAY-110-1787063514', 'cod', 9500, '2026-08-18 21:31:54', 'pending', '2026-08-18 14:31:54', '2026-08-18 14:31:54'),
+(88, 111, '111', 'bank_transfer', 14250, '2026-08-18 21:38:59', 'success', '2026-08-18 14:38:16', '2026-08-18 14:38:59'),
+(89, 112, '112', 'bank_transfer', 10000, '2026-08-18 21:41:23', 'success', '2026-08-18 14:40:36', '2026-08-18 14:41:23');
 
 -- --------------------------------------------------------
 
@@ -1157,7 +1210,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   UNIQUE KEY `products_slug_unique` (`slug`),
   KEY `products_category_id_foreign` (`category_id`),
   KEY `products_brand_id_foreign` (`brand_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `products`
@@ -1194,7 +1247,8 @@ INSERT INTO `products` (`id`, `category_id`, `brand_id`, `name`, `slug`, `materi
 (29, 3, 11, 'Túi Đeo Chéo Chống Sốc Macbook Pro 14\" TOMTOC (USA) A04D3D1', 'tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1', 'Vải 840D Polyester trượt nước cao cấp siêu bền - chống mài mòn lót đệm mịn chống trầy xước', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-21.png?v=1784281474273\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-14.png?v=1784281474273\", \"https://bizweb.dktcdn.net/100/044/266/files/tui_eo_cheo_chong_soc_macbook_pro_14_tomtoc_usa_a04d3d1_-_black_23_.png?v=1784654505221\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-30-1.jpg?v=1784281474273\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-21.png?v=1784281474273', 0, 0, 1, '2026-08-18 05:12:59', '2026-08-18 05:12:59'),
 (30, 7, 7, 'CẶP XÁCH LAPTOP 13,3 - 14 inch MARK RYDEN CLASSIC', 'cap-xach-laptop-133-14-inch-mark-ryden-classic', 'Oxford', '[\"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867\", \"https://bizweb.dktcdn.net/100/044/266/files/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-11-optimized.png?v=1740731644581\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-1.png?v=1740731226840\", \"https://youtu.be/uolEl8e8t5U?si=QjSP6dHFvc314Fqk\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867', 0, 0, 1, '2026-08-18 05:15:52', '2026-08-18 05:15:52'),
 (31, 4, 11, 'Balo Vintpack For Macbook/ Laptop 13-14 inch TOMTOC (USA) TA1S1Y1', 'balo-vintpack-for-macbook-laptop-13-14-inch-tomtoc-usa-ta1s1y1', 'Vải polyester trượt nước cao cấp', '[\"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-14-49558253-2725-46f0-8da9-82870c215c38.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-2-a9bb9d65-931a-41bf-bde8-c797995597e7.png?v=1709278805653\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-5-330a353a-1773-4620-b5bf-e48e760b183d.jpg?v=1709278805653\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150', 0, 0, 1, '2026-08-18 05:19:51', '2026-08-18 08:57:59'),
-(34, 5, 8, 'test', 'test', 'da', '[]', NULL, NULL, 0, 0, 1, '2026-08-18 08:59:53', '2026-08-18 08:59:53');
+(34, 5, 8, 'test', 'test', 'da', '[\"/media/image/6a846b14ee20c.jpg\"]', NULL, '/media/image/6a846b14ee20c.jpg', 0, 0, 1, '2026-08-18 08:59:53', '2026-08-18 14:34:19'),
+(35, 5, 8, 'test2', 'test2', 'da', '[\"/media/image/6a846d7c206af.jpg\"]', NULL, '/media/image/6a846d7c206af.jpg', 0, 1, 1, '2026-08-18 13:57:27', '2026-08-18 14:34:36');
 
 -- --------------------------------------------------------
 
@@ -1224,37 +1278,37 @@ CREATE TABLE IF NOT EXISTS `product_variants` (
   KEY `product_variants_product_id_foreign` (`product_id`),
   KEY `product_variants_color_id_foreign` (`color_id`),
   KEY `product_variants_sale_campaign_id_foreign` (`sale_campaign_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `product_variants`
 --
 
 INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_name`, `rating`, `stock`, `import_quantity`, `import_price`, `last_import_date`, `price`, `sale_price`, `is_on_sale`, `sale_type`, `created_at`, `updated_at`, `sale_campaign_id`) VALUES
-(1, 1, 1, '38 x 28 x 10 cm', 4.8, 0, 11, 1005000, '2026-08-16 10:17:20', 14500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
-(2, 1, 2, '38 x 28 x 10 cm', 4.7, 2, 12, 1005000, '2026-08-16 10:18:34', 14500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(1, 1, 1, '38 x 28 x 10 cm', 4.8, 0, 11, 1005000, '2026-08-16 10:17:20', 14500000, 13050000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 14:50:48', 7),
+(2, 1, 2, '38 x 28 x 10 cm', 4.7, 2, 12, 1005000, '2026-08-16 10:18:34', 14500000, 13050000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 14:50:48', 7),
 (3, 2, 1, '38 x 28 x 10 cm', 4.9, 2498, 2500, 1590000, '2026-08-18 05:20:25', 2100000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
-(4, 3, 4, '38.1 x 27.1 x 3.2 cm', 4.5, 0, 120, 250000, '2026-08-18 09:23:39', 450000, 360000, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 09:26:39', 4),
+(4, 3, 4, '38.1 x 27.1 x 3.2 cm', 4.5, 0, 120, 250000, '2026-08-18 09:23:39', 450000, 427500, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 14:44:29', 4),
 (5, 4, 1, '38 x 28 x 10 cm', 4.9, 399, 500, 1500000, '2026-08-18 05:20:49', 2350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
 (6, 4, 2, '38 x 28 x 10 cm', 4.8, 250, 500, 1500000, '2026-08-18 05:20:49', 2350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
 (7, 5, 1, '38 x 28 x 10 cm', 4.7, 600, 600, 950000, '2026-08-18 05:21:18', 1250000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:29', NULL),
-(8, 6, 3, '38 x 28 x 10 cm', 4.8, 350, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:45', NULL),
+(8, 6, 3, '38 x 28 x 10 cm', 4.8, 349, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 13:33:55', NULL),
 (9, 6, 2, '38 x 28 x 10 cm', 4.7, 200, 400, 490000, '2026-08-18 05:22:23', 649000, 584100, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 09:06:45', NULL),
 (10, 7, 9, '38 x 28 x 10 cm', 4.6, 650, 700, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:55', NULL),
 (11, 7, 1, '38 x 28 x 10 cm', 4.5, 400, 500, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:55', NULL),
-(12, 8, 1, '38.1 x 27.1 x 3.2 cm', 4.4, 0, 70, 690000, '2026-08-18 09:24:38', 990000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:32:10', NULL),
+(12, 8, 1, '38.1 x 27.1 x 3.2 cm', 4.4, 0, 70, 690000, '2026-08-18 09:24:38', 990000, 940500, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 14:42:26', 10),
 (13, 9, 1, '38 x 28 x 10 cm', 4.9, 1500, 1500, 1400000, '2026-08-18 05:24:02', 1850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:07:13', NULL),
 (14, 10, 1, '38 x 28 x 10 cm', 4.3, 1000, 1000, 100000, '2026-08-18 05:25:47', 350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:09', NULL),
 (15, 10, 2, '38 x 28 x 10 cm', 4.2, 110, 120, 100000, '2026-08-18 05:26:59', 350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:09', NULL),
-(16, 11, 3, '38.1 x 27.1 x 3.2 cm', 4.8, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:26:10', NULL),
-(17, 11, 4, '38.1 x 27.1 x 3.2 cm', 4.7, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:26:10', NULL),
+(16, 11, 3, '38.1 x 27.1 x 3.2 cm', 4.8, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, 2707500, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 14:43:09', 11),
+(17, 11, 4, '38.1 x 27.1 x 3.2 cm', 4.7, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, 2707500, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 14:43:09', 11),
 (18, 12, 2, '38 x 28 x 10 cm', 4.5, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:24', NULL),
 (19, 13, 1, '38 x 28 x 10 cm', 4.4, 900, 900, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:34', NULL),
 (20, 13, 2, '38 x 28 x 10 cm', 4.3, 850, 850, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:34', NULL),
 (21, 1, 2, '38 x 28 x 10 cm', 0.0, 3, 6, 1005000, '2026-08-18 09:05:50', 14500000, NULL, 0, NULL, '2026-08-03 09:26:29', '2026-08-18 09:05:50', NULL),
 (22, 6, 1, '38 x 28 x 10 cm', 0.0, 300, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-08-07 05:16:14', '2026-08-18 09:06:45', NULL),
-(23, 12, 3, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 09:08:24', NULL),
-(24, 12, 4, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 09:08:24', NULL),
+(23, 12, 3, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, 1130500, 1, 'campaign', '2026-08-07 05:36:02', '2026-08-18 14:54:18', 13),
+(24, 12, 4, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, 1130500, 1, 'campaign', '2026-08-07 05:36:02', '2026-08-18 14:54:18', 13),
 (25, 14, 1, '51 x 32 x 25 cm', 0.0, 500, 500, 1590000, '2026-08-15 05:08:54', 1790000, NULL, 0, NULL, '2026-08-15 05:08:54', '2026-08-15 05:08:54', NULL),
 (26, 15, 5, '38 x 28 x 10 cm', 0.0, 500, 500, 550000, '2026-08-15 05:16:40', 700000, NULL, 0, NULL, '2026-08-15 05:16:40', '2026-08-15 05:16:40', NULL),
 (27, 15, 2, '38 x 28 x 10 cm', 0.0, 500, 500, 550000, '2026-08-15 05:16:40', 700000, NULL, 0, NULL, '2026-08-15 05:16:40', '2026-08-15 05:16:40', NULL),
@@ -1277,7 +1331,8 @@ INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_name`, `ra
 (45, 30, 1, '40 x 30 x 7 (cm)', 0.0, 500, 500, 690000, '2026-08-18 05:15:53', 1000000, NULL, 0, NULL, '2026-08-18 05:15:53', '2026-08-18 05:15:53', NULL),
 (46, 31, 7, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 09:01:56', NULL),
 (47, 31, 1, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 05:19:51', NULL),
-(50, 34, 7, 's', 0.0, 20, 25, 1000, '2026-08-18 08:59:53', 10000, NULL, 0, NULL, '2026-08-18 08:59:53', '2026-08-18 08:59:53', NULL);
+(50, 34, 7, 's', 0.0, 17, 25, 1000, '2026-08-18 08:59:53', 10000, NULL, 0, NULL, '2026-08-18 08:59:53', '2026-08-18 14:40:36', NULL),
+(51, 35, 8, 'S', 0.0, 80, 200, 2000, '2026-08-18 13:57:27', 15000, 14250, 1, 'preorder', '2026-08-18 13:57:27', '2026-08-18 14:34:01', 9);
 
 -- --------------------------------------------------------
 
@@ -1301,7 +1356,7 @@ CREATE TABLE IF NOT EXISTS `quote_requests` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `quote_requests_user_id_foreign` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `quote_requests`
@@ -1334,7 +1389,9 @@ INSERT INTO `quote_requests` (`id`, `user_id`, `company_name`, `email`, `phone`,
 (25, 5, 'CÔNG TY TNHH BLOSSOM CREATIVE SAIGON', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 36250000, '{\"address\":\"123\",\"city\":\"TP. Hồ Chí Minh\",\"district\":\"Quận 2\",\"ward\":\"Phường Bến Thành\",\"tax_code\":\"0319677692\",\"delivery_date\":\"2026-08-29\"}', NULL, 'pending', '2026-08-17 08:44:52', '2026-08-17 08:44:52'),
 (26, 5, 'CÔNG TY TNHH AGRI 1986', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 52500000, '{\"address\":\"1\",\"city\":\"A\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"3801358804\",\"delivery_date\":\"2026-08-31\"}', NULL, 'pending', '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
 (27, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'a@gmail.com', '0906758927', 50, 30827500, '{\"address\":\"1\",\"city\":\"HCM\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-03\"}', NULL, 'pending', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
-(28, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'trucmy10042004@gmail.com', '0907864587', 50, 123500000, '{\"address\":\"1\",\"city\":\"1\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-10\"}', NULL, 'pending', '2026-08-18 09:47:03', '2026-08-18 09:47:03');
+(28, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'trucmy10042004@gmail.com', '0907864587', 50, 123500000, '{\"address\":\"1\",\"city\":\"1\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-10\"}', NULL, 'pending', '2026-08-18 09:47:03', '2026-08-18 09:47:03'),
+(29, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'trucmy10042004@gmail.com', '0123456789', 50, 30827500, '{\"address\":\"1\",\"city\":\"a\",\"district\":\"11\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-01\"}', NULL, 'pending', '2026-08-18 13:12:06', '2026-08-18 13:12:06'),
+(30, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'trucmy10042004@gmail.com', '0123456789', 50, 30827500, '{\"address\":\"1\",\"city\":\"1\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-01\"}', NULL, 'pending', '2026-08-18 13:15:28', '2026-08-18 13:15:28');
 
 -- --------------------------------------------------------
 
@@ -1353,7 +1410,7 @@ CREATE TABLE IF NOT EXISTS `quote_request_details` (
   PRIMARY KEY (`id`),
   KEY `quote_request_details_quote_request_id_foreign` (`quote_request_id`),
   KEY `quote_request_details_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `quote_request_details`
@@ -1405,7 +1462,9 @@ INSERT INTO `quote_request_details` (`id`, `quote_request_id`, `product_variant_
 (44, 25, 1, 50, '2026-08-17 08:44:52', '2026-08-17 08:44:52'),
 (45, 26, 3, 50, '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
 (46, 27, 8, 50, '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
-(47, 28, 46, 50, '2026-08-18 09:47:03', '2026-08-18 09:47:03');
+(47, 28, 46, 50, '2026-08-18 09:47:03', '2026-08-18 09:47:03'),
+(48, 29, 8, 50, '2026-08-18 13:12:06', '2026-08-18 13:12:06'),
+(49, 30, 8, 50, '2026-08-18 13:15:28', '2026-08-18 13:15:28');
 
 -- --------------------------------------------------------
 
@@ -1477,7 +1536,9 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('Zx76CpmKZ7fxH01wzF2G4qQ6tgHQdoF5xiteeBXf', 6, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJ6TW9TUXJCa2pxM2w0MXJDUTYwdmtpakVBMG91N1JMbG9jZnQ0dVc4IiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC90aGFuaC10b2FuP2NhcnQ9JTdCJTIyMzMlMjIlM0ElN0IlMjJxdWFudGl0eSUyMiUzQTElMkMlMjJwcmljZSUyMiUzQSUyMjE1OTAwMDAyMzg1MDAlMjIlMkMlMjJtZXRhJTIyJTNBJTdCJTIybG9nbyUyMiUzQSU3QiUyMnBvc2l0aW9uJTIyJTNBJTIyZnJvbnQlMjIlMkMlMjJzaXplJTIyJTNBJTIybWVkaXVtJTIyJTJDJTIybm90ZSUyMiUzQSUyMiUyMiUyQyUyMmZpbGUlMjIlM0ElMjJsb2dvcyUyRmUxMjQzNTBkLTU0NDQtNDJiNi05YTQxLTI3MDJhODc4ODUzOS5wbmclMjIlMkMlMjJmdWxsTmFtZSUyMiUzQSUyMlB5JTIyJTJDJTIyZW1haWwlMjIlM0ElMjJ0cnVjbXkxMDA0MjAwNCU0MGdtYWlsLmNvbSUyMiUyQyUyMnBob25lJTIyJTNBJTIyMDkwNzg2ODk1NiUyMiU3RCU3RCU3RCU3RCZlbWFpbD10cnVjbXkxMDA0MjAwNCU0MGdtYWlsLmNvbSZuYW1lPVB5Jm9yZGVyX3R5cGU9Y3VzdG9taXplJnBob25lPTA5MDc4Njg5NTYiLCJyb3V0ZSI6ImNoZWNrb3V0In0sIl9mbGFzaCI6eyJvbGQiOltdLCJuZXciOltdfSwibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiOjZ9', 1787055089);
+('D9zt8EFNv8dr1a7BpQQGmlPffySP7Kurt1orhngd', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJ5b2FuYlFrOU13WFljdk93N3BmeUJFZHBwRWJOeUhOZWlyWlU2MTlRIiwiX2ZsYXNoIjp7Im5ldyI6W10sIm9sZCI6W119LCJfcHJldmlvdXMiOnsidXJsIjoiaHR0cDpcL1wvbG9jYWxob3N0OjgwMDBcL2xvZ2luIiwicm91dGUiOiJsb2dpbiJ9LCJ1cmwiOnsiaW50ZW5kZWQiOiJodHRwOlwvXC9sb2NhbGhvc3Q6ODAwMFwvdGhhbmgtdG9hblwvdGhhbmgtY29uZyJ9fQ==', 1787064084),
+('kVSg6nX1ShXbu0G3Vhx5QwKrJgfP2Q62Fjn7UmyV', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiI1ZG9KWDZIV1dJcnFtcmVCOFZETUhNOFYyT0Z6dGJtUk95b2RJQzhPIiwiX2ZsYXNoIjp7Im5ldyI6W10sIm9sZCI6W119LCJfcHJldmlvdXMiOnsidXJsIjoiaHR0cDpcL1wvMTI3LjAuMC4xOjgwMDAiLCJyb3V0ZSI6ImhvbWUifX0=', 1787058985),
+('Zx76CpmKZ7fxH01wzF2G4qQ6tgHQdoF5xiteeBXf', 6, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJ6TW9TUXJCa2pxM2w0MXJDUTYwdmtpakVBMG91N1JMbG9jZnQ0dVc4IiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC9tZWRpYVwvaW1hZ2VcLzZhODQ2ZDdjMjA2YWYuanBnIiwicm91dGUiOm51bGx9LCJfZmxhc2giOnsib2xkIjpbXSwibmV3IjpbXX0sImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjo2fQ==', 1787065153);
 
 -- --------------------------------------------------------
 

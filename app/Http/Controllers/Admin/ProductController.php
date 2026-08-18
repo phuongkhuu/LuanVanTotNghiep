@@ -318,9 +318,17 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        // Decode image_url nếu là string (từ FormData)
         if ($request->has('image_url') && is_string($request->input('image_url'))) {
             $request->merge([
                 'image_url' => json_decode($request->input('image_url'), true) ?? []
+            ]);
+        }
+
+        // Decode variants nếu là string (từ FormData)
+        if ($request->has('variants') && is_string($request->input('variants'))) {
+            $request->merge([
+                'variants' => json_decode($request->input('variants'), true) ?? []
             ]);
         }
 
@@ -434,9 +442,17 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
+        // Decode image_url nếu là string (từ FormData)
         if ($request->has('image_url') && is_string($request->input('image_url'))) {
             $request->merge([
                 'image_url' => json_decode($request->input('image_url'), true) ?? []
+            ]);
+        }
+
+        // Decode variants nếu là string (từ FormData)
+        if ($request->has('variants') && is_string($request->input('variants'))) {
+            $request->merge([
+                'variants' => json_decode($request->input('variants'), true) ?? []
             ]);
         }
 
@@ -611,4 +627,4 @@ class ProductController extends Controller
             return redirect()->back()->withErrors(['error' => 'Không thể xóa sản phẩm: ' . $e->getMessage()]);
         }
     }
-}
+} 

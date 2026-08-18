@@ -978,8 +978,10 @@ const openModal = (product = null) => {
 const editProduct = (product) => openModal(product);
 
 const saveProduct = async () => {
+    // Reset lỗi
     formErrors.value = {};
 
+    // Kiểm tra client-side
     if (!validateForm()) {
         const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
         if (modal) modal.scrollTop = 0;
@@ -987,57 +989,128 @@ const saveProduct = async () => {
     }
 
     isSubmitting.value = true;
+
     const url = editingId.value
         ? route('admin.products.update', editingId.value)
         : route('admin.products.store');
 
-    const data = {
-        ...form.value,
-        image_url: form.value.imageUrls,
-        variants: form.value.variants.map(v => ({
-            ...v,
-            import_quantity: v.import_quantity ?? 0,
-            import_price: v.import_price ?? null
-        }))
-    };
-    delete data.imageFiles;
-    delete data.imageUrls;
+    // Chuẩn bị dữ liệu variants
+    const variantsData = form.value.variants.map(v => ({
+        id: v.id || null,
+        color_id: v.color_id,
+        size_name: v.size_name || '',
+        price: v.price,
+        stock: v.stock,
+        import_quantity: v.import_quantity ?? 0,
+        import_price: v.import_price ?? null
+    }));
 
-    try {
+    // Kiểm tra có file upload không
+    const hasFiles = form.value.imageFiles && form.value.imageFiles.length > 0;
+
+    if (hasFiles) {
+        // === GỬI FORM DATA KHI CÓ FILE ===
+        const formData = new FormData();
+
+        // Thêm _method nếu là update
         if (editingId.value) {
-            await router.put(url, data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    showModal.value = false;
-                    router.reload({ only: ['initialProducts'] });
-                },
-                onError: (errors) => {
-                    setErrors(errors);
-                    const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-                    if (modal) modal.scrollTop = 0;
-                }
-            });
-        } else {
-            await router.post(url, data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    showModal.value = false;
-                    router.reload({ only: ['initialProducts'] });
-                },
-                onError: (errors) => {
-                    setErrors(errors);
-                    const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-                    if (modal) modal.scrollTop = 0;
-                }
-            });
+            formData.append('_method', 'PUT');
         }
-    } catch (error) {
-        console.error(error);
-        formErrors.value.general = error.response?.data?.message || 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
-        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
-        if (modal) modal.scrollTop = 0;
-    } finally {
-        isSubmitting.value = false;
+
+        // Các trường thông tin
+        formData.append('name', form.value.name);
+        formData.append('category_id', form.value.category_id ?? '');
+        formData.append('brand_id', form.value.brand_id ?? '');
+        formData.append('type', form.value.type);
+        formData.append('material', form.value.material || '');
+        formData.append('description', form.value.description || '');
+
+        // Gửi image_url và variants dưới dạng JSON string
+        formData.append('image_url', JSON.stringify(form.value.imageUrls));
+        formData.append('variants', JSON.stringify(variantsData));
+
+        // Thêm các file
+        form.value.imageFiles.forEach(file => {
+            formData.append('image_files[]', file);
+        });
+
+        try {
+            await router.post(url, formData, {
+                preserveScroll: true,
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onSuccess: () => {
+                    alert(editingId.value ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
+                    showModal.value = false;
+                    clearFiles();
+                    router.reload({ only: ['initialProducts'] });
+                },
+                onError: (errors) => {
+                    setErrors(errors);
+                    if (errors.image_files) {
+                        formErrors.value.image_url = errors.image_files[0] || 'Lỗi tải file';
+                    } else if (errors.image_url) {
+                        formErrors.value.image_url = errors.image_url[0];
+                    }
+                    const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                    if (modal) modal.scrollTop = 0;
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
+            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+            if (modal) modal.scrollTop = 0;
+        } finally {
+            isSubmitting.value = false;
+        }
+    } else {
+        // === GỬI JSON BÌNH THƯỜNG (KHÔNG CÓ FILE) ===
+        const data = {
+            ...form.value,
+            image_url: form.value.imageUrls,
+            variants: variantsData
+        };
+        delete data.imageFiles;
+        delete data.imageUrls; // Xóa vì đã gửi image_url riêng
+
+        try {
+            if (editingId.value) {
+                await router.put(url, data, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        alert('Cập nhật thành công!');
+                        showModal.value = false;
+                        router.reload({ only: ['initialProducts'] });
+                    },
+                    onError: (errors) => {
+                        setErrors(errors);
+                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                        if (modal) modal.scrollTop = 0;
+                    }
+                });
+            } else {
+                await router.post(url, data, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        alert('Thêm sản phẩm thành công!');
+                        showModal.value = false;
+                        router.reload({ only: ['initialProducts'] });
+                    },
+                    onError: (errors) => {
+                        setErrors(errors);
+                        const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+                        if (modal) modal.scrollTop = 0;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            formErrors.value.general = 'Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.';
+            const modal = document.querySelector('.bg-white.rounded-xl.max-w-4xl');
+            if (modal) modal.scrollTop = 0;
+        } finally {
+            isSubmitting.value = false;
+        }
     }
 };
 

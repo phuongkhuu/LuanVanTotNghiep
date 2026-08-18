@@ -194,6 +194,7 @@
               <!-- Nếu không phải customize, hiển thị cả COD và bank_transfer -->
               <template v-else>
                 <label 
+                  v-if="!is_pre_order"
                   class="flex items-center p-4 rounded-lg cursor-pointer transition-all duration-200"
                   :class="paymentMethod === 'cod' 
                     ? 'border-2 border-primary bg-amber-50 shadow-sm' 
