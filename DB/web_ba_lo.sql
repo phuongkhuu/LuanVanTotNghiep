@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1:3306
--- Generation Time: Aug 18, 2026 at 05:28 AM
--- Server version: 9.1.0
--- PHP Version: 8.3.14
+-- Máy chủ: 127.0.0.1:3306
+-- Thời gian đã tạo: Th8 18, 2026 lúc 12:51 PM
+-- Phiên bản máy phục vụ: 9.1.0
+-- Phiên bản PHP: 8.3.14
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,22 +18,22 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `web_ba_lo`
+-- Cơ sở dữ liệu: `web_ba_lo`
 --
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `banners`
+-- Cấu trúc bảng cho bảng `banners`
 --
 
 DROP TABLE IF EXISTS `banners`;
 CREATE TABLE IF NOT EXISTS `banners` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `campaign_id` bigint UNSIGNED DEFAULT NULL,
-  `title` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `image` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `link` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `link` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` int NOT NULL DEFAULT '1',
   `order` int NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
@@ -43,40 +43,40 @@ CREATE TABLE IF NOT EXISTS `banners` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `banners`
+-- Đang đổ dữ liệu cho bảng `banners`
 --
 
 INSERT INTO `banners` (`id`, `campaign_id`, `title`, `image`, `link`, `status`, `order`, `created_at`, `updated_at`) VALUES
-(1, 5, 'Banner mùa hè 2024', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', 'https://example.com/summer-sale', 1, 0, '2026-07-26 01:32:30', '2026-08-16 10:34:28'),
-(2, NULL, 'Banner khuyến mãi lớn', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img4.jpg?1785821424556', 'https://example.com/big-sale', 1, 1, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
-(3, NULL, 'Banner sắp ra mắt', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img8.jpg?1785821424556', 'https://example.com/coming-soon', 1, 2, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
-(4, NULL, 'Banner cũ đã khóa', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img10.jpg?1785821424556', 'https://example.com/old-campaign', 1, 3, '2026-07-26 01:32:30', '2026-08-16 10:45:34');
+(1, NULL, 'Banner mùa hè 2024', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', 'http://127.0.0.1:8000/san-pham/tui-deo-cheo-thoi-trang-unisex-hier-everyday-messenger', 1, 0, '2026-07-26 01:32:30', '2026-08-18 11:56:40'),
+(2, NULL, 'Banner khuyến mãi lớn', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img4.jpg?1785821424556', 'https://example.com/big-sale', 0, 1, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
+(3, NULL, 'Banner sắp ra mắt', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img8.jpg?1785821424556', 'https://example.com/coming-soon', 0, 2, '2026-07-26 01:32:30', '2026-08-16 10:45:34'),
+(4, NULL, 'Banner cũ đã khóa', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img10.jpg?1785821424556', 'https://example.com/old-campaign', 0, 3, '2026-07-26 01:32:30', '2026-08-16 10:45:34');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `brands`
+-- Cấu trúc bảng cho bảng `brands`
 --
 
 DROP TABLE IF EXISTS `brands`;
 CREATE TABLE IF NOT EXISTS `brands` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `logo` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `logo` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `brands_slug_unique` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `brands`
+-- Đang đổ dữ liệu cho bảng `brands`
 --
 
 INSERT INTO `brands` (`id`, `name`, `slug`, `logo`, `description`, `created_at`, `updated_at`) VALUES
-(1, 'BigBag', 'bigbag', 'https://logo.clearbit.com/bigbag.com', 'Thương hiệu chính', '2026-07-26 01:32:28', '2026-07-26 01:32:28'),
+(1, 'BigBag', 'bigbag', '/image/6a841cb3be974.png', 'Thương hiệu chính', '2026-07-26 01:32:28', '2026-08-18 08:49:55'),
 (2, 'Solo', 'solo', '/image/6a6675f752062.jpeg', 'Solo Professional', '2026-07-26 01:32:28', '2026-07-26 21:02:47'),
 (3, 'KingBag', 'kingbag', '/image/6a6675df50bb3.png', 'KingBag', '2026-07-26 01:32:28', '2026-07-26 21:02:23'),
 (4, 'Everki', 'everki', '/image/6a6675cf2624f.png', 'Balo cao cấp Mỹ', '2026-07-26 01:32:28', '2026-07-26 21:02:07'),
@@ -84,31 +84,32 @@ INSERT INTO `brands` (`id`, `name`, `slug`, `logo`, `description`, `created_at`,
 (6, 'Samsonite', 'samsonite', '/image/6a66762851e29.png', 'Thương hiệu du lịch toàn cầu', '2026-07-26 01:32:28', '2026-07-26 21:03:36'),
 (7, 'MARK RYDEN', 'mark-ryden', '/image/6a75686121eec.jpeg', 'Thương hiệu balo và túi xách công nghệ nổi tiếng gốc Anh Quốc', '2026-08-07 05:08:49', '2026-08-07 05:09:20'),
 (8, 'BOPAI LADY', 'bopai-lady', '/image/6a756acb84e22.jpeg', 'Thương hiệu đẳng cấp đến từ nước Ý', '2026-08-07 05:19:07', '2026-08-07 05:19:42'),
-(9, 'ROKIN', 'rokin', '/image/6a7ff502b65e5.png', NULL, '2026-08-15 05:11:30', '2026-08-15 05:11:30'),
-(10, 'HIER', 'hier', '/image/6a7ffb5c46a41.png', NULL, '2026-08-15 05:37:41', '2026-08-15 05:38:36'),
-(11, 'Tomtoc', 'tomtoc', '/image/6a83e757d7055.jpeg', NULL, '2026-08-18 05:02:15', '2026-08-18 05:02:15');
+(9, 'ROKIN', 'rokin', '/image/6a7ff502b65e5.png', 'Rokin', '2026-08-15 05:11:30', '2026-08-18 09:12:12'),
+(10, 'HIER', 'hier', '/image/6a7ffb5c46a41.png', 'Hier', '2026-08-15 05:37:41', '2026-08-18 09:12:02'),
+(11, 'Tomtoc', 'tomtoc', '/image/6a83e757d7055.jpeg', 'Tomtoc', '2026-08-18 05:02:15', '2026-08-18 09:11:53');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `cache`
+-- Cấu trúc bảng cho bảng `cache`
 --
 
 DROP TABLE IF EXISTS `cache`;
 CREATE TABLE IF NOT EXISTS `cache` (
-  `key` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `expiration` bigint NOT NULL,
   PRIMARY KEY (`key`),
   KEY `cache_expiration_index` (`expiration`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `cache`
+-- Đang đổ dữ liệu cho bảng `cache`
 --
 
 INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
 ('laravel-cache-tax_info_0111606029', 'a:5:{s:12:\"company_name\";s:56:\"Trường Tiểu học và Trung học cơ sở Vân Hà\";s:5:\"email\";s:0:\"\";s:5:\"phone\";s:0:\"\";s:6:\"status\";s:24:\"NNT đang hoạt động\";s:9:\"is_active\";b:1;}', 1787022417),
+('laravel-cache-tax_info_0300588569', 'a:5:{s:12:\"company_name\";s:37:\"CÔNG TY CỔ PHẦN SỮA VIỆT NAM\";s:5:\"email\";s:0:\"\";s:5:\"phone\";s:0:\"\";s:6:\"status\";s:24:\"NNT đang hoạt động\";s:9:\"is_active\";b:1;}', 1787132118),
 ('laravel-cache-tax_info_0319677692', 'a:5:{s:12:\"company_name\";s:37:\"CÔNG TY TNHH BLOSSOM CREATIVE SAIGON\";s:5:\"email\";s:0:\"\";s:5:\"phone\";s:0:\"\";s:6:\"status\";s:24:\"NNT đang hoạt động\";s:9:\"is_active\";b:1;}', 1787042677),
 ('laravel-cache-tax_info_1700494236', 'a:5:{s:12:\"company_name\";s:35:\"DOANH NGHIỆP TƯ NHÂN LOAN PHÁT\";s:5:\"email\";s:0:\"\";s:5:\"phone\";s:0:\"\";s:6:\"status\";s:24:\"NNT đang hoạt động\";s:9:\"is_active\";b:1;}', 1786959747),
 ('laravel-cache-tax_info_3801358804', 'a:5:{s:12:\"company_name\";s:23:\"CÔNG TY TNHH AGRI 1986\";s:5:\"email\";s:0:\"\";s:5:\"phone\";s:0:\"\";s:6:\"status\";s:24:\"NNT đang hoạt động\";s:9:\"is_active\";b:1;}', 1787053407);
@@ -116,13 +117,13 @@ INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `cache_locks`
+-- Cấu trúc bảng cho bảng `cache_locks`
 --
 
 DROP TABLE IF EXISTS `cache_locks`;
 CREATE TABLE IF NOT EXISTS `cache_locks` (
-  `key` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `owner` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `owner` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `expiration` bigint NOT NULL,
   PRIMARY KEY (`key`),
   KEY `cache_locks_expiration_index` (`expiration`)
@@ -131,27 +132,27 @@ CREATE TABLE IF NOT EXISTS `cache_locks` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `campaigns`
+-- Cấu trúc bảng cho bảng `campaigns`
 --
 
 DROP TABLE IF EXISTS `campaigns`;
 CREATE TABLE IF NOT EXISTS `campaigns` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `type` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'seasonal',
-  `code` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `target_type` enum('retail','wholesale','preorder','all') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all',
-  `discount_type` enum('fixed','percent','freeship') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'seasonal',
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `target_type` enum('retail','wholesale','preorder','all') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all',
+  `discount_type` enum('fixed','percent','freeship') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `discount_value` decimal(15,0) NOT NULL DEFAULT '0',
   `min_order` decimal(15,0) NOT NULL DEFAULT '0',
   `limit` int NOT NULL DEFAULT '100',
   `used` int NOT NULL DEFAULT '0',
   `expiry` date DEFAULT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `start_time` timestamp NULL DEFAULT NULL,
   `end_time` timestamp NULL DEFAULT NULL,
-  `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'scheduled',
-  `banner` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'scheduled',
+  `banner` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `banner_id` bigint UNSIGNED DEFAULT NULL,
   `priority` int NOT NULL DEFAULT '0',
   `featured` tinyint(1) NOT NULL DEFAULT '0',
@@ -167,21 +168,18 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `campaigns`
+-- Đang đổ dữ liệu cho bảng `campaigns`
 --
 
 INSERT INTO `campaigns` (`id`, `name`, `type`, `code`, `target_type`, `discount_type`, `discount_value`, `min_order`, `limit`, `used`, `expiry`, `description`, `start_time`, `end_time`, `status`, `banner`, `banner_id`, `priority`, `featured`, `created_at`, `updated_at`, `product_id`, `tiers`, `current_buyers`) VALUES
-(1, 'Chiến dịch 01/06/2025 - 30/06/2025', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, NULL, '2026-08-05 17:00:00', '2026-08-30 17:00:00', 'active', NULL, NULL, 0, 1, '2026-07-26 01:32:30', '2026-08-06 03:27:17', NULL, NULL, 0),
-(2, NULL, 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, NULL, '2025-06-30 17:00:00', '2025-07-31 16:59:59', 'scheduled', NULL, NULL, 0, 0, '2026-07-26 01:32:30', '2026-07-26 01:32:30', NULL, NULL, 0),
-(4, 'abc', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-05 17:00:00', '2026-09-04 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-05 08:48:38', '2026-08-05 08:48:38', 3, '[{\"to\": 10, \"from\": 1, \"discount\": 20}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 5}]', 0),
-(5, 'test', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-15 17:00:00', '2026-08-25 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-16 10:33:27', '2026-08-16 10:33:27', NULL, NULL, 0),
-(6, 'test1', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-23 17:00:00', '2026-08-30 17:00:00', 'scheduled', NULL, NULL, 0, 0, '2026-08-16 10:46:03', '2026-08-16 10:46:03', NULL, NULL, 0),
+(2, 'Chiến dịch 01/07/2025 - 31/07/2025', 'seasonal', NULL, 'all', NULL, 0, 0, 100, 0, NULL, NULL, '2025-06-30 17:00:00', '2025-07-30 17:00:00', 'ended', NULL, NULL, 0, 0, '2026-07-26 01:32:30', '2026-08-18 09:17:22', NULL, NULL, 0),
+(4, 'abc', 'preorder', NULL, 'all', NULL, 0, 0, 100, 0, NULL, 'Giảm giá theo số lượt đặt trước', '2026-08-05 17:00:00', '2026-09-04 17:00:00', 'active', NULL, NULL, 0, 0, '2026-08-05 08:48:38', '2026-08-18 09:30:19', 3, '[{\"to\": 10, \"from\": 1, \"discount\": 20}, {\"to\": 20, \"from\": 11, \"discount\": 10}, {\"to\": 30, \"from\": 21, \"discount\": 5}]', 1),
 (7, 'test2', 'anniversary', NULL, 'all', NULL, 0, 0, 100, 0, NULL, '', '2026-08-23 17:00:00', '2026-08-26 17:00:00', 'scheduled', NULL, NULL, 0, 0, '2026-08-16 10:53:37', '2026-08-16 10:53:44', NULL, NULL, 0);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `campaign_configs`
+-- Cấu trúc bảng cho bảng `campaign_configs`
 --
 
 DROP TABLE IF EXISTS `campaign_configs`;
@@ -197,24 +195,19 @@ CREATE TABLE IF NOT EXISTS `campaign_configs` (
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `campaign_configs`
+-- Đang đổ dữ liệu cho bảng `campaign_configs`
 --
 
 INSERT INTO `campaign_configs` (`id`, `campaign_id`, `quantity`, `discount_percent`, `created_at`, `updated_at`) VALUES
-(1, 1, 0, 50.00, '2026-07-26 01:32:30', '2026-08-06 03:26:53'),
-(2, 1, 50, 5.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(3, 1, 100, 10.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(4, 2, 1, 0.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
+(4, 2, 0, 10.00, '2026-07-26 01:32:30', '2026-08-18 09:17:22'),
 (5, 2, 50, 5.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
 (6, 2, 100, 10.00, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(7, 5, 0, 10.00, '2026-08-16 10:33:27', '2026-08-16 10:33:27'),
-(8, 6, 0, 1.00, '2026-08-16 10:46:03', '2026-08-16 10:46:03'),
 (9, 7, 0, 1.00, '2026-08-16 10:53:37', '2026-08-16 10:53:37');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `campaign_products`
+-- Cấu trúc bảng cho bảng `campaign_products`
 --
 
 DROP TABLE IF EXISTS `campaign_products`;
@@ -227,45 +220,38 @@ CREATE TABLE IF NOT EXISTS `campaign_products` (
   PRIMARY KEY (`id`),
   KEY `campaign_products_campaign_id_foreign` (`campaign_id`),
   KEY `campaign_products_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `campaign_products`
+-- Đang đổ dữ liệu cho bảng `campaign_products`
 --
 
 INSERT INTO `campaign_products` (`id`, `campaign_id`, `product_variant_id`, `created_at`, `updated_at`) VALUES
-(1, 1, 1, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(2, 1, 2, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
 (3, 2, 1, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
 (4, 2, 2, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(5, 1, 3, NULL, NULL),
-(6, 1, 5, NULL, NULL),
-(7, 1, 6, NULL, NULL),
-(8, 5, 9, NULL, NULL),
-(9, 6, 11, NULL, NULL),
 (10, 7, 30, NULL, NULL);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `categories`
+-- Cấu trúc bảng cho bảng `categories`
 --
 
 DROP TABLE IF EXISTS `categories`;
 CREATE TABLE IF NOT EXISTS `categories` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `image` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `image` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `categories_slug_unique` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `categories`
+-- Đang đổ dữ liệu cho bảng `categories`
 --
 
 INSERT INTO `categories` (`id`, `name`, `slug`, `description`, `image`, `created_at`, `updated_at`) VALUES
@@ -274,22 +260,22 @@ INSERT INTO `categories` (`id`, `name`, `slug`, `description`, `image`, `created
 (3, 'Túi đeo chéo', 'tui-deo-cheo', 'Túi đeo chéo thời trang', '/image/6a756f6400aa2.jpeg', '2026-07-26 01:32:28', '2026-08-07 05:38:44'),
 (4, 'Balo thời trang', 'balo-thoi-trang', 'Balo thiết kế đẹp, dùng hàng ngày', '/image/6a667210a505f.jpeg', '2026-07-26 01:32:28', '2026-07-26 20:46:08'),
 (5, 'Balo chống sốc', 'balo-chong-soc', 'Balo có đệm bảo vệ laptop, máy tính bảng', '/image/6a6671eec9893.jpeg', '2026-07-26 01:32:28', '2026-07-26 20:45:34'),
-(6, 'Túi Thể Thao', 'tui-the-thao', NULL, '/image/6a7ff9c6d988b.jpeg', '2026-08-15 05:31:50', '2026-08-15 05:31:50'),
-(7, 'Cặp xách chống sốc', 'cap-xach-chong-soc', NULL, '/image/6a83e26fc029f.png', '2026-08-18 04:41:19', '2026-08-18 04:41:19'),
-(8, 'Túi chống sốc', 'tui-chong-soc', NULL, '/image/6a83e6486a951.jpeg', '2026-08-18 04:57:44', '2026-08-18 04:57:44');
+(6, 'Túi Thể Thao', 'tui-the-thao', 'Balo có đệm bảo vệ laptop, máy tính bảng', '/image/6a7ff9c6d988b.jpeg', '2026-08-15 05:31:50', '2026-08-18 11:52:21'),
+(7, 'Cặp xách chống sốc', 'cap-xach-chong-soc', 'Balo có đệm bảo vệ laptop, máy tính bảng', '/image/6a83e26fc029f.png', '2026-08-18 04:41:19', '2026-08-18 11:52:15'),
+(8, 'Túi chống sốc', 'tui-chong-soc', 'Balo có đệm bảo vệ laptop, máy tính bảng', '/image/6a83e6486a951.jpeg', '2026-08-18 04:57:44', '2026-08-18 11:52:07');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chatbot_messages`
+-- Cấu trúc bảng cho bảng `chatbot_messages`
 --
 
 DROP TABLE IF EXISTS `chatbot_messages`;
 CREATE TABLE IF NOT EXISTS `chatbot_messages` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` bigint UNSIGNED DEFAULT NULL,
-  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `sender` enum('user','bot') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sender` enum('user','bot') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -297,7 +283,7 @@ CREATE TABLE IF NOT EXISTS `chatbot_messages` (
 ) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chatbot_messages`
+-- Đang đổ dữ liệu cho bảng `chatbot_messages`
 --
 
 INSERT INTO `chatbot_messages` (`id`, `user_id`, `message`, `sender`, `created_at`, `updated_at`) VALUES
@@ -333,14 +319,14 @@ INSERT INTO `chatbot_messages` (`id`, `user_id`, `message`, `sender`, `created_a
 -- --------------------------------------------------------
 
 --
--- Table structure for table `colors`
+-- Cấu trúc bảng cho bảng `colors`
 --
 
 DROP TABLE IF EXISTS `colors`;
 CREATE TABLE IF NOT EXISTS `colors` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -348,7 +334,7 @@ CREATE TABLE IF NOT EXISTS `colors` (
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `colors`
+-- Đang đổ dữ liệu cho bảng `colors`
 --
 
 INSERT INTO `colors` (`id`, `name`, `code`, `is_active`, `created_at`, `updated_at`) VALUES
@@ -360,13 +346,13 @@ INSERT INTO `colors` (`id`, `name`, `code`, `is_active`, `created_at`, `updated_
 (6, 'Xanh Lá', '#008000', 1, '2026-07-26 01:32:28', '2026-07-26 01:35:13'),
 (7, 'Cam', '#FFA500', 1, '2026-07-26 01:32:28', '2026-07-26 01:35:12'),
 (8, 'Trắng', '#FFFFFF', 1, '2026-07-26 01:32:28', '2026-07-26 01:35:09'),
-(9, 'Hồng', '#FFC0CB', 1, '2026-08-07 05:20:07', '2026-08-07 05:20:07'),
+(9, 'Hồng', '#E2A6B0', 1, '2026-08-07 05:20:07', '2026-08-18 09:11:27'),
 (10, 'Xanh Ô-Liu', '#BAB86C', 1, '2026-08-15 05:17:34', '2026-08-15 05:17:34');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `discounts`
+-- Cấu trúc bảng cho bảng `discounts`
 --
 
 DROP TABLE IF EXISTS `discounts`;
@@ -381,29 +367,28 @@ CREATE TABLE IF NOT EXISTS `discounts` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `discounts`
+-- Đang đổ dữ liệu cho bảng `discounts`
 --
 
 INSERT INTO `discounts` (`id`, `min_quantity`, `discount_percent`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 50, 10.00, 1, '2026-07-26 01:32:30', '2026-08-17 12:09:01'),
-(2, 100, 15.00, 1, '2026-07-26 01:32:30', '2026-08-18 04:14:52'),
-(3, 200, 15.00, 0, '2026-07-26 01:32:30', '2026-07-26 01:32:30'),
-(4, 1, 5.00, 0, '2026-07-26 01:32:30', '2026-08-18 04:14:36');
+(1, 50, 5.00, 1, '2026-07-26 01:32:30', '2026-08-18 09:33:40'),
+(2, 100, 10.00, 1, '2026-07-26 01:32:30', '2026-08-18 09:33:46'),
+(3, 200, 15.00, 1, '2026-07-26 01:32:30', '2026-08-18 09:33:50');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `failed_jobs`
+-- Cấu trúc bảng cho bảng `failed_jobs`
 --
 
 DROP TABLE IF EXISTS `failed_jobs`;
 CREATE TABLE IF NOT EXISTS `failed_jobs` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `uuid` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `connection` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `queue` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `exception` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `uuid` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `connection` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exception` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `failed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`)
@@ -412,14 +397,14 @@ CREATE TABLE IF NOT EXISTS `failed_jobs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `jobs`
+-- Cấu trúc bảng cho bảng `jobs`
 --
 
 DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE IF NOT EXISTS `jobs` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `queue` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `attempts` smallint UNSIGNED NOT NULL,
   `reserved_at` int UNSIGNED DEFAULT NULL,
   `available_at` int UNSIGNED NOT NULL,
@@ -431,18 +416,18 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `job_batches`
+-- Cấu trúc bảng cho bảng `job_batches`
 --
 
 DROP TABLE IF EXISTS `job_batches`;
 CREATE TABLE IF NOT EXISTS `job_batches` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `total_jobs` int NOT NULL,
   `pending_jobs` int NOT NULL,
   `failed_jobs` int NOT NULL,
-  `failed_job_ids` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `options` mediumtext COLLATE utf8mb4_unicode_ci,
+  `failed_job_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `options` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `cancelled_at` int DEFAULT NULL,
   `created_at` int NOT NULL,
   `finished_at` int DEFAULT NULL,
@@ -452,26 +437,26 @@ CREATE TABLE IF NOT EXISTS `job_batches` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `logo_print_requests`
+-- Cấu trúc bảng cho bảng `logo_print_requests`
 --
 
 DROP TABLE IF EXISTS `logo_print_requests`;
 CREATE TABLE IF NOT EXISTS `logo_print_requests` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_detail_id` bigint UNSIGNED NOT NULL,
-  `logo_image` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `print_position` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `print_size` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `note` text COLLATE utf8mb4_unicode_ci,
-  `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `logo_image` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `print_position` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `print_size` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `logo_print_requests_order_detail_id_foreign` (`order_detail_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `logo_print_requests`
+-- Đang đổ dữ liệu cho bảng `logo_print_requests`
 --
 
 INSERT INTO `logo_print_requests` (`id`, `order_detail_id`, `logo_image`, `print_position`, `print_size`, `note`, `status`, `created_at`, `updated_at`) VALUES
@@ -487,24 +472,25 @@ INSERT INTO `logo_print_requests` (`id`, `order_detail_id`, `logo_image`, `print
 (10, 251, 'logos/3cac51d6-430a-4ad3-b1a0-42d0b97b9aa9.png', 'back', 'medium', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'pending', '2026-08-17 08:48:16', '2026-08-17 08:48:16'),
 (11, 252, 'logos/3cac51d6-430a-4ad3-b1a0-42d0b97b9aa9.png', 'back', 'medium', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'approved', '2026-08-17 08:48:43', '2026-08-17 10:24:40'),
 (12, 253, 'logos/3cac51d6-430a-4ad3-b1a0-42d0b97b9aa9.png', 'back', 'medium', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'rejected', '2026-08-17 08:51:37', '2026-08-17 08:52:05'),
-(13, 254, 'logos/dd57bfa0-9c66-4f45-9389-c46104dcc2f4.png', 'front', 'large', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'approved', '2026-08-17 08:52:50', '2026-08-17 08:53:03');
+(13, 254, 'logos/dd57bfa0-9c66-4f45-9389-c46104dcc2f4.png', 'front', 'large', '\n\n---\nKhách hàng: Thanh Phuong Khuu\nEmail: thanhphuongkhuu@gmail.com\nSĐT: 0123456789', 'approved', '2026-08-17 08:52:50', '2026-08-17 08:53:03'),
+(14, 261, 'logos/47366785-f767-49db-8561-fc33b3a9a029.png', 'front', 'medium', '\n\n---\nKhách hàng: Py\nEmail: trucmy10042004@gmail.com\nSĐT: 0907868956', 'approved', '2026-08-18 09:53:15', '2026-08-18 09:54:14');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `migrations`
+-- Cấu trúc bảng cho bảng `migrations`
 --
 
 DROP TABLE IF EXISTS `migrations`;
 CREATE TABLE IF NOT EXISTS `migrations` (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
-  `migration` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `migration` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `migrations`
+-- Đang đổ dữ liệu cho bảng `migrations`
 --
 
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
@@ -558,18 +544,18 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `news`
+-- Cấu trúc bảng cho bảng `news`
 --
 
 DROP TABLE IF EXISTS `news`;
 CREATE TABLE IF NOT EXISTS `news` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `title` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `thumbnail` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `thumbnail` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` tinyint(1) NOT NULL DEFAULT '1',
-  `author_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `author_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `campaign_id` bigint UNSIGNED DEFAULT NULL,
   `banner_id` bigint UNSIGNED DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -581,46 +567,46 @@ CREATE TABLE IF NOT EXISTS `news` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `news`
+-- Đang đổ dữ liệu cho bảng `news`
 --
 
 INSERT INTO `news` (`id`, `title`, `slug`, `thumbnail`, `content`, `status`, `author_name`, `campaign_id`, `banner_id`, `created_at`, `updated_at`) VALUES
-(1, 'BigBag ra mắt dòng sản phẩm mới - Balo chống sốc cao cấp', 'bigbag-ra-mat-dong-san-pham-moi', 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=1200&h=585&fit=crop', '<p>BigBag vừa cho ra mắt dòng balo chống sốc mới với công nghệ đệm tổ ong, bảo vệ laptop tối đa...</p>', 1, 'BigBag Admin', 1, 1, '2026-07-26 01:32:41', '2026-07-26 01:32:41'),
-(2, 'Chương trình khuyến mãi hè: Giảm giá lên đến 30% cho đơn hàng sỉ', 'chuong-trinh-khuyen-mai-he', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', '<p>Áp dụng cho tất cả khách hàng doanh nghiệp từ ngày 1/6 đến 30/6...</p>', 1, 'BigBag Admin', 5, 1, '2026-07-26 01:32:41', '2026-08-16 10:39:00');
+(1, 'BigBag ra mắt dòng sản phẩm mới - Balo chống sốc cao cấp', 'bigbag-ra-mat-dong-san-pham-moi', 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=1200&h=585&fit=crop', '<p>BigBag vừa cho ra mắt dòng balo chống sốc mới với công nghệ đệm tổ ong, bảo vệ laptop tối đa...</p>', 0, 'BigBag Admin', NULL, 1, '2026-07-26 01:32:41', '2026-08-18 09:39:13'),
+(2, 'Chương trình khuyến mãi hè: Giảm giá lên đến 30% cho đơn hàng sỉ', 'chuong-trinh-khuyen-mai-he', 'https://bizweb.dktcdn.net/thumb/2048x2048/100/044/266/themes/838180/assets/slider-img3.jpg?1785821424556', '<p>Áp dụng cho tất cả khách hàng doanh nghiệp từ ngày 1/6 đến 30/6...</p>', 0, 'BigBag Admin', NULL, 1, '2026-07-26 01:32:41', '2026-08-18 11:56:40');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `orders`
+-- Cấu trúc bảng cho bảng `orders`
 --
 
 DROP TABLE IF EXISTS `orders`;
 CREATE TABLE IF NOT EXISTS `orders` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `confirmation_token` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `confirmation_token` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `token_expires_at` timestamp NULL DEFAULT NULL,
   `is_confirmed` tinyint(1) NOT NULL DEFAULT '0',
   `user_id` bigint UNSIGNED DEFAULT NULL,
-  `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customer_phone` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customer_email` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_phone` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `discount_id` bigint UNSIGNED DEFAULT NULL,
   `campaign_id` bigint UNSIGNED DEFAULT NULL,
-  `order_code` enum('retail','wholesale','preorder','customize') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'retail',
-  `receiver_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `receiver_phone` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `order_code` enum('retail','wholesale','preorder','customize') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'retail',
+  `receiver_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `receiver_phone` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `shipping_fee` decimal(12,0) NOT NULL DEFAULT '0',
   `total_amount` decimal(12,0) NOT NULL,
   `discount_amount` decimal(12,0) NOT NULL DEFAULT '0',
-  `promo_code` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `promo_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `final_amount` decimal(12,0) NOT NULL,
   `deposit_amount` decimal(15,0) NOT NULL DEFAULT '0',
   `remaining_amount` decimal(15,0) NOT NULL DEFAULT '0',
-  `payment_status` enum('pending','deposit_paid','paid','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `payment_status` enum('pending','deposit_paid','paid','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `order_status` tinyint NOT NULL DEFAULT '0',
-  `shipping_address` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `note` text COLLATE utf8mb4_unicode_ci,
+  `shipping_address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -629,10 +615,10 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `orders_user_id_foreign` (`user_id`),
   KEY `orders_discount_id_foreign` (`discount_id`),
   KEY `orders_campaign_id_foreign` (`campaign_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `orders`
+-- Đang đổ dữ liệu cho bảng `orders`
 --
 
 INSERT INTO `orders` (`id`, `order_number`, `confirmation_token`, `token_expires_at`, `is_confirmed`, `user_id`, `customer_name`, `customer_phone`, `customer_email`, `discount_id`, `campaign_id`, `order_code`, `receiver_name`, `receiver_phone`, `shipping_fee`, `total_amount`, `discount_amount`, `promo_code`, `final_amount`, `deposit_amount`, `remaining_amount`, `payment_status`, `order_status`, `shipping_address`, `note`, `created_at`, `updated_at`) VALUES
@@ -732,12 +718,16 @@ INSERT INTO `orders` (`id`, `order_number`, `confirmation_token`, `token_expires
 (94, 'C1708202600094', 'jhRwau3qqosKBqjvBTe0KzCc7L50lj4yyuVQTEILgyW3KjD8jrrJexehBFxgrIgL', '2026-08-24 08:51:37', 0, 5, 'Thanh Phuong Khuu', '0123456789', 'thanhphuongkhuu@gmail.com', NULL, NULL, 'customize', 'Thanh Phuong Khuu', '0123456789', 0, 899000, 0, NULL, 899000, 899000, 0, 'pending', 0, '1, 1, 1, Hải Phòng', NULL, '2026-08-17 08:51:37', '2026-08-17 08:51:37'),
 (95, 'C1708202600095', '3arxzxnpAkDZwBPROwoj9rKtRE01w1hKCthWcnAuZzZ1WFN4kQdTenZD3WC8yhwk', '2026-08-24 08:52:50', 0, 5, 'Thanh Phuong Khuu', '0123456789', 'thanhphuongkhuu@gmail.com', NULL, NULL, 'customize', 'Thanh Phuong Khuu', '0123456789', 0, 928000, 0, NULL, 928000, 928000, 0, 'pending', 1, '1, 1, 1, Đà Nẵng', NULL, '2026-08-17 08:52:50', '2026-08-17 08:53:03'),
 (96, 'L1708202600096', 'XM9KGCIlRUkr2eTAmWAa3orw8Ih2Gm7C5ro0P2yjSEq1ZUT1UpjkGPyCXnGCjXmk', '2026-08-24 09:11:00', 0, 5, 'Thanh Phuong Khuu', '0123456789', 'thanhphuongkhuu@gmail.com', NULL, NULL, 'retail', 'Thanh Phuong Khuu', '0123456789', 0, 725000, 0, NULL, 725000, 725000, 0, 'pending', 0, '1, 1, 11, Hải Phòng', NULL, '2026-08-17 09:11:00', '2026-08-17 09:11:00'),
-(98, 'S1708202600098', 'o0N5E5nNiXs3UEORV3UwZwLDQYJxAlxeRe2gjrYDBldoVtCAYoo8GRachZ9vxWFp', '2026-08-24 11:43:42', 0, 5, 'Thanh Phuong Khuu', '0123456789', 'thanhphuongkhuu@gmail.com', NULL, NULL, 'wholesale', 'CÔNG TY TNHH AGRI 1986', '0123456789', 0, 52500000, 0, NULL, 52500000, 26250000, 26250000, 'pending', 0, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: thanhphuongkhuu@gmail.com\nMã số thuế: 3801358804\nNgày cần nhận: 2026-08-31\nĐịa chỉ giao hàng: 1, 1, 1, A\n-------------------------', '2026-08-17 11:43:42', '2026-08-17 11:43:42');
+(98, 'S1708202600098', 'o0N5E5nNiXs3UEORV3UwZwLDQYJxAlxeRe2gjrYDBldoVtCAYoo8GRachZ9vxWFp', '2026-08-24 11:43:42', 0, 5, 'Thanh Phuong Khuu', '0123456789', 'thanhphuongkhuu@gmail.com', NULL, NULL, 'wholesale', 'CÔNG TY TNHH AGRI 1986', '0123456789', 0, 52500000, 0, NULL, 52500000, 26250000, 26250000, 'pending', 0, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: thanhphuongkhuu@gmail.com\nMã số thuế: 3801358804\nNgày cần nhận: 2026-08-31\nĐịa chỉ giao hàng: 1, 1, 1, A\n-------------------------', '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
+(99, 'P1808202600099', 'fusbTDUBNSeN5gxvg0Xu5mNEEzmuTevbbIY0uNkLlPLJJaAywr4kccm4gvb41m5F', '2026-08-25 09:30:19', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, 4, 'preorder', 'Py', '0907868956', 0, 360000, 0, NULL, 360000, 360000, 0, 'pending', 0, '89, TP. Hồ Chí Minh', NULL, '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
+(100, 'S1808202600100', 'YzxGMbXYzvJhk7f8bl8w7j8LoEQTmGjK96fZLGuQr8DgmlfAoFxDlZmpxyJLLHn3', '2026-08-25 09:36:34', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0906758927', 0, 32450000, 1622500, NULL, 30827500, 15413750, 15413750, 'pending', 0, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: a@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-03\nĐịa chỉ giao hàng: 1, 1, 1, HCM\n-------------------------', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
+(101, 'S1808202600101', NULL, '2026-08-25 09:47:03', 1, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', 1, NULL, 'wholesale', 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', '0907864587', 0, 130000000, 6500000, NULL, 123500000, 61750000, 61750000, 'pending', 1, '1', '--- THÔNG TIN BỔ SUNG ---\nEmail: trucmy10042004@gmail.com\nMã số thuế: 0300588569\nNgày cần nhận: 2026-09-10\nĐịa chỉ giao hàng: 1, 1, 1, 1\n-------------------------', '2026-08-18 09:47:03', '2026-08-18 09:47:49'),
+(102, 'C1808202600102', 'APNRBEXLGdk15yEv99HEGgZYip3X4t7Sa4qhNHrSrBesX4LUIdWQpGwQkXIWjwsy', '2026-08-25 09:53:15', 0, 6, 'Py', '0907868956', 'trucmy10042004@gmail.com', NULL, NULL, 'customize', 'Py', '0907868956', 0, 3172000, 0, NULL, 3172000, 3172000, 0, 'pending', 1, '1, TP. Hồ Chí Minh', NULL, '2026-08-18 09:53:15', '2026-08-18 09:54:14');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `order_details`
+-- Cấu trúc bảng cho bảng `order_details`
 --
 
 DROP TABLE IF EXISTS `order_details`;
@@ -753,10 +743,10 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   PRIMARY KEY (`id`),
   KEY `order_details_order_id_foreign` (`order_id`),
   KEY `order_details_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=258 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=262 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `order_details`
+-- Đang đổ dữ liệu cho bảng `order_details`
 --
 
 INSERT INTO `order_details` (`id`, `order_id`, `product_variant_id`, `quantity`, `unit_price`, `subtotal`, `created_at`, `updated_at`) VALUES
@@ -1015,18 +1005,22 @@ INSERT INTO `order_details` (`id`, `order_id`, `product_variant_id`, `quantity`,
 (253, 94, 1, 1, 899000, 899000, '2026-08-17 08:51:37', '2026-08-17 08:51:37'),
 (254, 95, 1, 1, 928000, 928000, '2026-08-17 08:52:50', '2026-08-17 08:52:50'),
 (255, 96, 1, 1, 725000, 725000, '2026-08-17 09:11:00', '2026-08-17 09:11:00'),
-(257, 98, 3, 50, 1050000, 52500000, '2026-08-17 11:43:42', '2026-08-17 11:43:42');
+(257, 98, 3, 50, 1050000, 52500000, '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
+(258, 99, 4, 1, 360000, 360000, '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
+(259, 100, 8, 50, 649000, 32450000, '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
+(260, 101, 46, 50, 2600000, 130000000, '2026-08-18 09:47:03', '2026-08-18 09:47:03'),
+(261, 102, 46, 1, 3172000, 3172000, '2026-08-18 09:53:15', '2026-08-18 09:53:15');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `password_reset_tokens`
+-- Cấu trúc bảng cho bảng `password_reset_tokens`
 --
 
 DROP TABLE IF EXISTS `password_reset_tokens`;
 CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
-  `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `token` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1034,27 +1028,27 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `payments`
+-- Cấu trúc bảng cho bảng `payments`
 --
 
 DROP TABLE IF EXISTS `payments`;
 CREATE TABLE IF NOT EXISTS `payments` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_id` bigint UNSIGNED NOT NULL,
-  `transaction_code` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `payment_method` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transaction_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payment_method` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `amount` decimal(12,0) NOT NULL,
   `payment_date` datetime NOT NULL,
-  `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `payments_transaction_code_unique` (`transaction_code`),
   KEY `payments_order_id_foreign` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `payments`
+-- Đang đổ dữ liệu cho bảng `payments`
 --
 
 INSERT INTO `payments` (`id`, `order_id`, `transaction_code`, `payment_method`, `amount`, `payment_date`, `status`, `created_at`, `updated_at`) VALUES
@@ -1131,12 +1125,16 @@ INSERT INTO `payments` (`id`, `order_id`, `transaction_code`, `payment_method`, 
 (71, 94, 'PAY-94-1786956697', 'bank_transfer', 899000, '2026-08-17 15:51:37', 'pending', '2026-08-17 08:51:37', '2026-08-17 08:51:37'),
 (72, 95, '95', 'bank_transfer', 928000, '2026-08-17 15:52:50', 'pending', '2026-08-17 08:52:50', '2026-08-17 08:53:04'),
 (73, 96, '96', 'bank_transfer', 725000, '2026-08-17 16:11:00', 'pending', '2026-08-17 09:11:00', '2026-08-17 09:11:08'),
-(75, 98, 'PAY-WS-98-1786967022', 'bank_transfer', 0, '2026-08-17 18:43:42', 'pending', '2026-08-17 11:43:42', '2026-08-17 11:43:42');
+(75, 98, 'PAY-WS-98-1786967022', 'bank_transfer', 0, '2026-08-17 18:43:42', 'pending', '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
+(76, 99, 'PAY-99-1787045419', 'cod', 360000, '2026-08-18 16:30:19', 'pending', '2026-08-18 09:30:19', '2026-08-18 09:30:19'),
+(77, 100, 'PAY-WS-100-1787045794', 'bank_transfer', 0, '2026-08-18 16:36:34', 'pending', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
+(78, 101, '101', 'bank_transfer', 0, '2026-08-18 16:47:03', 'pending', '2026-08-18 09:47:03', '2026-08-18 09:47:45'),
+(79, 102, '102', 'bank_transfer', 3172000, '2026-08-18 16:53:15', 'pending', '2026-08-18 09:53:15', '2026-08-18 09:54:15');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `products`
+-- Cấu trúc bảng cho bảng `products`
 --
 
 DROP TABLE IF EXISTS `products`;
@@ -1144,12 +1142,12 @@ CREATE TABLE IF NOT EXISTS `products` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `category_id` bigint UNSIGNED NOT NULL,
   `brand_id` bigint UNSIGNED NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `material` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `material` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `image_url` json DEFAULT NULL,
-  `description` longtext COLLATE utf8mb4_unicode_ci,
-  `thumbnail` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `thumbnail` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
   `is_preorder` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '1',
@@ -1159,24 +1157,24 @@ CREATE TABLE IF NOT EXISTS `products` (
   UNIQUE KEY `products_slug_unique` (`slug`),
   KEY `products_category_id_foreign` (`category_id`),
   KEY `products_brand_id_foreign` (`brand_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `products`
+-- Đang đổ dữ liệu cho bảng `products`
 --
 
 INSERT INTO `products` (`id`, `category_id`, `brand_id`, `name`, `slug`, `material`, `image_url`, `description`, `thumbnail`, `is_featured`, `is_preorder`, `status`, `created_at`, `updated_at`) VALUES
 (1, 1, 1, 'Balo Laptop BigBag Pro 15.6 inch', 'balo-laptop-bigbag-pro-156-inch', 'Ballistic Nylon 1680D', '[\"https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-7.png?v=1762592453077\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-ngan-laptop-rieng-mark-ryden-compacto-pro-1.jpg?v=1762592489583\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/balo-laptop-du-lich-cao-cap-thiet-ke-da-nang-tich-hop-cong-usb-fix-laptop-15-6-inch-mark-ryden-compacto-pro-12.png?v=1754064998880', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:05:28'),
 (2, 1, 7, 'Balo Laptop Thời Trang MARK RYDEN ROCKY', 'balo-laptop-thoi-trang-mark-ryden-rocky', 'Oxford - Leather', '[\"https://markryden.vn/wp-content/uploads/2024/07/1.png\", \"https://markryden.vn/wp-content/uploads/2024/07/MR-6602.1-768x1284.webp\", \"https://markryden.vn/wp-content/uploads/2024/07/5.png\"]', NULL, 'https://markryden.vn/wp-content/uploads/2024/07/1.png', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:29:57'),
-(3, 3, 3, 'KingBag Crossbody Mini', 'kingbag-crossbody-mini', 'Da PU cao cấp', '[\"https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg\", \"https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500\"]', 'Túi đeo chéo thời trang, thiết kế tối giản.', 'https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-07-26 01:32:28'),
+(3, 3, 3, 'KingBag Crossbody Mini', 'kingbag-crossbody-mini', 'Da PU cao cấp', '[\"https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg\", \"https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500\"]', NULL, 'https://product.hstatic.net/200000273565/product/1__1__298a6cabc69943318235e40bfbced192_master.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-08-18 09:23:39'),
 (4, 5, 4, 'Balo Chống Sốc Laptop 13-15″ TOMTOC (USA)', 'balo-chong-soc-laptop-13-15-tomtoc-usa', 'Vải Cordura - 840D Nylon', '[\"https://bizweb.dktcdn.net/100/044/266/files/tomtoc_usa_t77s1d1_20__c73a830c-65b0-4fae-bec6-3f0731b9a58b.png?v=1780333232839\", \"https://bizweb.dktcdn.net/100/044/266/files/tomtoc_usa_t77s1d1_21__871aae2e-93f7-4a50-902b-55064abf7966.png?v=1780333329450\", \"https://bizweb.dktcdn.net/100/044/266/files/balo_chong_soc_laptop_13-15_tomtoc_usa_t77s1d1_-_black_size_nho_22l_6_1.png?v=1780333147915\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/files/tomtoc_usa_t77s1d1_20__c73a830c-65b0-4fae-bec6-3f0731b9a58b.png?v=1780333232839', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:32:08'),
 (5, 4, 5, 'Targus CitySmart 15.6 inch', 'targus-citysmart-156-inch', '2-Tone Polyester', '[\"https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg\", \"https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-B.jpg\"]', NULL, 'https://www.maccenter.vn/Bags/Targus-CitySmart-Professional-A.jpg', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:12:55'),
 (6, 2, 6, 'Balo Laptop MIKKOR BRYANT PREMIER', 'balo-laptop-mikkor-bryant-premier', 'Vải 900D Kodura Supertex cùng vải lót P-210D', '[\"/media/image/6a756cede8000.jpg\", \"/media/image/6a756cede859d.jpg\", \"/media/image/6a756cede8a16.jpg\", \"/media/image/6a756cede0d19.jpg\"]', NULL, '/media/image/6a756cede8000.jpg', 0, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:28:27'),
 (7, 4, 8, 'Balo Thời Trang Nữ Tính, Fix Laptop BOPAI LADY', 'balo-thoi-trang-nu-tinh-fix-laptop-bopai-lady', 'Nylon', '[\"https://bizweb.dktcdn.net/100/044/266/files/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4.png?v=1746292069590\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4-12df06ec-f1fa-44a6-9d7c-e75fb1d45e9e.png?v=1746351531307\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-5.png?v=1746351544487\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-1.jpg?v=1746351544487\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/files/balo-thoi-trang-nu-tinh-fix-laptop-mong-nhe-14-1-inch-bopai-lady-pink-4.png?v=1746292069590', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:20:55'),
-(8, 1, 3, 'KingBag Backpack Pro', 'kingbag-backpack-pro', 'Polyester 1200D', '[\"https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg\", \"https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500\"]', 'Balo laptop chuyên dụng cho dân văn phòng, thiết kế tối giản.', 'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-07-26 01:32:28'),
+(8, 1, 3, 'KingBag Backpack Pro', 'kingbag-backpack-pro', 'Polyester 1200D', '[\"https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg\", \"https://images.unsplash.com/photo-1601924582970-9238bcb495d4?w=500\"]', NULL, 'https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/balo_kingbag_zelos_kbg_138_156_inch_2_9a6a4d817c.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-08-18 09:24:38'),
 (9, 5, 4, 'Everki Flight 14L', 'everki-flight-14l', 'Ballistic Nylon 1680D', '[\"https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp118_01.jpg\", \"https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp118_03.jpg\", \"https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp118_06.jpg\", \"https://youtu.be/QLQ7cjGxris?si=CeW_i_RCWQD5IcUL\"]', NULL, 'https://www.everki.com/media/catalog/product/cache/ce976a4921f47273e3ea74f8ffb4648f/e/k/ekp118_01.jpg', 0, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:24:56'),
 (10, 1, 5, 'Balo Laptop Targus Groove X Max 15', 'balo-laptop-targus-groove-x-max-15', 'Polyester 300D', '[\"https://anphat.com.vn/media/product/34030_3.jpg\", \"https://anphat.com.vn/media/product/34030_4.jpg\", \"https://anphat.com.vn/media/product/34030_2.jpg\"]', NULL, 'https://anphat.com.vn/media/product/34030_3.jpg', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:37:57'),
-(11, 2, 6, 'Balo du lịch lớn Samsonite 50L', 'samsonite-travel-50l', 'Nylon 600D', '[\"https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg\", \"https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500\"]', 'Balo du lịch cỡ lớn 50L, phù hợp cho chuyến đi dài ngày.', 'https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-07-26 01:32:28'),
+(11, 2, 6, 'Balo du lịch lớn Samsonite 50L', 'balo-du-lich-lon-samsonite-50l', 'Nylon 600D', '[\"https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg\", \"https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500\"]', NULL, 'https://cdn.hstatic.net/products/200000321545/xanhla_31x24x44cm_1_6e936579337d4369a507ace92ee90955_master.jpg', 0, 1, 1, '2026-07-26 01:32:28', '2026-08-18 09:26:10'),
 (12, 2, 2, 'Minimalist V2 Ultralight Backpack', 'minimalist-v2-ultralight-backpack', 'Robic Nylon', '[\"https://www.sixmoondesigns.com/cdn/shop/products/OV06170.jpg?v=1682026829&width=1600\", \"https://www.sixmoondesigns.com/cdn/shop/products/OV06129.jpg?v=1682026829&width=1000\", \"https://www.sixmoondesigns.com/cdn/shop/products/HydrationTubeoutbackofpack.png?v=1682026829&width=1000\"]', NULL, 'https://www.sixmoondesigns.com/cdn/shop/products/OV06170.jpg?v=1682026829&width=1600', 0, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:36:02'),
 (13, 3, 1, 'Túi Đeo Chéo Ngang Fix iPad Pro 11\" MOYYI PEDRO', 'tui-deo-cheo-ngang-fix-ipad-pro-11-moyyi-pedro', 'Canvas tái chế', '[\"https://bizweb.dktcdn.net/100/044/266/files/tui-deo-cheo-tho-i-trang-moyyi-mo0438-12.jpg?v=1654846130970\", \"https://bizweb.dktcdn.net/100/044/266/files/tui-deo-cheo-tho-i-trang-moyyi-mo0438-2.jpg?v=1654846122026\", \"https://bizweb.dktcdn.net/100/044/266/files/tui-deo-cheo-tho-i-trang-moyyi-mo0438-11.jpg?v=1654846130292\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/files/tui-deo-cheo-tho-i-trang-moyyi-mo0438-12.jpg?v=1654846130970', 1, 0, 1, '2026-07-26 01:32:28', '2026-08-07 05:34:03'),
 (14, 1, 9, 'Balo YKK ROKIN VELOCITY', 'balo-ykk-rokin-velocity', 'Vải 600 Polyester và 1680D Nylon trượt nước cao cấp', '[\"https://bizweb.dktcdn.net/100/044/266/files/balo-nam-cuc-chat-sieu-ben-chac-thiet-ke-tien-ich-fix-laptop-15-6-inch-rokin-velocity-1.jpg?v=1668572884404\", \"https://bizweb.dktcdn.net/100/044/266/files/balo-nam-cuc-chat-sieu-ben-chac-thiet-ke-tien-ich-fix-laptop-15-6-inch-rokin-velocity-3.jpg?v=1668572887413\", \"https://bizweb.dktcdn.net/100/044/266/files/balo-nam-cuc-chat-sieu-ben-chac-thiet-ke-tien-ich-fix-laptop-15-6-inch-rokin-velocity-5.jpg?v=1668572890676\", \"https://bizweb.dktcdn.net/100/044/266/files/balo-nam-cuc-chat-sieu-ben-chac-thiet-ke-tien-ich-fix-laptop-15-6-inch-rokin-velocity-10.jpg?v=1668572898901\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/files/balo-nam-cuc-chat-sieu-ben-chac-thiet-ke-tien-ich-fix-laptop-15-6-inch-rokin-velocity-1.jpg?v=1668572884404', 0, 0, 1, '2026-08-15 05:08:53', '2026-08-15 05:11:48'),
@@ -1190,17 +1188,18 @@ INSERT INTO `products` (`id`, `category_id`, `brand_id`, `name`, `slug`, `materi
 (23, 3, 7, 'CẶP XÁCH LAPTOP MARK RYDEN CLASSIC', 'cap-xach-laptop-mark-ryden-classic', 'Oxford', '[\"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-2.png?v=1740731226840\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-1.png?v=1740731226840\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-16.png?v=1740731225090\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867', 0, 0, 1, '2026-08-18 04:40:15', '2026-08-18 04:40:15'),
 (24, 7, 11, 'Cặp Xách Chống Sốc Macbook Air 15-16\" TOMTOC (USA) A33F3D1', 'cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1', 'Vải Polyester trượt nước - lớp lót bên trong mềm mại', '[\"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1-black-7.png?v=1784982351013\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1-black-1.png?v=1784982351013\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1-black-6.png?v=1784982351013\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1-black-6-l.png?v=1784982351013\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/cap-xach-chong-soc-macbook-air-15-16-tomtoc-usa-a33f3d1-black-7.png?v=1784982351013', 0, 0, 1, '2026-08-18 04:44:02', '2026-08-18 05:02:28'),
 (25, 3, 8, 'Cặp Xách/ Túi Đeo Chéo Cao Cấp BOPAI GENTLE', 'cap-xach-tui-deo-cheo-cao-cap-bopai-gentle', 'PVC - Microfiber', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-tho-i-trang-bopai-12.jpg?v=1670071003033\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-tho-i-trang-bopai-18.jpg?v=1670071645597\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-tho-i-trang-bopai-14.jpg?v=1670071645597\", \"https://youtu.be/WOEwyTK-U2s?si=5p46Lioouqc0k0PO\"]', '<p><strong>- Số Ngăn:&nbsp;</strong>1 ngăn chính - nhiều ngăn phụ</p><p><strong>- Khối Lượng:&nbsp;</strong>0.76 Kg</p><p><strong>- Tải Trọng:&nbsp;</strong>10 Kg</p>', 'https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-tho-i-trang-bopai-12.jpg?v=1670071003033', 0, 0, 1, '2026-08-18 04:46:56', '2026-08-18 04:46:56'),
-(26, 8, 11, 'Túi Chống Sốc Macbook Pro 14\" TOMTOC (USA) A13D2DV', 'tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2dv', 'Vải tái chế bền bỉ - Vật liệu làm từ chai nhựa PET', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-5.jpg?v=1665043794160\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-6.jpg?v=1665043794160\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2g1gp-8.jpg?v=1691660007530\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2g1gp-12.jpg?v=1691659954717\", \"https://youtu.be/wEl95jIufT0?si=GOGbQep93fxce78Y\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-5.jpg?v=1665043794160', 0, 0, 1, '2026-08-18 05:02:02', '2026-08-18 05:02:21'),
+(26, 8, 11, 'Túi Chống Sốc Macbook Pro 14\" TOMTOC (USA) A13D2DV', 'tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2dv', 'Vải tái chế bền bỉ - Vật liệu làm từ chai nhựa PET', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-5.jpg?v=1665043794160\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-6.jpg?v=1665043794160\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2g1gp-8.jpg?v=1691660007530\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2g1gp-12.jpg?v=1691659954717\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/tui-chong-soc-macbook-pro-14-tomtoc-usa-a13d2d1gp-5.jpg?v=1665043794160', 0, 0, 1, '2026-08-18 05:02:02', '2026-08-18 05:44:02'),
 (27, 3, 10, 'Túi Đeo Chéo Thời Trang Unisex HIER EVERYDAY MESSENGER', 'tui-deo-cheo-thoi-trang-unisex-hier-everyday-messenger', 'Vải Oxford trượt nước cao cấp', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-nam-deo-cheo-hier-everyday-messenger-11.jpg?v=1704616366980\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-nam-deo-cheo-hier-everyday-messenger-8.jpg?v=1704617554430\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-nam-deo-cheo-hier-everyday-messenger-16.jpg?v=1704614398717\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-nam-deo-cheo-hier-everyday-messenger-22.jpg?v=1715519632207\", \"https://youtu.be/rQ4x0HqrqaA?si=9o316eXnv9kajNR2\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/tui-nam-deo-cheo-hier-everyday-messenger-11.jpg?v=1704616366980', 0, 0, 1, '2026-08-18 05:06:27', '2026-08-18 05:06:27'),
 (28, 7, 11, 'Cặp Chống Sốc Macbook Pro 16\" TOMTOC (USA) A42E2Y1', 'cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1', 'Vải tái chế từ chai nhựa PET', '[\"https://bizweb.dktcdn.net/100/044/266/products/cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1-7.jpg?v=1700989977703\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1-11.jpg?v=1700989978907\", \"https://bizweb.dktcdn.net/100/044/266/products/cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1-2.jpg?v=1680867582867\", \"https://bizweb.dktcdn.net/100/044/266/files/cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1-25.jpg?v=1680867636892\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/cap-chong-soc-macbook-pro-16-tomtoc-usa-a42e2y1-7.jpg?v=1700989977703', 0, 0, 1, '2026-08-18 05:09:12', '2026-08-18 05:09:12'),
 (29, 3, 11, 'Túi Đeo Chéo Chống Sốc Macbook Pro 14\" TOMTOC (USA) A04D3D1', 'tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1', 'Vải 840D Polyester trượt nước cao cấp siêu bền - chống mài mòn lót đệm mịn chống trầy xước', '[\"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-21.png?v=1784281474273\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-14.png?v=1784281474273\", \"https://bizweb.dktcdn.net/100/044/266/files/tui_eo_cheo_chong_soc_macbook_pro_14_tomtoc_usa_a04d3d1_-_black_23_.png?v=1784654505221\", \"https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-30-1.jpg?v=1784281474273\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/tui-deo-cheo-chong-soc-macbook-pro-14-tomtoc-usa-a04d3d1-black-21.png?v=1784281474273', 0, 0, 1, '2026-08-18 05:12:59', '2026-08-18 05:12:59'),
 (30, 7, 7, 'CẶP XÁCH LAPTOP 13,3 - 14 inch MARK RYDEN CLASSIC', 'cap-xach-laptop-133-14-inch-mark-ryden-classic', 'Oxford', '[\"https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867\", \"https://bizweb.dktcdn.net/100/044/266/files/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-11-optimized.png?v=1740731644581\", \"https://bizweb.dktcdn.net/thumb/small/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-1.png?v=1740731226840\", \"https://youtu.be/uolEl8e8t5U?si=QjSP6dHFvc314Fqk\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/cap-xach-laptop-13-3-14-inch-mark-ryden-classic-4.png?v=1740731222867', 0, 0, 1, '2026-08-18 05:15:52', '2026-08-18 05:15:52'),
-(31, 4, 11, 'Balo Vintpack For Macbook/ Laptop 13-14 inch TOMTOC (USA) TA1S1Y1', 'balo-vintpack-for-macbook-laptop-13-14-inch-tomtoc-usa-ta1s1y1', 'Vải polyester trượt nước cao cấp', '[\"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-14-49558253-2725-46f0-8da9-82870c215c38.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-2-a9bb9d65-931a-41bf-bde8-c797995597e7.png?v=1709278805653\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-5-330a353a-1773-4620-b5bf-e48e760b183d.jpg?v=1709278805653\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150', 0, 0, 1, '2026-08-18 05:19:51', '2026-08-18 05:19:51');
+(31, 4, 11, 'Balo Vintpack For Macbook/ Laptop 13-14 inch TOMTOC (USA) TA1S1Y1', 'balo-vintpack-for-macbook-laptop-13-14-inch-tomtoc-usa-ta1s1y1', 'Vải polyester trượt nước cao cấp', '[\"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-14-49558253-2725-46f0-8da9-82870c215c38.jpg?v=1709278340150\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-2-a9bb9d65-931a-41bf-bde8-c797995597e7.png?v=1709278805653\", \"https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-5-330a353a-1773-4620-b5bf-e48e760b183d.jpg?v=1709278805653\"]', NULL, 'https://bizweb.dktcdn.net/100/044/266/products/balo-chong-soc-laptop-13-14-15-16-tomtoc-usa-ta1m1d1-1-6b360a01-b405-457a-a2c5-6b909f03fc8c.jpg?v=1709278340150', 0, 0, 1, '2026-08-18 05:19:51', '2026-08-18 08:57:59'),
+(34, 5, 8, 'test', 'test', 'da', '[]', NULL, NULL, 0, 0, 1, '2026-08-18 08:59:53', '2026-08-18 08:59:53');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `product_variants`
+-- Cấu trúc bảng cho bảng `product_variants`
 --
 
 DROP TABLE IF EXISTS `product_variants`;
@@ -1208,7 +1207,7 @@ CREATE TABLE IF NOT EXISTS `product_variants` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `product_id` bigint UNSIGNED NOT NULL,
   `color_id` bigint UNSIGNED NOT NULL,
-  `size_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `size_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `rating` decimal(2,1) NOT NULL DEFAULT '0.0',
   `stock` int NOT NULL DEFAULT '0',
   `import_quantity` int UNSIGNED NOT NULL DEFAULT '0',
@@ -1217,7 +1216,7 @@ CREATE TABLE IF NOT EXISTS `product_variants` (
   `price` decimal(12,0) NOT NULL,
   `sale_price` decimal(12,0) DEFAULT NULL,
   `is_on_sale` tinyint(1) NOT NULL DEFAULT '0',
-  `sale_type` enum('campaign','preorder') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sale_type` enum('campaign','preorder') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `sale_campaign_id` bigint UNSIGNED DEFAULT NULL,
@@ -1225,37 +1224,37 @@ CREATE TABLE IF NOT EXISTS `product_variants` (
   KEY `product_variants_product_id_foreign` (`product_id`),
   KEY `product_variants_color_id_foreign` (`color_id`),
   KEY `product_variants_sale_campaign_id_foreign` (`sale_campaign_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `product_variants`
+-- Đang đổ dữ liệu cho bảng `product_variants`
 --
 
 INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_name`, `rating`, `stock`, `import_quantity`, `import_price`, `last_import_date`, `price`, `sale_price`, `is_on_sale`, `sale_type`, `created_at`, `updated_at`, `sale_campaign_id`) VALUES
-(1, 1, 1, 'M', 4.8, 0, 11, 1450000, '2026-08-16 10:17:20', 1450000, 725000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-17 09:11:00', 1),
-(2, 1, 2, 'L', 4.7, 2, 12, 1450000, '2026-08-16 10:18:34', 1450000, 725000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-16 10:18:34', 1),
-(3, 2, 1, 'L', 4.9, 2498, 2500, 1590000, '2026-08-18 05:20:25', 2100000, 1050000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 05:20:25', 1),
-(4, 3, 4, 'Free', 4.5, 100, 0, NULL, NULL, 450000, 360000, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-08 15:10:15', 4),
-(5, 4, 1, 'L', 4.9, 399, 500, 1500000, '2026-08-18 05:20:49', 2350000, 1175000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 05:20:49', 1),
-(6, 4, 2, 'L', 4.8, 250, 500, 1500000, '2026-08-18 05:20:49', 2350000, 1175000, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 05:20:49', 1),
-(7, 5, 1, 'M', 4.7, 600, 600, 950000, '2026-08-18 05:21:18', 1250000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:21:18', NULL),
-(8, 6, 3, 'M', 4.8, 350, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:22:23', NULL),
-(9, 6, 2, 'M', 4.7, 200, 400, 490000, '2026-08-18 05:22:23', 649000, 584100, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 05:22:23', 5),
-(10, 7, 9, 'S', 4.6, 650, 700, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:23:40', NULL),
-(11, 7, 1, 'S', 4.5, 400, 500, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:23:40', NULL),
-(12, 8, 1, 'M', 4.4, 45, 0, NULL, NULL, 990000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-07-26 01:32:28', NULL),
-(13, 9, 1, 'L', 4.9, 1500, 1500, 1400000, '2026-08-18 05:24:02', 1850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:24:02', NULL),
-(14, 10, 1, 'Free', 4.3, 1000, 1000, 100000, '2026-08-18 05:25:47', 1350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:25:47', NULL),
-(15, 10, 2, 'Free', 4.2, 110, 120, 100000, '2026-08-18 05:26:59', 350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:26:59', NULL),
-(16, 11, 3, 'XL', 4.8, 20, 0, NULL, NULL, 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-07-26 01:32:28', NULL),
-(17, 11, 4, 'XL', 4.7, 10, 0, NULL, NULL, 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-07-26 01:32:28', NULL),
-(18, 12, 2, 'L', 4.5, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:27:42', NULL),
-(19, 13, 1, 'M', 4.4, 900, 900, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:28:08', NULL),
-(20, 13, 2, 'M', 4.3, 850, 850, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 05:28:08', NULL),
-(21, 1, 2, 'S', 0.0, 3, 1, 1450000, '2026-08-16 10:17:20', 1450000, NULL, 0, NULL, '2026-08-03 09:26:29', '2026-08-16 10:18:34', NULL),
-(22, 6, 1, 'M', 0.0, 300, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-08-07 05:16:14', '2026-08-18 05:22:23', NULL),
-(23, 12, 3, 'L', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 05:27:42', NULL),
-(24, 12, 4, 'L', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 05:27:42', NULL),
+(1, 1, 1, '38 x 28 x 10 cm', 4.8, 0, 11, 1005000, '2026-08-16 10:17:20', 14500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(2, 1, 2, '38 x 28 x 10 cm', 4.7, 2, 12, 1005000, '2026-08-16 10:18:34', 14500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(3, 2, 1, '38 x 28 x 10 cm', 4.9, 2498, 2500, 1590000, '2026-08-18 05:20:25', 2100000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(4, 3, 4, '38.1 x 27.1 x 3.2 cm', 4.5, 0, 120, 250000, '2026-08-18 09:23:39', 450000, 360000, 1, 'preorder', '2026-07-26 01:32:28', '2026-08-18 09:26:39', 4),
+(5, 4, 1, '38 x 28 x 10 cm', 4.9, 399, 500, 1500000, '2026-08-18 05:20:49', 2350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(6, 4, 2, '38 x 28 x 10 cm', 4.8, 250, 500, 1500000, '2026-08-18 05:20:49', 2350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:39:13', NULL),
+(7, 5, 1, '38 x 28 x 10 cm', 4.7, 600, 600, 950000, '2026-08-18 05:21:18', 1250000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:29', NULL),
+(8, 6, 3, '38 x 28 x 10 cm', 4.8, 350, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:45', NULL),
+(9, 6, 2, '38 x 28 x 10 cm', 4.7, 200, 400, 490000, '2026-08-18 05:22:23', 649000, 584100, 1, 'campaign', '2026-07-26 01:32:28', '2026-08-18 09:06:45', NULL),
+(10, 7, 9, '38 x 28 x 10 cm', 4.6, 650, 700, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:55', NULL),
+(11, 7, 1, '38 x 28 x 10 cm', 4.5, 400, 500, 1150000, '2026-08-18 05:23:40', 1500000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:06:55', NULL),
+(12, 8, 1, '38.1 x 27.1 x 3.2 cm', 4.4, 0, 70, 690000, '2026-08-18 09:24:38', 990000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:32:10', NULL),
+(13, 9, 1, '38 x 28 x 10 cm', 4.9, 1500, 1500, 1400000, '2026-08-18 05:24:02', 1850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:07:13', NULL),
+(14, 10, 1, '38 x 28 x 10 cm', 4.3, 1000, 1000, 100000, '2026-08-18 05:25:47', 350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:09', NULL),
+(15, 10, 2, '38 x 28 x 10 cm', 4.2, 110, 120, 100000, '2026-08-18 05:26:59', 350000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:09', NULL),
+(16, 11, 3, '38.1 x 27.1 x 3.2 cm', 4.8, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:26:10', NULL),
+(17, 11, 4, '38.1 x 27.1 x 3.2 cm', 4.7, 0, 50, 1900000, '2026-08-18 09:26:10', 2850000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:26:10', NULL),
+(18, 12, 2, '38 x 28 x 10 cm', 4.5, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:24', NULL),
+(19, 13, 1, '38 x 28 x 10 cm', 4.4, 900, 900, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:34', NULL),
+(20, 13, 2, '38 x 28 x 10 cm', 4.3, 850, 850, 450000, '2026-08-18 05:28:08', 650000, NULL, 0, NULL, '2026-07-26 01:32:28', '2026-08-18 09:08:34', NULL),
+(21, 1, 2, '38 x 28 x 10 cm', 0.0, 3, 6, 1005000, '2026-08-18 09:05:50', 14500000, NULL, 0, NULL, '2026-08-03 09:26:29', '2026-08-18 09:05:50', NULL),
+(22, 6, 1, '38 x 28 x 10 cm', 0.0, 300, 400, 490000, '2026-08-18 05:22:23', 649000, NULL, 0, NULL, '2026-08-07 05:16:14', '2026-08-18 09:06:45', NULL),
+(23, 12, 3, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 09:08:24', NULL),
+(24, 12, 4, '38 x 28 x 10 cm', 0.0, 500, 500, 890000, '2026-08-18 05:27:42', 1190000, NULL, 0, NULL, '2026-08-07 05:36:02', '2026-08-18 09:08:24', NULL),
 (25, 14, 1, '51 x 32 x 25 cm', 0.0, 500, 500, 1590000, '2026-08-15 05:08:54', 1790000, NULL, 0, NULL, '2026-08-15 05:08:54', '2026-08-15 05:08:54', NULL),
 (26, 15, 5, '38 x 28 x 10 cm', 0.0, 500, 500, 550000, '2026-08-15 05:16:40', 700000, NULL, 0, NULL, '2026-08-15 05:16:40', '2026-08-15 05:16:40', NULL),
 (27, 15, 2, '38 x 28 x 10 cm', 0.0, 500, 500, 550000, '2026-08-15 05:16:40', 700000, NULL, 0, NULL, '2026-08-15 05:16:40', '2026-08-15 05:16:40', NULL),
@@ -1271,40 +1270,41 @@ INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_name`, `ra
 (38, 25, 1, '49 x 34 x 11 cm', 0.0, 500, 500, 1890000, '2026-08-18 04:46:56', 2457000, NULL, 0, NULL, '2026-08-18 04:46:56', '2026-08-18 04:46:56', NULL),
 (39, 26, 1, '33.78 x 24.99 x 2.79 cm', 0.0, 500, 500, 979000, '2026-08-18 05:02:02', 1500000, NULL, 0, NULL, '2026-08-18 05:02:02', '2026-08-18 05:02:02', NULL),
 (40, 26, 2, '33.78 x 24.99 x 2.79 cm', 0.0, 500, 500, 979000, '2026-08-18 05:02:02', 1500000, NULL, 0, NULL, '2026-08-18 05:02:02', '2026-08-18 05:02:02', NULL),
-(41, 27, 1, '30 x 23 x 6 cm', 0.0, 500, 500, 550000, '2026-08-18 05:06:27', 1000000, NULL, 0, NULL, '2026-08-18 05:06:27', '2026-08-18 05:06:27', NULL),
-(42, 27, 2, '30 x 23 x 6 cm', 0.0, 500, 500, 550000, '2026-08-18 05:06:27', 1000000, NULL, 0, NULL, '2026-08-18 05:06:27', '2026-08-18 05:06:27', NULL),
+(41, 27, 1, '30 x 23 x 6 cm', 0.0, 500, 500, 550000, '2026-08-18 05:06:27', 1000000, NULL, 0, NULL, '2026-08-18 05:06:27', '2026-08-18 11:56:40', NULL),
+(42, 27, 2, '30 x 23 x 6 cm', 0.0, 500, 500, 550000, '2026-08-18 05:06:27', 1000000, NULL, 0, NULL, '2026-08-18 05:06:27', '2026-08-18 11:56:40', NULL),
 (43, 28, 4, '38.1 x 27.1 x 3.2 cm', 0.0, 500, 500, 1270000, '2026-08-18 05:09:12', 1700000, NULL, 0, NULL, '2026-08-18 05:09:12', '2026-08-18 05:09:12', NULL),
 (44, 29, 1, '51 x 32 x 25 cm', 0.0, 500, 500, 1250000, '2026-08-18 05:12:59', 1700000, NULL, 0, NULL, '2026-08-18 05:12:59', '2026-08-18 05:12:59', NULL),
 (45, 30, 1, '40 x 30 x 7 (cm)', 0.0, 500, 500, 690000, '2026-08-18 05:15:53', 1000000, NULL, 0, NULL, '2026-08-18 05:15:53', '2026-08-18 05:15:53', NULL),
-(46, 31, 7, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 05:19:51', NULL),
-(47, 31, 1, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 05:19:51', NULL);
+(46, 31, 7, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 09:01:56', NULL),
+(47, 31, 1, '45 x 26 x 10 cm', 0.0, 500, 500, 1990000, '2026-08-18 05:19:51', 2600000, NULL, 0, NULL, '2026-08-18 05:19:51', '2026-08-18 05:19:51', NULL),
+(50, 34, 7, 's', 0.0, 20, 25, 1000, '2026-08-18 08:59:53', 10000, NULL, 0, NULL, '2026-08-18 08:59:53', '2026-08-18 08:59:53', NULL);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `quote_requests`
+-- Cấu trúc bảng cho bảng `quote_requests`
 --
 
 DROP TABLE IF EXISTS `quote_requests`;
 CREATE TABLE IF NOT EXISTS `quote_requests` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` bigint UNSIGNED DEFAULT NULL,
-  `company_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `company_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `total_quantity` int NOT NULL,
   `total` decimal(12,0) DEFAULT NULL,
-  `requirement` text COLLATE utf8mb4_unicode_ci,
-  `logo_file` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `requirement` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `logo_file` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `quote_requests_user_id_foreign` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `quote_requests`
+-- Đang đổ dữ liệu cho bảng `quote_requests`
 --
 
 INSERT INTO `quote_requests` (`id`, `user_id`, `company_name`, `email`, `phone`, `total_quantity`, `total`, `requirement`, `logo_file`, `status`, `created_at`, `updated_at`) VALUES
@@ -1332,12 +1332,14 @@ INSERT INTO `quote_requests` (`id`, `user_id`, `company_name`, `email`, `phone`,
 (23, 5, 'Trường Tiểu học và Trung học cơ sở Vân Hà', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 36250000, '{\"address\":\"123\",\"city\":\"Hà Nội\",\"district\":\"Quận 2\",\"ward\":\"Phường Bến Nghé\",\"tax_code\":\"0111606029\",\"delivery_date\":\"2026-08-20\"}', NULL, 'pending', '2026-08-17 07:28:46', '2026-08-17 07:28:46'),
 (24, 5, 'Trường Tiểu học và Trung học cơ sở Vân Hà', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 36250000, '{\"address\":\"123\",\"city\":\"TP. Hồ Chí Minh\",\"district\":\"Quận 2\",\"ward\":\"Phường Bến Thành\",\"tax_code\":\"0111606029\",\"delivery_date\":\"2026-08-24\"}', NULL, 'pending', '2026-08-17 07:39:12', '2026-08-17 07:39:12'),
 (25, 5, 'CÔNG TY TNHH BLOSSOM CREATIVE SAIGON', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 36250000, '{\"address\":\"123\",\"city\":\"TP. Hồ Chí Minh\",\"district\":\"Quận 2\",\"ward\":\"Phường Bến Thành\",\"tax_code\":\"0319677692\",\"delivery_date\":\"2026-08-29\"}', NULL, 'pending', '2026-08-17 08:44:52', '2026-08-17 08:44:52'),
-(26, 5, 'CÔNG TY TNHH AGRI 1986', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 52500000, '{\"address\":\"1\",\"city\":\"A\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"3801358804\",\"delivery_date\":\"2026-08-31\"}', NULL, 'pending', '2026-08-17 11:43:42', '2026-08-17 11:43:42');
+(26, 5, 'CÔNG TY TNHH AGRI 1986', 'thanhphuongkhuu@gmail.com', '0123456789', 50, 52500000, '{\"address\":\"1\",\"city\":\"A\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"3801358804\",\"delivery_date\":\"2026-08-31\"}', NULL, 'pending', '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
+(27, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'a@gmail.com', '0906758927', 50, 30827500, '{\"address\":\"1\",\"city\":\"HCM\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-03\"}', NULL, 'pending', '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
+(28, 6, 'CÔNG TY CỔ PHẦN SỮA VIỆT NAM', 'trucmy10042004@gmail.com', '0907864587', 50, 123500000, '{\"address\":\"1\",\"city\":\"1\",\"district\":\"1\",\"ward\":\"1\",\"tax_code\":\"0300588569\",\"delivery_date\":\"2026-09-10\"}', NULL, 'pending', '2026-08-18 09:47:03', '2026-08-18 09:47:03');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `quote_request_details`
+-- Cấu trúc bảng cho bảng `quote_request_details`
 --
 
 DROP TABLE IF EXISTS `quote_request_details`;
@@ -1351,10 +1353,10 @@ CREATE TABLE IF NOT EXISTS `quote_request_details` (
   PRIMARY KEY (`id`),
   KEY `quote_request_details_quote_request_id_foreign` (`quote_request_id`),
   KEY `quote_request_details_product_variant_id_foreign` (`product_variant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `quote_request_details`
+-- Đang đổ dữ liệu cho bảng `quote_request_details`
 --
 
 INSERT INTO `quote_request_details` (`id`, `quote_request_id`, `product_variant_id`, `quantity`, `created_at`, `updated_at`) VALUES
@@ -1401,12 +1403,14 @@ INSERT INTO `quote_request_details` (`id`, `quote_request_id`, `product_variant_
 (42, 23, 1, 50, '2026-08-17 07:28:46', '2026-08-17 07:28:46'),
 (43, 24, 1, 50, '2026-08-17 07:39:12', '2026-08-17 07:39:12'),
 (44, 25, 1, 50, '2026-08-17 08:44:52', '2026-08-17 08:44:52'),
-(45, 26, 3, 50, '2026-08-17 11:43:42', '2026-08-17 11:43:42');
+(45, 26, 3, 50, '2026-08-17 11:43:42', '2026-08-17 11:43:42'),
+(46, 27, 8, 50, '2026-08-18 09:36:34', '2026-08-18 09:36:34'),
+(47, 28, 46, 50, '2026-08-18 09:47:03', '2026-08-18 09:47:03');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `reviews`
+-- Cấu trúc bảng cho bảng `reviews`
 --
 
 DROP TABLE IF EXISTS `reviews`;
@@ -1415,7 +1419,7 @@ CREATE TABLE IF NOT EXISTS `reviews` (
   `user_id` bigint UNSIGNED NOT NULL,
   `product_variant_id` bigint UNSIGNED NOT NULL,
   `rating` decimal(2,1) NOT NULL,
-  `comment` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1424,7 +1428,7 @@ CREATE TABLE IF NOT EXISTS `reviews` (
 ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `reviews`
+-- Đang đổ dữ liệu cho bảng `reviews`
 --
 
 INSERT INTO `reviews` (`id`, `user_id`, `product_variant_id`, `rating`, `comment`, `created_at`, `updated_at`) VALUES
@@ -1447,22 +1451,21 @@ INSERT INTO `reviews` (`id`, `user_id`, `product_variant_id`, `rating`, `comment
 (17, 2, 17, 3.0, 'Sản phẩm chất lượng tốt, đóng gói cẩn thận.', '2026-07-26 01:32:41', '2026-07-26 01:32:41'),
 (18, 2, 18, 3.0, 'Sản phẩm chất lượng tốt, đóng gói cẩn thận.', '2026-07-26 01:32:41', '2026-07-26 01:32:41'),
 (19, 3, 19, 5.0, 'Sản phẩm chất lượng tốt, đóng gói cẩn thận.', '2026-07-26 01:32:41', '2026-07-26 01:32:41'),
-(20, 2, 20, 3.0, 'Sản phẩm chất lượng tốt, đóng gói cẩn thận.', '2026-07-26 01:32:41', '2026-07-26 01:32:41'),
-(21, 5, 1, 5.0, 'Đẹp', '2026-08-17 09:00:41', '2026-08-17 09:00:41');
+(20, 2, 20, 3.0, 'Sản phẩm chất lượng tốt, đóng gói cẩn thận.', '2026-07-26 01:32:41', '2026-07-26 01:32:41');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `sessions`
+-- Cấu trúc bảng cho bảng `sessions`
 --
 
 DROP TABLE IF EXISTS `sessions`;
 CREATE TABLE IF NOT EXISTS `sessions` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` bigint UNSIGNED DEFAULT NULL,
-  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `user_agent` text COLLATE utf8mb4_unicode_ci,
-  `payload` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `last_activity` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `sessions_user_id_index` (`user_id`),
@@ -1470,26 +1473,24 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `sessions`
+-- Đang đổ dữ liệu cho bảng `sessions`
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('01Puud80a9gXtucjIQKBJuuDUhffAcEmywyKeoyZ', 5, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJFNGt3cmNiZHpzb3UycHlhSWtDa1F3c1VvRzNUbjZkMnJxZmw2VmtvIiwidXJsIjpbXSwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC9tZWRpYVwvaW1hZ2VcLzZhODJjY2UwZGM5MWEucG5nIiwicm91dGUiOm51bGx9LCJfZmxhc2giOnsib2xkIjpbXSwibmV3IjpbXX0sImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjo1fQ==', 1786970862),
-('Cs0nVBwGPiNjBwXGLvRV4Fn8l0dlvTUvklf075gz', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiIwSTFLdjRhMnkxZDRKYzhjd0VrTEo4eHFQN2t5MGJ4MUhCOVUwWm5IIiwidXJsIjp7ImludGVuZGVkIjoiaHR0cDpcL1wvMTI3LjAuMC4xOjgwMDBcL2FkbWluXC9wcm9kdWN0c1wvbm9ybWFsIn0sIl9wcmV2aW91cyI6eyJ1cmwiOiJodHRwOlwvXC8xMjcuMC4wLjE6ODAwMFwvbG9naW4iLCJyb3V0ZSI6ImxvZ2luIn0sIl9mbGFzaCI6eyJvbGQiOltdLCJuZXciOltdfX0=', 1787013286),
-('dKDdo4q63Kn1ScjQd6QxVa9REiKWUIwOvarLeLMA', 5, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJtZ2ZkRkRPOFljSE1QTVhrY2tNOU96bVV0QVMwSGtwRDBwRVZpTkIxIiwibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiOjUsIl9mbGFzaCI6eyJvbGQiOltdLCJuZXciOltdfSwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC9hZG1pblwvcHJvZHVjdHMiLCJyb3V0ZSI6ImFkbWluLnByb2R1Y3RzLmluZGV4In19', 1787030889);
+('Zx76CpmKZ7fxH01wzF2G4qQ6tgHQdoF5xiteeBXf', 6, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJ6TW9TUXJCa2pxM2w0MXJDUTYwdmtpakVBMG91N1JMbG9jZnQ0dVc4IiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC90aGFuaC10b2FuP2NhcnQ9JTdCJTIyMzMlMjIlM0ElN0IlMjJxdWFudGl0eSUyMiUzQTElMkMlMjJwcmljZSUyMiUzQSUyMjE1OTAwMDAyMzg1MDAlMjIlMkMlMjJtZXRhJTIyJTNBJTdCJTIybG9nbyUyMiUzQSU3QiUyMnBvc2l0aW9uJTIyJTNBJTIyZnJvbnQlMjIlMkMlMjJzaXplJTIyJTNBJTIybWVkaXVtJTIyJTJDJTIybm90ZSUyMiUzQSUyMiUyMiUyQyUyMmZpbGUlMjIlM0ElMjJsb2dvcyUyRmUxMjQzNTBkLTU0NDQtNDJiNi05YTQxLTI3MDJhODc4ODUzOS5wbmclMjIlMkMlMjJmdWxsTmFtZSUyMiUzQSUyMlB5JTIyJTJDJTIyZW1haWwlMjIlM0ElMjJ0cnVjbXkxMDA0MjAwNCU0MGdtYWlsLmNvbSUyMiUyQyUyMnBob25lJTIyJTNBJTIyMDkwNzg2ODk1NiUyMiU3RCU3RCU3RCU3RCZlbWFpbD10cnVjbXkxMDA0MjAwNCU0MGdtYWlsLmNvbSZuYW1lPVB5Jm9yZGVyX3R5cGU9Y3VzdG9taXplJnBob25lPTA5MDc4Njg5NTYiLCJyb3V0ZSI6ImNoZWNrb3V0In0sIl9mbGFzaCI6eyJvbGQiOltdLCJuZXciOltdfSwibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiOjZ9', 1787055089);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `settings`
+-- Cấu trúc bảng cho bảng `settings`
 --
 
 DROP TABLE IF EXISTS `settings`;
 CREATE TABLE IF NOT EXISTS `settings` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `key` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` text COLLATE utf8mb4_unicode_ci,
-  `group` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `group` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1497,7 +1498,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `settings`
+-- Đang đổ dữ liệu cho bảng `settings`
 --
 
 INSERT INTO `settings` (`id`, `key`, `value`, `group`, `created_at`, `updated_at`) VALUES
@@ -1520,90 +1521,91 @@ INSERT INTO `settings` (`id`, `key`, `value`, `group`, `created_at`, `updated_at
 -- --------------------------------------------------------
 
 --
--- Table structure for table `users`
+-- Cấu trúc bảng cho bảng `users`
 --
 
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
-  `password` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `remember_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `remember_token` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  `phone` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `avatar` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `role` enum('admin','user') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'user',
+  `phone` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `avatar` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `role` enum('admin','user') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'user',
   `status` tinyint NOT NULL DEFAULT '1',
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `users`
+-- Đang đổ dữ liệu cho bảng `users`
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`, `phone`, `avatar`, `role`, `status`, `deleted_at`) VALUES
-(1, 'Admin User', 'admin@bigbag.vn', NULL, '$2y$12$s/8XvUfXeI4LuO.a2MzF7OZMNE5dskiRB.rUmXQbBdL0o4jC0Mmji', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0987654321', NULL, 'admin', 1, NULL),
+(1, 'Admin User', 'admin@bigbag.vn', NULL, '$2y$12$s/8XvUfXeI4LuO.a2MzF7OZMNE5dskiRB.rUmXQbBdL0o4jC0Mmji', NULL, '2026-07-26 01:32:29', '2026-08-18 09:28:47', '0987654321', NULL, 'admin', 1, '2026-08-18 09:28:47'),
 (2, 'Customer One', 'customer1@example.com', NULL, '$2y$12$8QvVjv1Vk.W3uxPKL0kqW.6wMQXxQSHo16lGKZ.iwmarN29CbsDR2', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0912345678', NULL, 'user', 1, NULL),
 (3, 'Customer Two', 'customer2@example.com', NULL, '$2y$12$kIrW90Mp.PZ9PUI8rwuAReAz6e0ehGOPCGAlwLF8hnc1kGK66coYO', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0923456789', NULL, 'user', 1, NULL),
 (4, 'My', 'admin@gmail.com', NULL, '$2y$12$nQTKXYOBjh0lDo2buTfwwO.UmFfiddtatQKS4aHIeHsLW5zefrhPC', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0923456785', NULL, 'admin', 1, NULL),
-(5, 'Thanh Phuong Khuu', 'thanhphuongkhuu@gmail.com', NULL, '$2y$12$oJIVfWmwWBA2JuoIyPizYeZfpLQkb3t9gDkPA/x4GQFsCBTyBo2D.', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0123456789', NULL, 'admin', 1, NULL);
+(5, 'Thanh Phuong Khuu', 'thanhphuongkhuu@gmail.com', NULL, '$2y$12$oJIVfWmwWBA2JuoIyPizYeZfpLQkb3t9gDkPA/x4GQFsCBTyBo2D.', NULL, '2026-07-26 01:32:29', '2026-07-26 01:32:29', '0123456789', NULL, 'admin', 1, NULL),
+(6, 'Py', 'trucmy10042004@gmail.com', NULL, '$2y$12$I8zx3bBZp97Yn3hHHEOQyeXUjGXr2XdQCQM0zrSkC32zHCtPMbl2K', NULL, '2026-08-18 09:28:11', '2026-08-18 09:28:59', '0907868956', NULL, 'admin', 1, NULL);
 
 --
--- Constraints for dumped tables
+-- Các ràng buộc cho các bảng đã đổ
 --
 
 --
--- Constraints for table `banners`
+-- Các ràng buộc cho bảng `banners`
 --
 ALTER TABLE `banners`
   ADD CONSTRAINT `banners_campaign_id_foreign` FOREIGN KEY (`campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `campaigns`
+-- Các ràng buộc cho bảng `campaigns`
 --
 ALTER TABLE `campaigns`
   ADD CONSTRAINT `campaigns_banner_id_foreign` FOREIGN KEY (`banner_id`) REFERENCES `banners` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `campaigns_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `campaign_configs`
+-- Các ràng buộc cho bảng `campaign_configs`
 --
 ALTER TABLE `campaign_configs`
   ADD CONSTRAINT `campaign_configs_campaign_id_foreign` FOREIGN KEY (`campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `campaign_products`
+-- Các ràng buộc cho bảng `campaign_products`
 --
 ALTER TABLE `campaign_products`
   ADD CONSTRAINT `campaign_products_campaign_id_foreign` FOREIGN KEY (`campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `campaign_products_product_variant_id_foreign` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `chatbot_messages`
+-- Các ràng buộc cho bảng `chatbot_messages`
 --
 ALTER TABLE `chatbot_messages`
   ADD CONSTRAINT `chatbot_messages_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `logo_print_requests`
+-- Các ràng buộc cho bảng `logo_print_requests`
 --
 ALTER TABLE `logo_print_requests`
   ADD CONSTRAINT `logo_print_requests_order_detail_id_foreign` FOREIGN KEY (`order_detail_id`) REFERENCES `order_details` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `news`
+-- Các ràng buộc cho bảng `news`
 --
 ALTER TABLE `news`
   ADD CONSTRAINT `news_banner_id_foreign` FOREIGN KEY (`banner_id`) REFERENCES `banners` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `news_campaign_id_foreign` FOREIGN KEY (`campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `orders`
+-- Các ràng buộc cho bảng `orders`
 --
 ALTER TABLE `orders`
   ADD CONSTRAINT `orders_campaign_id_foreign` FOREIGN KEY (`campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE SET NULL,
@@ -1611,27 +1613,27 @@ ALTER TABLE `orders`
   ADD CONSTRAINT `orders_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `order_details`
+-- Các ràng buộc cho bảng `order_details`
 --
 ALTER TABLE `order_details`
   ADD CONSTRAINT `order_details_order_id_foreign` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `order_details_product_variant_id_foreign` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT;
 
 --
--- Constraints for table `payments`
+-- Các ràng buộc cho bảng `payments`
 --
 ALTER TABLE `payments`
   ADD CONSTRAINT `payments_order_id_foreign` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `products`
+-- Các ràng buộc cho bảng `products`
 --
 ALTER TABLE `products`
   ADD CONSTRAINT `products_brand_id_foreign` FOREIGN KEY (`brand_id`) REFERENCES `brands` (`id`) ON DELETE RESTRICT,
   ADD CONSTRAINT `products_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE RESTRICT;
 
 --
--- Constraints for table `product_variants`
+-- Các ràng buộc cho bảng `product_variants`
 --
 ALTER TABLE `product_variants`
   ADD CONSTRAINT `product_variants_color_id_foreign` FOREIGN KEY (`color_id`) REFERENCES `colors` (`id`) ON DELETE RESTRICT,
@@ -1639,20 +1641,20 @@ ALTER TABLE `product_variants`
   ADD CONSTRAINT `product_variants_sale_campaign_id_foreign` FOREIGN KEY (`sale_campaign_id`) REFERENCES `campaigns` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `quote_requests`
+-- Các ràng buộc cho bảng `quote_requests`
 --
 ALTER TABLE `quote_requests`
   ADD CONSTRAINT `quote_requests_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `quote_request_details`
+-- Các ràng buộc cho bảng `quote_request_details`
 --
 ALTER TABLE `quote_request_details`
   ADD CONSTRAINT `quote_request_details_product_variant_id_foreign` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT,
   ADD CONSTRAINT `quote_request_details_quote_request_id_foreign` FOREIGN KEY (`quote_request_id`) REFERENCES `quote_requests` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `reviews`
+-- Các ràng buộc cho bảng `reviews`
 --
 ALTER TABLE `reviews`
   ADD CONSTRAINT `reviews_product_variant_id_foreign` FOREIGN KEY (`product_variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE,

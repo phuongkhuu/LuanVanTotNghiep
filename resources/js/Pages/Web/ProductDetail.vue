@@ -347,7 +347,7 @@
         <h2 class="font-headline-lg text-2xl md:text-3xl font-bold text-gray-900 mb-8 text-center">Các sản phẩm liên quan</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div v-for="item in relatedProducts" :key="item.id" class="flex flex-col group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100">
-            <Link :href="route('product.detail', { id: item.id })" class="block">
+            <Link :href="route('product.detail', { slug: item.slug })" class="block">
               <div class="aspect-[3/4] bg-gray-100 overflow-hidden relative">
                 <img :src="item.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" :alt="item.name">
               </div>
