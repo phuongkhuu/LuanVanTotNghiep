@@ -20,7 +20,7 @@ class ChatbotService
                 'type' => 'function',
                 'function' => [
                     'name' => 'get_products_by_filters',
-                    'description' => 'Tìm kiếm sản phẩm theo danh mục, thương hiệu, khoảng giá, chất liệu, tên, tình trạng tồn kho.',
+                    'description' => 'Tìm kiếm sản phẩm theo danh mục, thương hiệu, khoảng giá, chất liệu, tên, màu sắc, tình trạng tồn kho.',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
@@ -47,6 +47,10 @@ class ChatbotService
                             'name' => [
                                 'type' => 'string',
                                 'description' => 'Từ khóa trong tên sản phẩm'
+                            ],
+                            'color' => [
+                                'type' => 'string',
+                                'description' => 'Màu sắc sản phẩm (ví dụ: "Đen", "Xám", "Xanh Navy")'
                             ],
                             'in_stock' => [
                                 'type' => 'boolean',
@@ -189,6 +193,13 @@ class ChatbotService
         // Lọc theo chất liệu
         if (!empty($filters['material'])) {
             $query->where('material', 'like', '%' . $filters['material'] . '%');
+        }
+
+        // Lọc theo màu sắc
+        if (!empty($filters['color'])) {
+            $query->whereHas('variants.color', function ($q) use ($filters) {
+                $q->where('name', 'like', '%' . $filters['color'] . '%');
+            });
         }
 
         // Lọc theo khoảng giá (dùng giá gốc)
