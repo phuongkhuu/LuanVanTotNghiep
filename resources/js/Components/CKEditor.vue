@@ -2,21 +2,16 @@
     <ckeditor
         v-if="editor"
         :editor="editor"
-        v-model="content"
+        :model-value="content"
         :config="editorConfig"
         class="ck-editor-custom"
+        @ready="onEditorReady"
+        @input="onInput"
     />
 </template>
 
-<style scoped>
-.ck-editor-custom :deep(.ck-editor__editable) {
-    min-height: 200px;
-    max-height: 400px;
-}
-</style>
-
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, nextTick } from 'vue';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const props = defineProps({
@@ -30,18 +25,8 @@ const emit = defineEmits(['update:modelValue']);
 
 const editor = ClassicEditor;
 const content = ref(props.modelValue);
+let editorInstance = null;
 
-// Đồng bộ với prop modelValue
-watch(() => props.modelValue, (newVal) => {
-    content.value = newVal;
-});
-
-// Phát sự kiện khi nội dung thay đổi
-watch(content, (newVal) => {
-    emit('update:modelValue', newVal);
-});
-
-// Cấu hình editor (tùy chỉnh toolbar, plugins,...)
 const editorConfig = {
     toolbar: [
         'heading', '|',
@@ -50,6 +35,36 @@ const editorConfig = {
         'undo', 'redo'
     ],
 };
+
+const onEditorReady = (editor) => {
+    editorInstance = editor;
+    if (content.value) {
+        editor.setData(content.value);
+    }
+};
+
+const onInput = (event, editor) => {
+    const data = editor.getData();
+    content.value = data;
+    emit('update:modelValue', data);
+};
+
+// Đồng bộ khi modelValue thay đổi từ bên ngoài
+watch(() => props.modelValue, (newVal) => {
+    content.value = newVal;
+    if (editorInstance) {
+        editorInstance.setData(newVal);
+    }
+}, { immediate: true, flush: 'post' });
+
+// Đảm bảo sau khi mount, nếu editor đã sẵn sàng nhưng content có giá trị, set data
+onMounted(() => {
+    nextTick(() => {
+        if (editorInstance && content.value) {
+            editorInstance.setData(content.value);
+        }
+    });
+});
 </script>
 
 <style scoped>

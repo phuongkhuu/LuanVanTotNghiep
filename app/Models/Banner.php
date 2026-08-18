@@ -15,13 +15,13 @@ class Banner extends Model
         'link',
         'campaign_id',
         'order',
-        'status', // -1: Đã khóa, 0: Đang chờ, 1: Hoạt động
+        'status', 
     ];
 
     // Constants cho trạng thái
-    const STATUS_INACTIVE = -1;   // Đã khóa
-    const STATUS_PENDING = 0;     // Đang chờ
-    const STATUS_ACTIVE = 1;      // Hoạt động
+    const STATUS_INACTIVE = -1;   
+    const STATUS_PENDING = 0;    
+    const STATUS_ACTIVE = 1;     
 
     // Quan hệ với Campaign
     public function campaign()

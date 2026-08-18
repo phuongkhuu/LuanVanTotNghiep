@@ -259,11 +259,12 @@ class ChatbotService
         })->toArray();
     }
 
-    // ==================== HÀM LẤY KHUYẾN MÃI THƯỜNG ====================
+    // ==================== HÀM LẤY KHUYẾN MÃI THƯỜNG (CÓ BANNER) ====================
 
     private function getActiveCampaigns(): array
     {
-        $campaigns = Campaign::where('status', 'active')
+        $campaigns = Campaign::with('banner') // load quan hệ banner
+            ->where('status', 'active')
             ->whereNotIn('type', ['voucher', 'preorder'])
             ->where(function ($query) {
                 $query->whereNull('end_time')
@@ -300,6 +301,14 @@ class ChatbotService
                 $discountType = 'percent';
             }
 
+            // Lấy banner: ưu tiên từ quan hệ, nếu không có thì dùng trường banner
+            $bannerUrl = null;
+            if ($campaign->banner && $campaign->banner->image) {
+                $bannerUrl = $campaign->banner->image;
+            } elseif (!empty($campaign->banner)) {
+                $bannerUrl = $campaign->banner;
+            }
+
             return [
                 'id' => $campaign->id,
                 'name' => $campaign->name ?? 'Chương trình không tên',
@@ -314,6 +323,7 @@ class ChatbotService
                 'expiry' => $campaign->expiry?->format('d/m/Y'),
                 'has_quantity_config' => !is_null($discountInfo),
                 'config_detail' => $discountInfo,
+                'banner' => $bannerUrl, // thêm banner vào data
             ];
         })->toArray();
     }
@@ -375,7 +385,7 @@ class ChatbotService
 
         return $preorders->map(function ($preorder) {
             $tiers = $preorder->tiers ?? [];
-            $currentBuyers = $preorder->current_buyers ?? 0; // Lấy từ cột trong bảng campaigns
+            $currentBuyers = $preorder->current_buyers ?? 0;
             
             $currentDiscount = 0;
             foreach ($tiers as $tier) {
@@ -387,7 +397,6 @@ class ChatbotService
                 }
             }
 
-            // Tính số lượng đặt trước tối thiểu để đạt các mức giảm tiếp theo
             $nextTier = null;
             foreach ($tiers as $tier) {
                 if (($tier['from'] ?? 0) > $currentBuyers) {
@@ -423,12 +432,10 @@ class ChatbotService
 
         $query = Order::with(['orderDetails.productVariant.product']);
 
-        // Nếu user_id có, thêm điều kiện để chỉ lấy đơn của user đó
         if ($userId) {
             $query->where('user_id', $userId);
         }
 
-        // Tìm đơn hàng theo id hoặc order_number
         $order = $query->where(function ($q) use ($orderCode) {
             if (is_numeric($orderCode)) {
                 $q->where('id', $orderCode);
@@ -451,7 +458,7 @@ class ChatbotService
         return [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
-            'order_code' => $order->order_code, // retail, wholesale, preorder
+            'order_code' => $order->order_code,
             'status' => $statusMap[$order->order_status] ?? 'Không xác định',
             'status_code' => $order->order_status,
             'total_amount' => number_format($order->final_amount, 0, ',', '.') . ' VND',
@@ -490,13 +497,11 @@ class ChatbotService
             return ['error' => 'Không tìm thấy sản phẩm.'];
         }
 
-        // Lấy variant có giá thấp nhất và giá khuyến mãi (nếu có)
         $minVariant = $product->variants->sortBy('price')->first();
         $priceMin = $minVariant ? $minVariant->price : 0;
         $salePriceMin = $minVariant && $minVariant->sale_price ? $minVariant->sale_price : null;
         $isOnSale = $minVariant && $minVariant->is_on_sale;
 
-        // Lấy ảnh đại diện: ưu tiên thumbnail, nếu không có thì lấy ảnh đầu tiên từ image_url
         $image = $product->thumbnail;
         if (empty($image) && $product->image_url) {
             $images = is_array($product->image_url) ? $product->image_url : json_decode($product->image_url, true);

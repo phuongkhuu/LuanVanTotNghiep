@@ -107,6 +107,49 @@
                     </div>
                   </div>
 
+                  <!-- === KHU VỰC HIỂN THỊ DISCOUNT === -->
+                  <div v-if="discounts && discounts.length" class="pt-3 border-t border-slate-100">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-slate-600">🎯 Ưu đãi theo số lượng</span>
+                      <span v-if="currentDiscount" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Giảm {{ currentDiscount.discount_percent }}%
+                      </span>
+                      <span v-else class="text-xs text-slate-400">Chưa có ưu đãi</span>
+                    </div>
+
+                    <!-- Danh sách các mức discount -->
+                    <div class="mt-2 space-y-1">
+                      <div 
+                        v-for="d in sortedDiscounts" 
+                        :key="d.min_quantity"
+                        class="flex justify-between text-xs py-1 px-2 rounded-lg transition-colors"
+                        :class="d.min_quantity <= orderQuantity ? 'bg-emerald-50/60 text-emerald-700 font-medium' : 'text-slate-400'"
+                      >
+                        <span>Từ {{ d.min_quantity }} sản phẩm</span>
+                        <span>Giảm {{ d.discount_percent }}%</span>
+                      </div>
+                    </div>
+
+                    <!-- Thông tin chi tiết discount áp dụng -->
+                    <div v-if="currentDiscount" class="mt-3 p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/60">
+                      <div class="flex justify-between items-center text-sm">
+                        <span class="text-emerald-700 font-medium">Giá gốc:</span>
+                        <span class="text-slate-600">{{ formatPrice(subtotal) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center text-sm">
+                        <span class="text-emerald-700 font-medium">Giảm giá ({{ currentDiscount.discount_percent }}%):</span>
+                        <span class="text-rose-600 font-semibold">-{{ formatPrice(discountAmount) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center text-sm border-t border-emerald-200/60 pt-2 mt-2">
+                        <span class="text-emerald-700 font-bold">Thành tiền:</span>
+                        <span class="text-emerald-700 font-bold text-lg">{{ formatPrice(finalPrice) }}</span>
+                      </div>
+                    </div>
+                    <p v-else class="text-xs text-slate-400 mt-2">
+                      * Tăng số lượng để nhận ưu đãi tốt hơn.
+                    </p>
+                  </div>
+
                   <!-- Chọn Màu sắc & Size -->
                   <div class="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                     <div>
@@ -570,6 +613,42 @@ const colorOptions = computed(() => {
 const sizeOptions = computed(() => {
   if (!selectedProduct.value) return []
   return selectedProduct.value.sizes || []
+})
+
+// Sắp xếp discounts theo min_quantity tăng dần
+const sortedDiscounts = computed(() => {
+  return [...props.discounts].sort((a, b) => a.min_quantity - b.min_quantity)
+})
+
+// ===== CẬP NHẬT: Lấy discount có % cao nhất (ưu tiên cao nhất) =====
+const currentDiscount = computed(() => {
+  if (!props.discounts || props.discounts.length === 0) return null
+  const applicable = props.discounts
+    .filter(d => d.min_quantity <= orderQuantity.value)
+    .sort((a, b) => b.discount_percent - a.discount_percent)  // Ưu tiên % cao nhất
+  return applicable.length > 0 ? applicable[0] : null
+})
+
+// Giá đơn vị (lấy giá sale hoặc base)
+const unitPrice = computed(() => {
+  if (!selectedProduct.value) return 0
+  return selectedProduct.value.sale_price || selectedProduct.value.base_price || 0
+})
+
+// Tổng tiền trước discount
+const subtotal = computed(() => {
+  return unitPrice.value * orderQuantity.value
+})
+
+// Số tiền giảm
+const discountAmount = computed(() => {
+  if (!currentDiscount.value) return 0
+  return (subtotal.value * currentDiscount.value.discount_percent) / 100
+})
+
+// Thành tiền sau discount
+const finalPrice = computed(() => {
+  return subtotal.value - discountAmount.value
 })
 
 // Tính ngày tối thiểu: hôm nay + 14 ngày

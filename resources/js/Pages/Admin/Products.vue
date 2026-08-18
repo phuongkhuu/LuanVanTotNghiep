@@ -381,7 +381,7 @@
 
                     <div>
                         <label class="text-sm block mb-1 text-gray-700 font-medium">Mô tả</label>
-                        <CKEditor v-model="form.description" />
+                        <CKEditor :key="editingId" v-model="form.description" />
                         <p v-if="formErrors.description" class="text-xs text-red-500 mt-1">{{ formErrors.description }}</p>
                     </div>
 

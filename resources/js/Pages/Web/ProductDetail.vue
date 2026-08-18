@@ -133,7 +133,15 @@
               </span>
             </div>
             
-            <p class="text-gray-600 text-sm leading-relaxed">{{ product.description || 'Thiết kế tối giản, chất liệu cao cấp, bền bỉ.' }}</p>
+            <!-- ===== HIỂN THỊ MÔ TẢ BẰNG v-html ===== -->
+            <div 
+              v-if="product.description" 
+              class="text-gray-600 text-sm leading-relaxed description-content"
+              v-html="product.description"
+            ></div>
+            <p v-else class="text-gray-600 text-sm leading-relaxed">
+              Thiết kế tối giản, chất liệu cao cấp, bền bỉ.
+            </p>
             
             <!-- Hiển thị tồn kho -->
             <p v-if="!product.is_preorder && selectedVariant" class="text-sm text-gray-500">
@@ -987,5 +995,28 @@ onBeforeUnmount(() => {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ===== STYLE CHO MÔ TẢ SẢN PHẨM ===== */
+.description-content p {
+  margin-bottom: 8px;
+}
+.description-content ul,
+.description-content ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+.description-content li {
+  margin-bottom: 4px;
+}
+.description-content strong {
+  font-weight: 600;
+}
+.description-content h1,
+.description-content h2,
+.description-content h3 {
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 8px;
 }
 </style>

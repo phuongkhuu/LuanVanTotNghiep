@@ -16,7 +16,7 @@ class ChatbotMessageController extends Controller
     private const SYSTEM_INSTRUCTION = [
         'parts' => [
             [
-                'text' => 'Bạn là trợ lý ảo của cửa hàng balo BigBag. Chỉ trả lời các câu hỏi về sản phẩm, khuyến mãi, voucher, đơn hàng và preorder. Nếu câu hỏi không thuộc phạm vi, hãy từ chối lịch sự. Trả lời bằng tiếng Việt, giọng điệu thân thiện, tự nhiên. Tuyệt đối không sử dụng bất kỳ cú pháp Markdown nào: không in đậm, không gạch đầu dòng, không dấu sao, không dấu gạch ngang, không heading. Trình bày thông tin thành các câu văn liền mạch, dễ đọc. Khi liệt kê nhiều sản phẩm hoặc chương trình, hãy viết thành đoạn văn hoặc tách bằng dấu chấm câu. Bạn có thể chèn thẻ HTML <img> để hiển thị ảnh sản phẩm khi được yêu cầu, nhưng không dùng bất kỳ thẻ HTML nào khác ngoài img.'
+                'text' => 'Bạn là trợ lý ảo của cửa hàng balo BigBag. Chỉ trả lời các câu hỏi về sản phẩm, khuyến mãi, voucher, đơn hàng và preorder. Nếu câu hỏi không thuộc phạm vi, hãy từ chối lịch sự. Trả lời bằng tiếng Việt, giọng điệu thân thiện, tự nhiên. Tuyệt đối không sử dụng bất kỳ cú pháp Markdown nào: không in đậm, không gạch đầu dòng, không dấu sao, không dấu gạch ngang, không heading. Trình bày thông tin thành các câu văn liền mạch, dễ đọc. Khi liệt kê nhiều sản phẩm hoặc chương trình, hãy viết thành đoạn văn hoặc tách bằng dấu chấm câu. Bạn có thể chèn thẻ HTML <img> để hiển thị ảnh sản phẩm hoặc banner khi được yêu cầu, nhưng không dùng bất kỳ thẻ HTML nào khác ngoài img.'
             ]
         ]
     ];
@@ -72,7 +72,7 @@ class ChatbotMessageController extends Controller
                     ]
                 ]
             ],
-            'system_instruction' => self::SYSTEM_INSTRUCTION, // Thêm system instruction
+            'system_instruction' => self::SYSTEM_INSTRUCTION,
             'tools' => $geminiTools,
             'generationConfig' => [
                 'temperature' => 0.3,
@@ -205,14 +205,8 @@ class ChatbotMessageController extends Controller
                 return json_encode($limited, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
             case 'get_active_campaigns':
-                $count = count($result);
-                $summaries = array_map(function($item) {
-                    $discount = $item['discount_value'] ?? 0;
-                    $type = $item['discount_type'] === 'percent' ? '%' : ' VND';
-                    return "{$item['name']} (giảm {$discount}{$type})";
-                }, array_slice($result, 0, 3));
-                $extra = $count > 3 ? " và " . ($count - 3) . " chương trình khác" : "";
-                return "Có {$count} chương trình khuyến mãi: " . implode(', ', $summaries) . $extra;
+                // Giữ nguyên dữ liệu đầy đủ (bao gồm banner) để Gemini sử dụng
+                return json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
             case 'get_vouchers':
                 $count = count($result);
@@ -257,7 +251,8 @@ class ChatbotMessageController extends Controller
         if ($functionName === 'get_products_by_filters' || $functionName === 'get_product_by_slug') {
             $instruction = " Hãy mô tả sản phẩm bằng văn bản thuần túy, KHÔNG dùng dấu đầu dòng, không in đậm, không dùng dấu sao hay gạch ngang. Viết thành các câu văn liền mạch. Với mỗi sản phẩm, chèn thẻ <img> để hiển thị ảnh (src từ 'thumbnail', alt là tên sản phẩm, style='max-width:120px;height:auto;border-radius:8px;'), sau đó mô tả tên, thương hiệu, giá và đặc điểm nổi bật.";
         } elseif ($functionName === 'get_active_campaigns') {
-            $instruction = " Hãy mô tả các chương trình khuyến mãi bằng văn bản tự nhiên, KHÔNG dùng dấu đầu dòng, không in đậm. Trình bày thông tin thành đoạn văn, bao gồm tên chương trình, mức giảm, thời gian và điều kiện (nếu có).";
+            // ===== THÊM HƯỚNG DẪN CHÈN BANNER =====
+            $instruction = " Hãy mô tả các chương trình khuyến mãi bằng văn bản tự nhiên, KHÔNG dùng dấu đầu dòng, không in đậm. Trình bày thông tin thành đoạn văn, bao gồm tên chương trình, mức giảm, thời gian và điều kiện (nếu có). Nếu có ảnh banner (trường 'banner'), hãy chèn thẻ <img> với src từ 'banner' và alt là tên chương trình, style='max-width:200px;height:auto;border-radius:8px;margin:6px 0;'. Đặt ảnh phía trên hoặc trong đoạn mô tả.";
         } elseif ($functionName === 'get_vouchers') {
             $instruction = " Hãy liệt kê các voucher bằng văn bản tự nhiên, KHÔNG dùng dấu đầu dòng. Mỗi voucher nêu mã, mức giảm, điều kiện và hạn dùng, viết thành câu văn.";
         } elseif ($functionName === 'get_preorder_info') {
@@ -277,7 +272,7 @@ class ChatbotMessageController extends Controller
                     ]
                 ]
             ],
-            'system_instruction' => self::SYSTEM_INSTRUCTION, // Thêm system instruction
+            'system_instruction' => self::SYSTEM_INSTRUCTION,
             'generationConfig' => [
                 'temperature' => 0.3,
                 'maxOutputTokens' => 4096,
