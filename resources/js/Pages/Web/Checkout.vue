@@ -305,12 +305,22 @@
                     class="flex-1 border border-gray-200 bg-gray-50 p-2.5 rounded-lg text-sm focus:border-primary focus:ring-0"
                     :disabled="promoApplied"
                   >
+                  <!-- Nút Áp dụng (hiển thị khi chưa áp dụng) -->
                   <button 
+                    v-if="!promoApplied"
                     @click="applyPromoCode" 
-                    :disabled="promoApplied || !promoCode || loading"
+                    :disabled="!promoCode || loading"
                     class="px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {{ promoApplied ? 'Đã áp dụng' : 'Áp dụng' }}
+                    Áp dụng
+                  </button>
+                  <!-- Nút Hủy (hiển thị khi đã áp dụng) -->
+                  <button 
+                    v-else
+                    @click="removePromoCode" 
+                    class="px-4 py-2.5 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-all"
+                  >
+                    Hủy
                   </button>
                 </div>
                 <div v-if="promoMessage" class="mt-2 text-sm" :class="promoApplied ? 'text-green-600' : 'text-red-600'">
@@ -338,7 +348,19 @@
                 </div>
               </div>
 
-              <button @click="placeOrder" :disabled="loading" class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
+              <!-- ===== HIỂN THỊ CẢNH BÁO NẾU TỔNG TIỀN = 0 ===== -->
+              <div v-if="finalTotal <= 10000" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-700 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-red-500">error</span>
+                  Số tiền thanh toán phải lớn hơn 10.000 VNĐ. Vui lòng kiểm tra lại sản phẩm.
+                </p>
+              </div>
+
+              <button 
+                @click="placeOrder" 
+                :disabled="loading || finalTotal <= 0" 
+                class="w-full bg-primary text-white font-semibold py-5 rounded-lg shadow-sm hover:bg-primary-dark transition-all font-bold uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <span v-if="!loading">
                   {{ is_customize ? 'Gửi yêu cầu tùy chỉnh' : (is_pre_order ? 'Đặt trước ngay' : 'Đặt hàng ngay') }}
                 </span>
@@ -386,7 +408,7 @@ const props = defineProps({
   final_total: { type: Number, default: 0 },
   order_type: { type: String, default: 'retail' },
   is_pre_order: { type: Boolean, default: false },
-  is_customize: { type: Boolean, default: false }, // <-- Thêm prop
+  is_customize: { type: Boolean, default: false },
   voucher_code: { type: String, default: null },
   voucher_discount: { type: Number, default: 0 }
 })
@@ -515,6 +537,12 @@ const removePromoCode = async () => {
 }
 
 const placeOrder = () => {
+  // ===== KIỂM TRA TỔNG TIỀN =====
+  if (finalTotal.value <= 0) {
+    alert('Số tiền thanh toán phải lớn hơn 0. Vui lòng kiểm tra lại sản phẩm.')
+    return
+  }
+
   if (!isAuthenticated.value || !props.user) {
     alert('Vui lòng đăng nhập để thanh toán')
     sessionStorage.setItem('redirectAfterLogin', window.location.href)

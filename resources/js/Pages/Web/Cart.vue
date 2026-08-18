@@ -101,43 +101,8 @@
               <span class="md:hidden font-semibold text-gray-500 block text-sm">Tạm tính:</span>
               <span class="font-semibold text-primary font-bold">{{ formatPrice(item.price * item.quantity) }}</span>
             </div>
-          </div>
-
-          <!-- Coupon Section -->
-          <div class="flex flex-col md:flex-row gap-4 mt-6 items-center">
-            <div class="w-full md:w-auto flex-grow">
-              <input 
-                v-model="couponCode" 
-                class="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-gray-700 focus:border-primary focus:ring-0" 
-                placeholder="Nhập mã giảm giá..." 
-                type="text"
-                :disabled="appliedCoupon !== null"
-              >
-            </div>
-            <button 
-              v-if="appliedCoupon === null"
-              @click="handleApplyCoupon" 
-              class="w-full md:w-auto bg-primary text-white font-semibold py-3 px-8 rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Áp dụng
-            </button>
-            <button 
-              v-else
-              @click="handleRemoveCoupon" 
-              class="w-full md:w-auto bg-red-500 text-white font-semibold py-3 px-8 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Xóa mã
-            </button>
-          </div>
+          </div>     
           
-          <!-- Coupon message -->
-          <div v-if="appliedCoupon" class="mt-2 text-sm text-green-600 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">check_circle</span>
-            Đã áp dụng mã: <strong>{{ appliedCoupon.code }}</strong> (giảm {{ formatPrice(discountAmount) }})
-          </div>
-          <div v-else-if="couponError" class="mt-2 text-sm text-red-500">
-            {{ couponError }}
-          </div>
         </div>
 
         <!-- Order Summary -->
